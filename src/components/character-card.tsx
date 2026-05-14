@@ -43,7 +43,7 @@ export function CharacterCard({ familyName, className, spec, ap, dp, avatarUrl }
               <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full border-2 border-bdo-gold/40 shadow-lg" />
             )}
             <div>
-              <h2 className="text-xl font-bold text-bdo-gold">
+              <h2 className="text-xl font-bold text-red-500">
                 {familyName || "Kahraman"}
               </h2>
               <div className="flex items-center gap-2">
