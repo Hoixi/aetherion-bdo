@@ -63,6 +63,18 @@ export async function editMessage(
   });
 }
 
+// Delete existing message
+export async function deleteMessage(messageId: string) {
+  if (!BOT_TOKEN || !CHANNEL_ID) return;
+
+  await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages/${messageId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bot ${BOT_TOKEN}`,
+    },
+  });
+}
+
 const TYPE_EMOJI: Record<string, string> = {
   NODE_WAR: "⚔️",
   SIEGE: "🏰",
@@ -200,8 +212,14 @@ export async function sendAnnouncementToDiscord(announcement: {
   title: string;
   content: string;
   creator: string;
-}) {
-  await sendMessage("@everyone", [
+  oldMessageId?: string;
+}): Promise<string | null> {
+  // Delete previous announcement if exists
+  if (announcement.oldMessageId) {
+    await deleteMessage(announcement.oldMessageId);
+  }
+
+  const messageId = await sendMessage("@everyone", [
     {
       title: `📢 ${announcement.title}`,
       description: announcement.content,
@@ -210,6 +228,8 @@ export async function sendAnnouncementToDiscord(announcement: {
       timestamp: new Date().toISOString(),
     },
   ]);
+
+  return messageId;
 }
 
 // Update war embed with current participation counts

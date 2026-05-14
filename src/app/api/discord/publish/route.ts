@@ -34,11 +34,29 @@ export async function POST(req: Request) {
       include: { creator: { select: { familyName: true } } },
     });
     if (!ann) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await sendAnnouncementToDiscord({
+
+    // Get previous announcement to delete its Discord message
+    const prevAnnouncement = await prisma.announcement.findFirst({
+      where: { id: { not: ann.id } },
+      orderBy: { createdAt: "desc" },
+      select: { discordMessageId: true },
+    });
+
+    const messageId = await sendAnnouncementToDiscord({
       title: ann.title,
       content: ann.content,
       creator: ann.creator.familyName,
+      oldMessageId: prevAnnouncement?.discordMessageId || undefined,
     });
+
+    // Save Discord message ID
+    if (messageId) {
+      await prisma.announcement.update({
+        where: { id: ann.id },
+        data: { discordMessageId: messageId },
+      });
+    }
+
     return NextResponse.json({ ok: true });
   }
 

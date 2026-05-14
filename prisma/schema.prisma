@@ -132,11 +132,12 @@ model PartyMember {
 }
 
 model Announcement {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String   @db.Text
-  createdBy Int
-  createdAt DateTime @default(now())
+  id               Int      @id @default(autoincrement())
+  title            String
+  content          String   @db.Text
+  createdBy        Int
+  discordMessageId String?
+  createdAt        DateTime @default(now())
 
   creator User @relation(fields: [createdBy], references: [id])
 
