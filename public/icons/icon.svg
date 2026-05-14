@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f0f1e"/>
+  <text x="256" y="200" text-anchor="middle" font-size="120" fill="#d4a853" font-family="serif" font-weight="bold">A</text>
+  <text x="256" y="340" text-anchor="middle" font-size="48" fill="#d4a853" font-family="serif" letter-spacing="8">ETHERION</text>
+  <line x1="120" y1="360" x2="392" y2="360" stroke="#d4a853" stroke-width="2" opacity="0.5"/>
+  <path d="M226 400 L256 380 L286 400 L276 430 L236 430 Z" fill="#d4a853" opacity="0.6"/>
+</svg>

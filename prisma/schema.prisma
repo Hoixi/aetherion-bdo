@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  discordId   String   @unique
+  familyName  String   @default("")
+  ap          Int      @default(0)
+  dp          Int      @default(0)
+  class       String   @default("")
+  spec        String   @default("awakening")
+  avatarUrl   String   @default("")
+  isAdmin     Boolean   @default(false)
+  siteRoleId  Int?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  siteRole       SiteRole?        @relation(fields: [siteRoleId], references: [id], onDelete: SetNull)
+  participations WarParticipant[]
+  partyMembers   PartyMember[]
+  createdWars    War[]
+  announcements  Announcement[]
+  gsHistory      GsHistory[]
+  notifications  Notification[]
+  mobileTokens   MobileToken[]
+  bossParties    BossParty[]
+  bossPartyJoins BossPartyMember[]
+  warPerformances WarPerformance[]
+
+  @@map("users")
+}
+
+model SiteRole {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  isAdmin        Boolean  @default(false)
+  color          String   @default("#d4a853")
+  discordRoleIds String   @db.Text
+  createdAt      DateTime @default(now())
+
+  users User[]
+
+  @@map("site_roles")
+}
+
+enum WarResult {
+  WIN
+  LOSS
+  DRAW
+}
+
+enum WarType {
+  NODE_WAR
+  SIEGE
+  KARA_TAPINAK
+  OTHER
+}
+
+enum ParticipantStatus {
+  ATTENDING
+  DECLINED
+}
+
+model War {
+  id               Int        @id @default(autoincrement())
+  title            String
+  type             WarType
+  date             DateTime
+  notes            String?    @db.Text
+  deadline         DateTime?
+  result           WarResult?
+  maxParticipants  Int?
+  discordMessageId String?
+  reminder10hSent  Boolean    @default(false)
+  reminder4hSent   Boolean    @default(false)
+  createdBy        Int
+  createdAt        DateTime   @default(now())
+
+  creator      User             @relation(fields: [createdBy], references: [id])
+  participants WarParticipant[]
+  parties      Party[]
+  performances WarPerformance[]
+
+  @@map("wars")
+}
+
+model WarParticipant {
+  id          Int               @id @default(autoincrement())
+  warId       Int
+  userId      Int
+  status      ParticipantStatus
+  respondedAt DateTime          @default(now())
+
+  war  War  @relation(fields: [warId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([warId, userId])
+  @@map("war_participants")
+}
+
+model Party {
+  id        Int     @id @default(autoincrement())
+  warId     Int
+  name      String
+  order     Int     @default(0)
+  isDefense Boolean @default(false)
+
+  war     War           @relation(fields: [warId], references: [id], onDelete: Cascade)
+  members PartyMember[]
+
+  @@map("parties")
+}
+
+model PartyMember {
+  id      Int @id @default(autoincrement())
+  partyId Int
+  userId  Int
+  order   Int @default(0)
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId])
+  @@map("party_members")
+}
+
+model Announcement {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  createdBy Int
+  createdAt DateTime @default(now())
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@map("announcements")
+}
+
+model GsHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  ap        Int
+  dp        Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("gs_history")
+}
+
+enum NotificationType {
+  NEW_WAR
+  PARTY_ASSIGNED
+  DEADLINE_SOON
+  WAR_RESULT
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@map("notifications")
+}
+
+model MobileToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique @db.VarChar(64)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mobile_tokens")
+}
+
+model BossParty {
+  id               Int      @id @default(autoincrement())
+  bossName         String
+  creatorId        Int
+  discordMessageId String?
+  channelId        String?
+  maxSize          Int      @default(5)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  creator User              @relation(fields: [creatorId], references: [id])
+  members BossPartyMember[]
+
+  @@map("boss_parties")
+}
+
+model BossPartyMember {
+  id      Int @id @default(autoincrement())
+  partyId Int
+  userId  Int
+
+  party BossParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId])
+  @@map("boss_party_members")
+}
+
+model WarPerformance {
+  id             Int      @id @default(autoincrement())
+  warId          Int
+  userId         Int?
+  inGameName     String
+  kills          Int      @default(0)
+  deaths         Int      @default(0)
+  killStreak     Int      @default(0)
+  damageDealt    Float    @default(0)
+  damageTaken    Float    @default(0)
+  ccCount        Int      @default(0)
+  hpHeal         Float    @default(0)
+  allyHpHeal     Float    @default(0)
+  castleDamage   Float    @default(0)
+  cannonHits     Int      @default(0)
+  cannonDestroys Int      @default(0)
+  cannonMaxRange Int      @default(0)
+  trapExplosions Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  war  War   @relation(fields: [warId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([warId, inGameName])
+  @@map("war_performances")
+}
