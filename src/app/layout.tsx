@@ -40,6 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main className="max-w-7xl mx-auto px-4 py-4 pb-20 md:pb-6">{children}</main>
           <MobileNav />
+          <footer className="hidden md:block text-center py-4 text-xs text-bdo-text-muted/50 select-none">
+            Made by <span className="text-bdo-gold/70">Hoixi</span> with <span className="text-red-400">♥</span> &nbsp;·&nbsp; v1.0.0
+          </footer>
         </Providers>
         <script
           dangerouslySetInnerHTML={{
