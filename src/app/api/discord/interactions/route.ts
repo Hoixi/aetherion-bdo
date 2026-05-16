@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateWarEmbed, sendWarToDiscord } from "@/lib/discord-bot";
 import { getClassByID } from "@/lib/classes";
-import { buildActivityEmbed, updateActivityMessage } from "@/app/api/activities/route";
+import { buildActivityEmbed, updateActivityMessage } from "@/lib/activity-discord";
 import nacl from "tweetnacl";
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
