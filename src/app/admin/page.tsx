@@ -73,6 +73,8 @@ export default function AdminPage() {
   const [dmSending, setDmSending] = useState<number | null>(null);
   const [dmSendingAll, setDmSendingAll] = useState(false);
   const [dmAllResult, setDmAllResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [registeringCmds, setRegisteringCmds] = useState(false);
+  const [registerCmdsResult, setRegisterCmdsResult] = useState<string | null>(null);
 
   async function setWarResult(warId: number, result: string | null) {
     setSettingResult(warId);
@@ -193,6 +195,19 @@ export default function AdminPage() {
     setDmAllResult({ sent, failed });
     setMessage(`Toplu DM: ${sent} gönderildi${failed > 0 ? `, ${failed} başarısız` : ""}`);
     setTimeout(() => setMessage(null), 5000);
+  }
+
+  async function registerDiscordCommands() {
+    setRegisteringCmds(true);
+    setRegisterCmdsResult(null);
+    const res = await fetch("/api/discord/register-commands", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      setRegisterCmdsResult(`✅ ${data.registered} komut başarıyla kaydedildi.`);
+    } else {
+      setRegisterCmdsResult(`❌ Hata: ${JSON.stringify(data.error)}`);
+    }
+    setRegisteringCmds(false);
   }
 
   async function deleteMember(memberId: number, name: string) {
@@ -544,6 +559,26 @@ export default function AdminPage() {
                   <p className="text-xs text-green-400">✅ Tüm üyeler profillerini doldurmuş!</p>
                 )}
               </div>
+            )}
+          </div>
+
+          {/* Register Discord Commands */}
+          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">Discord Slash Komutları</h3>
+                <p className="text-xs text-bdo-text-muted mt-0.5">Yeni komutları Discord'a kaydetmek için tıkla.</p>
+              </div>
+              <button
+                onClick={registerDiscordCommands}
+                disabled={registeringCmds}
+                className="text-sm bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-50 font-semibold"
+              >
+                {registeringCmds ? "Kaydediliyor..." : "🤖 Komutları Kaydet"}
+              </button>
+            </div>
+            {registerCmdsResult && (
+              <p className="text-xs mt-2 text-bdo-text-muted">{registerCmdsResult}</p>
             )}
           </div>
 

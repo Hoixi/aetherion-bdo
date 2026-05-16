@@ -257,12 +257,13 @@ enum ActivityType {
 }
 
 model Activity {
-  id        Int          @id @default(autoincrement())
-  type      ActivityType
-  maxSize   Int
-  creatorId Int
-  expiresAt DateTime
-  createdAt DateTime     @default(now())
+  id               Int          @id @default(autoincrement())
+  type             ActivityType
+  maxSize          Int
+  creatorId        Int
+  expiresAt        DateTime
+  discordMessageId String?
+  createdAt        DateTime     @default(now())
 
   creator User             @relation(fields: [creatorId], references: [id])
   members ActivityMember[]

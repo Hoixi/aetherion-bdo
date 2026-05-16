@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateWarEmbed, sendWarToDiscord } from "@/lib/discord-bot";
 import { getClassByID } from "@/lib/classes";
+import { buildActivityEmbed, updateActivityMessage } from "@/app/api/activities/route";
 import nacl from "tweetnacl";
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
@@ -227,6 +228,109 @@ async function updateBossPartyMessage(party: BossPartyFull, active: boolean) {
     headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
     body: JSON.stringify({ embeds: [embed], components }),
   });
+}
+
+// ─── ACTIVITY BUTTON HANDLER ────────────────────────────────
+
+async function handleActivityButton(customId: string, discordUserId: string) {
+  const katilMatch = customId.match(/^act_katil_(\d+)$/);
+  const ayrilMatch = customId.match(/^act_ayril_(\d+)$/);
+  const iptalMatch = customId.match(/^act_iptal_(\d+)$/);
+  if (!katilMatch && !ayrilMatch && !iptalMatch) return null;
+
+  const activityId = parseInt(katilMatch?.[1] || ayrilMatch?.[1] || iptalMatch?.[1] || "0");
+
+  const user = await prisma.user.findUnique({ where: { discordId: discordUserId } });
+  if (!user) return ephemeral("❌ Hesabın sitede bulunamadı. Önce siteye giriş yap.");
+
+  const activity = await prisma.activity.findUnique({
+    where: { id: activityId },
+    include: {
+      creator: { select: { id: true, familyName: true, avatarUrl: true } },
+      members: { include: { user: { select: { id: true, familyName: true, avatarUrl: true, ap: true, dp: true } } } },
+    },
+  });
+
+  if (!activity) return ephemeral("❌ Bu etkinlik bulunamadı veya sona erdi.");
+  if (new Date() > activity.expiresAt) return ephemeral("⏰ Bu etkinliğin süresi dolmuş.");
+
+  // ── Katıl ──
+  if (katilMatch) {
+    if (activity.members.length >= activity.maxSize) return ephemeral("❌ Etkinlik dolu!");
+    if (activity.members.some((m) => m.user.id === user.id)) return ephemeral("❌ Zaten bu etkinliktesin!");
+
+    await prisma.activityMember.create({ data: { activityId, userId: user.id } });
+
+    const updated = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        creator: { select: { id: true, familyName: true, avatarUrl: true } },
+        members: { include: { user: { select: { id: true, familyName: true, avatarUrl: true, ap: true, dp: true } } } },
+      },
+    });
+
+    if (updated?.discordMessageId) {
+      await updateActivityMessage(updated.discordMessageId, {
+        ...updated,
+        members: updated.members.map((m) => ({ user: m.user })),
+      });
+    }
+
+    return ephemeral(`✅ **${user.familyName || "Üye"}** etkinliğe katıldı!`);
+  }
+
+  // ── Ayrıl ──
+  if (ayrilMatch) {
+    if (!activity.members.some((m) => m.user.id === user.id)) return ephemeral("❌ Bu etkinlikte değilsin.");
+    if (activity.creator.id === user.id) return ephemeral("❌ Kurucu olarak ayrılamazsın. İptal butonunu kullan.");
+
+    await prisma.activityMember.deleteMany({ where: { activityId, userId: user.id } });
+
+    const updated = await prisma.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        creator: { select: { id: true, familyName: true, avatarUrl: true } },
+        members: { include: { user: { select: { id: true, familyName: true, avatarUrl: true, ap: true, dp: true } } } },
+      },
+    });
+
+    if (updated?.discordMessageId) {
+      await updateActivityMessage(updated.discordMessageId, {
+        ...updated,
+        members: updated.members.map((m) => ({ user: m.user })),
+      });
+    }
+
+    return ephemeral(`🚪 **${user.familyName || "Üye"}** etkinlikten ayrıldı.`);
+  }
+
+  // ── İptal ──
+  if (iptalMatch) {
+    const isAdmin = user.isAdmin;
+    if (activity.creator.id !== user.id && !isAdmin) return ephemeral("❌ Sadece etkinliği oluşturan kişi iptal edebilir.");
+
+    if (activity.discordMessageId) {
+      const { embed, components } = buildActivityEmbed({
+        ...activity,
+        members: activity.members.map((m) => ({ user: m.user })),
+      }, false);
+      await fetch(`https://discord.com/api/v10/channels/${process.env.ACTIVITY_CHANNEL_ID || "1366043560608137277"}/messages/${activity.discordMessageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+        body: JSON.stringify({ embeds: [embed], components }),
+      });
+      // Delete the message after a moment for cleanup
+      await fetch(`https://discord.com/api/v10/channels/${process.env.ACTIVITY_CHANNEL_ID || "1366043560608137277"}/messages/${activity.discordMessageId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bot ${BOT_TOKEN}` },
+      });
+    }
+
+    await prisma.activity.delete({ where: { id: activityId } });
+    return ephemeral(`❌ Etkinlik iptal edildi.`);
+  }
+
+  return null;
 }
 
 async function sendChannelMessage(channelId: string, content: string | null, embeds: unknown[]) {
@@ -716,6 +820,108 @@ async function handleCommand(
     return embedResponse([embed]);
   }
 
+  // ─── /etkinlikler ───
+  if (name === "etkinlikler") {
+    const now = new Date();
+    const activities = await prisma.activity.findMany({
+      where: { expiresAt: { gt: now } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        creator: { select: { familyName: true } },
+        members: { include: { user: { select: { familyName: true } } } },
+      },
+    });
+
+    if (activities.length === 0) return ephemeral("📭 Şu anda aktif etkinlik yok.");
+
+    const TYPE_LABELS: Record<string, string> = {
+      KARA_TAPINAK: "🏰 Kara Tapınak",
+      KAN_ALTARI: "🩸 Kan Altarı",
+      PARTI_SLOTLARI: "⚔️ Parti Slotları",
+    };
+
+    const fields = activities.map((a) => {
+      const diffMs = a.expiresAt.getTime() - now.getTime();
+      const diffMin = Math.max(0, Math.floor(diffMs / 60000));
+      const timeLeft = diffMin > 60 ? `${Math.floor(diffMin / 60)}sa ${diffMin % 60}dk` : `${diffMin}dk`;
+      const slots = `${a.members.length}/${a.maxSize}`;
+      const isFull = a.members.length >= a.maxSize;
+      const status = isFull ? "✅ Dolu" : `🟡 ${a.maxSize - a.members.length} yer var`;
+      const memberList = a.members.map((m) => m.user.familyName || "?").join(", ") || "—";
+      return {
+        name: `${TYPE_LABELS[a.type] ?? a.type} (${slots}) — ${status}`,
+        value: `Kurucu: **${a.creator.familyName || "?"}** • ⏱ ${timeLeft} kaldı\nKatılımcılar: ${memberList}`,
+      };
+    });
+
+    return publicEmbed([{
+      title: "🗓️ Aktif Etkinlikler",
+      color: GOLD,
+      fields,
+      footer: { text: `${activities.length} etkinlik • ${SITE_URL}/etkinlikler` },
+    }]);
+  }
+
+  // ─── /etkinlik-olustur ───
+  if (name === "etkinlik-olustur") {
+    const TYPE_LABELS: Record<string, string> = {
+      KARA_TAPINAK: "🏰 Kara Tapınak",
+      KAN_ALTARI: "🩸 Kan Altarı",
+      PARTI_SLOTLARI: "⚔️ Parti Slotları",
+    };
+
+    const user = await prisma.user.findUnique({ where: { discordId: discordUserId } });
+    if (!user) return ephemeral("❌ Hesabın sitede bulunamadı. Önce siteye giriş yap.");
+
+    const type = (getOption(options, "tip") as string | undefined)?.toUpperCase();
+    const validTypes = ["KARA_TAPINAK", "KAN_ALTARI", "PARTI_SLOTLARI"];
+    if (!type || !validTypes.includes(type)) {
+      return ephemeral("❌ Geçersiz etkinlik tipi. Seçenekler: `kara_tapinak`, `kan_altari`, `parti_slotlari`");
+    }
+
+    const rawSize = getOption(options, "boyut") as number | undefined;
+    const size =
+      type === "KARA_TAPINAK" ? 5 :
+      type === "KAN_ALTARI" ? 3 :
+      [3, 5].includes(rawSize ?? 0) ? rawSize! : 5;
+
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
+    const activity = await prisma.activity.create({
+      data: {
+        type: type as "KARA_TAPINAK" | "KAN_ALTARI" | "PARTI_SLOTLARI",
+        maxSize: size,
+        creatorId: user.id,
+        expiresAt,
+        members: { create: { userId: user.id } },
+      },
+      include: {
+        creator: { select: { id: true, familyName: true, avatarUrl: true } },
+        members: { include: { user: { select: { id: true, familyName: true, avatarUrl: true, ap: true, dp: true } } } },
+      },
+    });
+
+    // Send to activity channel
+    const ACTIVITY_CHANNEL_ID = "1366043560608137277";
+    const { embed, components } = buildActivityEmbed({
+      ...activity,
+      members: activity.members.map((m) => ({ user: m.user })),
+    });
+
+    const msgRes = await fetch(`https://discord.com/api/v10/channels/${ACTIVITY_CHANNEL_ID}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+      body: JSON.stringify({ embeds: [embed], components }),
+    });
+
+    if (msgRes.ok) {
+      const msgData = await msgRes.json();
+      await prisma.activity.update({ where: { id: activity.id }, data: { discordMessageId: msgData.id } });
+    }
+
+    return ephemeral(`✅ **${TYPE_LABELS[type]}** etkinliği oluşturuldu! 2 saat sonra otomatik silinir.`);
+  }
+
   // ─── /yardım ───
   if (name === "yardım") {
     return publicEmbed([
@@ -741,6 +947,14 @@ async function handleCommand(
               "`/savaşlar` — Tüm savaş geçmişi",
               "`/katılım` — Kendi katılım istatistiklerin",
               "`/katılım-liste` — Bir savaşın katılım listesi",
+            ].join("\n"),
+          },
+          {
+            name: "🗓️ Etkinlikler",
+            value: [
+              "`/etkinlikler` — Aktif etkinlikleri listele",
+              "`/etkinlik-olustur tip:<tip>` — Etkinlik oluştur (kara_tapinak / kan_altari / parti_slotlari)",
+              "Etkinlik mesajındaki **butonları** kullan (Katıl / Ayrıl / İptal)",
             ].join("\n"),
           },
           {
@@ -805,6 +1019,10 @@ export async function POST(req: NextRequest) {
     // Boss party buttons
     const bpResult = await handleBossPartyButton(customId, discordUserId, interaction.id, interaction.token);
     if (bpResult) return bpResult;
+
+    // Activity buttons
+    const actResult = await handleActivityButton(customId, discordUserId);
+    if (actResult) return actResult;
 
     return ephemeral("❌ Bilinmeyen işlem.");
   }
