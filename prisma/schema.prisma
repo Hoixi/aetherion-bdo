@@ -30,9 +30,11 @@ model User {
   gsHistory      GsHistory[]
   notifications  Notification[]
   mobileTokens   MobileToken[]
-  bossParties    BossParty[]
-  bossPartyJoins BossPartyMember[]
-  warPerformances WarPerformance[]
+  bossParties       BossParty[]
+  bossPartyJoins    BossPartyMember[]
+  warPerformances   WarPerformance[]
+  createdActivities Activity[]
+  activityJoins     ActivityMember[]
 
   @@map("users")
 }
@@ -246,4 +248,36 @@ model WarPerformance {
 
   @@unique([warId, inGameName])
   @@map("war_performances")
+}
+
+enum ActivityType {
+  KARA_TAPINAK
+  KAN_ALTARI
+  PARTI_SLOTLARI
+}
+
+model Activity {
+  id        Int          @id @default(autoincrement())
+  type      ActivityType
+  maxSize   Int
+  creatorId Int
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  creator User             @relation(fields: [creatorId], references: [id])
+  members ActivityMember[]
+
+  @@map("activities")
+}
+
+model ActivityMember {
+  id         Int @id @default(autoincrement())
+  activityId Int
+  userId     Int
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@map("activity_members")
 }

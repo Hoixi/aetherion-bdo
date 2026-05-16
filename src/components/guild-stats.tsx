@@ -26,6 +26,7 @@ interface StatsData {
   warStats: { totalWars: number; wins: number; losses: number; draws: number };
   upcomingWar: { id: number; title: string; date: string; type: string } | null;
   warReportAverages: WarReportAverage[];
+  gsBrackets: { label: string; count: number }[];
 }
 
 function fmtNum(n: number): string {
@@ -207,6 +208,35 @@ export function GuildStats() {
           </div>
         </div>
       </div>
+
+      {/* GS Bracket Distribution */}
+      {stats.gsBrackets && (
+        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
+          <h3 className="text-xs uppercase text-bdo-text-muted mb-4">GS Dağılımı</h3>
+          <div className="flex items-end gap-2 h-28">
+            {stats.gsBrackets.map((b) => {
+              const max = Math.max(...stats.gsBrackets.map((x) => x.count), 1);
+              const pct = (b.count / max) * 100;
+              return (
+                <div key={b.label} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-xs font-mono font-bold text-bdo-gold">{b.count > 0 ? b.count : ""}</span>
+                  <div className="w-full bg-bdo-bg rounded-t-md overflow-hidden flex items-end" style={{ height: "80px" }}>
+                    <div
+                      className="w-full rounded-t-md transition-all"
+                      style={{
+                        height: `${Math.max(pct, b.count > 0 ? 4 : 0)}%`,
+                        background: pct > 60 ? "#d4a853" : pct > 30 ? "#b8892e" : "#7a5c1e",
+                        opacity: 0.85,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-bdo-text-muted whitespace-nowrap">{b.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

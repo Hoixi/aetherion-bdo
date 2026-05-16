@@ -319,7 +319,7 @@ export default function AdminPage() {
               tab === t ? "bg-bdo-gold text-bdo-bg" : "bg-bdo-surface text-bdo-text-muted hover:text-bdo-gold"
             }`}
           >
-            {t === "wars" ? "Etkinlikler" : t === "announcements" ? "Duyurular" : t === "members" ? "Üyeler" : t === "roles" ? "Roller" : "Hasar Raporu"}
+            {t === "wars" ? "Savaşlar" : t === "announcements" ? "Duyurular" : t === "members" ? "Üyeler" : t === "roles" ? "Roller" : "Hasar Raporu"}
           </button>
         ))}
       </div>

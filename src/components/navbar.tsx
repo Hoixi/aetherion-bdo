@@ -8,6 +8,7 @@ import { NotificationBell } from "./notification-bell";
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/members", label: "Üyeler" },
+  { href: "/etkinlikler", label: "Etkinlikler" },
   { href: "/calendar", label: "Takvim" },
   { href: "/hasar-raporu", label: "Hasar Raporu" },
   { href: "/profile", label: "Profil" },

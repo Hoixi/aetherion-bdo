@@ -74,8 +74,6 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
           >
             <option value="NODE_WAR">Node War</option>
             <option value="SIEGE">Siege</option>
-            <option value="KARA_TAPINAK">Kara Tapınak</option>
-            <option value="OTHER">Diğer</option>
           </select>
         </div>
         <div className="flex-1">

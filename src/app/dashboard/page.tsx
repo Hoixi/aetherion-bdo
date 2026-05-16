@@ -7,6 +7,7 @@ import { WarCard } from "@/components/war-card";
 import { CharacterCard } from "@/components/character-card";
 import { GuildStats } from "@/components/guild-stats";
 import { MiniCalendar } from "@/components/mini-calendar";
+import Link from "next/link";
 
 interface War {
   id: number;
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [wars, setWars] = useState<War[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [activities, setActivities] = useState<{ id: number; type: string; maxSize: number; members: { userId: number }[] }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,15 +54,17 @@ export default function DashboardPage() {
 
     async function fetchData() {
       setLoading(true);
-      const [warsRes, annRes, profileRes] = await Promise.all([
+      const [warsRes, annRes, profileRes, actRes] = await Promise.all([
         fetch("/api/wars"),
         fetch("/api/announcements"),
         fetch("/api/user/profile"),
+        fetch("/api/activities"),
       ]);
 
       if (warsRes.ok) setWars(await warsRes.json());
       if (annRes.ok) setAnnouncements(await annRes.json());
       if (profileRes.ok) setUser(await profileRes.json());
+      if (actRes.ok) setActivities(await actRes.json());
       setLoading(false);
     }
 
@@ -118,14 +122,38 @@ export default function DashboardPage() {
       )}
 
       <div>
-        <h2 className="text-lg font-semibold text-bdo-text-primary mb-4">Etkinlikler</h2>
+        <h2 className="text-lg font-semibold text-bdo-text-primary mb-4">Savaşlar</h2>
         {wars.length === 0 ? (
-          <p className="text-bdo-text-muted">Yaklaşan etkinlik yok.</p>
+          <p className="text-bdo-text-muted">Yaklaşan savaş yok.</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {wars.slice(0, 4).map((war) => (
               <WarCard key={war.id} war={war} />
             ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-bdo-text-primary">Etkinlikler</h2>
+          <Link href="/etkinlikler" className="text-xs text-bdo-gold hover:underline">Tümü →</Link>
+        </div>
+        {activities.length === 0 ? (
+          <p className="text-sm text-bdo-text-muted">Aktif etkinlik yok. <Link href="/etkinlikler" className="text-bdo-gold hover:underline">Oluştur →</Link></p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {activities.slice(0, 4).map((a) => {
+              const typeLabels: Record<string, string> = { KARA_TAPINAK: "🏰 Kara Tapınak", KAN_ALTARI: "🩸 Kan Altarı", PARTI_SLOTLARI: "⚔️ Parti Slotları" };
+              return (
+                <Link key={a.id} href="/etkinlikler" className="bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 flex items-center justify-between hover:border-bdo-gold/30 transition-colors">
+                  <span className="text-sm text-bdo-text-primary">{typeLabels[a.type] ?? a.type}</span>
+                  <span className={`text-xs font-mono font-bold ${a.members.length >= a.maxSize ? "text-red-400" : "text-bdo-gold"}`}>
+                    {a.members.length}/{a.maxSize}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
