@@ -27,8 +27,11 @@ export default function PatchNotesPage() {
   const [notes, setNotes] = useState<PatchNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [fetchStop, setFetchStop] = useState(false);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [fetchMsg, setFetchMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const stopRef = { current: false };
 
   async function refreshList() {
     const r = await fetch("/api/patch-notes");
@@ -43,23 +46,71 @@ export default function PatchNotesPage() {
     });
   }, []);
 
-  async function fetchLatest() {
+  async function fetchAll() {
     setFetching(true);
-    setFetchMsg("Yama notları çekiliyor ve çevriliyor... Bu 30-60 saniye sürebilir.");
-    const res = await fetch("/api/admin/fetch-patch-notes", {
+    setFetchStop(false);
+    stopRef.current = false;
+
+    // First get total pending count
+    const listRes = await fetch("/api/admin/fetch-patch-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ listAll: true }),
     });
-    const data = await res.json();
-    if (data.ok) {
-      setFetchMsg(`✅ ${data.message}`);
-      await refreshList();
-    } else {
-      setFetchMsg(`❌ Hata: ${data.error}`);
+    const listData = await listRes.json();
+    const total: number = listData.pending?.length ?? 0;
+
+    if (total === 0) {
+      setFetchMsg("✅ Tüm yama notları zaten mevcut.");
+      setFetching(false);
+      setProgress(null);
+      return;
     }
+
+    setProgress({ done: 0, total });
+    setFetchMsg(`⏳ ${total} yama notu işlenecek...`);
+
+    let done = 0;
+    while (!stopRef.current) {
+      const res = await fetch("/api/admin/fetch-patch-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        setFetchMsg(`❌ Hata: ${data.error}`);
+        break;
+      }
+
+      if (data.remaining === 0 || data.added === 0) {
+        done = total;
+        setProgress({ done, total });
+        break;
+      }
+
+      done++;
+      setProgress({ done, total });
+      setFetchMsg(`⏳ ${done}/${total} işlendi — #${data.boardNo}`);
+      await refreshList();
+    }
+
+    if (stopRef.current) {
+      setFetchMsg(`⏸ Durduruldu. ${done}/${total} işlendi.`);
+    } else {
+      setFetchMsg(`✅ Tamamlandı! ${done} yama notu işlendi.`);
+      await refreshList();
+    }
+
     setFetching(false);
+    setProgress(null);
     setTimeout(() => setFetchMsg(null), 8000);
+  }
+
+  function stopFetch() {
+    stopRef.current = true;
+    setFetchStop(true);
   }
 
   async function reprocessNote(boardNo: number, noteId: number) {
@@ -95,19 +146,40 @@ export default function PatchNotesPage() {
           </p>
         </div>
         {session.user.isAdmin && (
-          <button
-            onClick={fetchLatest}
-            disabled={fetching}
-            className="flex-shrink-0 bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/30 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-bdo-gold/20 transition-colors disabled:opacity-50"
-          >
-            {fetching ? "⏳ Çekiliyor..." : "🔄 Son Yamayı Çek"}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {fetching ? (
+              <button
+                onClick={stopFetch}
+                className="bg-red-500/10 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-500/20 transition-colors"
+              >
+                ⏸ Durdur
+              </button>
+            ) : (
+              <button
+                onClick={fetchAll}
+                className="bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/30 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-bdo-gold/20 transition-colors"
+              >
+                🔄 Tüm Yama Notlarını Çek
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       {fetchMsg && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm border ${fetchMsg.startsWith("✅") ? "bg-green-500/10 border-green-500/20 text-green-400" : fetchMsg.startsWith("❌") ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-bdo-gold/10 border-bdo-gold/20 text-bdo-gold"}`}>
+        <div className={`mb-2 px-4 py-3 rounded-lg text-sm border ${fetchMsg.startsWith("✅") ? "bg-green-500/10 border-green-500/20 text-green-400" : fetchMsg.startsWith("❌") ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-bdo-gold/10 border-bdo-gold/20 text-bdo-gold"}`}>
           {fetchMsg}
+        </div>
+      )}
+      {progress && (
+        <div className="mb-4">
+          <div className="h-1.5 bg-bdo-border rounded-full overflow-hidden">
+            <div
+              className="h-full bg-bdo-gold rounded-full transition-all duration-500"
+              style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-bdo-text-muted mt-1 text-right">{progress.done}/{progress.total}</p>
         </div>
       )}
 

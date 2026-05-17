@@ -25,30 +25,7 @@ async function parseWithGemini(
 ): Promise<{ titleTr: string; contentTr: string; structured: string }> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  // Step 1: Translate the full HTML (for fallback rendering)
-  const translatePrompt = `You are a professional game translator. Translate the following Black Desert Online Global Lab patch note HTML from English to Turkish.
-
-Rules:
-- Keep all HTML tags exactly as they are, only translate the TEXT content inside tags
-- Keep game terms, skill names, item names in their original English form (e.g. "Succession", "Awakening", "Black Spirit", "Silver", "AP", "DP", "Accuracy", "Evasion")
-- Keep numbers, percentages, symbols as-is
-- Return ONLY the translated HTML, no explanation
-- First line must be: TITLE: <translated title>
-
-Title: ${title}
-
-HTML:
-${html.slice(0, 12000)}`;
-
-  const translateResult = await model.generateContent(translatePrompt);
-  const translateText = translateResult.response.text();
-
-  const titleMatch = translateText.match(/^TITLE:\s*(.+)$/m);
-  const titleTr = titleMatch ? titleMatch[1].trim() : title;
-  const contentTr = translateText.replace(/^TITLE:.*$/m, "").trim();
-
-  // Step 2: Extract structured data from the HTML
-  // Strip HTML tags for cleaner parsing
+  // Strip HTML to plain text for structured parsing
   const plainText = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -61,74 +38,71 @@ ${html.slice(0, 12000)}`;
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const structurePrompt = `You are analyzing a Black Desert Online Global Lab patch note. Extract structured data and return ONLY valid JSON.
+  // Single combined prompt: structured JSON + translated HTML in one call
+  const prompt = `You are a professional Black Desert Online game translator and patch note analyst.
+Given the patch note below, return a single JSON object containing BOTH the Turkish translation AND structured analysis.
 
 Patch note title: "${title}"
 Board number: ${boardNo}
 
-Content:
-${plainText.slice(0, 10000)}
+Plain text content:
+${plainText.slice(0, 8000)}
 
-Return a JSON object with this exact shape:
+Original HTML (for translation):
+${html.slice(0, 8000)}
+
+Return ONLY this JSON (no markdown, no explanation):
 {
   "titleTr": "Turkish translation of the title",
+  "contentTrHtml": "Full HTML with only TEXT nodes translated to Turkish — keep ALL HTML tags exactly as-is, keep game terms in English (Succession, Awakening, AP, DP, Silver, Black Spirit, skill names, class names)",
   "summary": "1-2 sentence Turkish summary of what this patch changes overall",
   "summaryEn": "1-2 sentence English summary",
   "sections": [
     {
-      "id": "section-slug-lowercase-no-spaces",
-      "heading": "Original English section heading (e.g. class name or category)",
-      "headingTr": "Turkish translation of heading",
-      "emoji": "single relevant emoji (⚔️ for combat classes, 🛡 for tank/defense, 🏹 for ranged, 🧙 for magic, 🔧 for system/UI, 🌟 for general improvements, ⚡ for new content, 🐛 for bug fixes)",
+      "id": "slug-lowercase-hyphens",
+      "heading": "English section heading",
+      "headingTr": "Turkish section heading",
+      "emoji": "one emoji: ⚔️ combat class, 🛡 tank/defense, 🏹 ranged, 🧙 magic, 🔧 system/UI, 🌟 general, ⚡ new content, 🐛 bug fix",
       "changes": [
         {
-          "en": "Original English change description (concise, 1-2 sentences)",
-          "tr": "Turkish translation of the change",
-          "type": "BUFF or NERF or FIX or NEW or CHANGE",
-          "imageUrl": "include only if there was an [IMG:url] right before or after this change, otherwise omit"
+          "en": "Concise English description (1-2 sentences)",
+          "tr": "Turkish translation",
+          "type": "BUFF|NERF|FIX|NEW|CHANGE",
+          "imageUrl": "only if [IMG:url] appears right before/after this change"
         }
       ]
     }
   ]
 }
 
-Type guide:
-- BUFF: stat increase, damage increase, cooldown decrease, recovery improvement
-- NERF: stat decrease, damage decrease, cooldown increase
-- FIX: bug fix, correction, unintended behavior fixed
-- NEW: new feature, new skill, new item, new system
-- CHANGE: neutral modification, rework, visual change, description update
+Type rules: BUFF=stat/damage up or cooldown down, NERF=stat/damage down or cooldown up, FIX=bug fix, NEW=new feature/item/skill, CHANGE=neutral rework or visual.
+Group by class or category. Use id="general" headingTr="Genel" if no clear section.`;
 
-Rules:
-- Group changes by class or category section
-- If there is no clear section, use "general" as id and "Genel" as headingTr
-- Keep game terms in English (skill names, class names, AP, DP, etc.)
-- Return ONLY the JSON, no markdown code blocks, no explanation`;
+  const result = await model.generateContent(prompt);
+  let text = result.response.text().trim();
 
-  const structureResult = await model.generateContent(structurePrompt);
-  let structureText = structureResult.response.text().trim();
+  // Strip markdown code blocks
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
-  // Strip markdown code blocks if present
-  structureText = structureText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-
-  // Validate JSON
-  let structured: StructuredPatchNote;
+  let parsed: StructuredPatchNote & { contentTrHtml?: string };
   try {
-    structured = JSON.parse(structureText);
+    parsed = JSON.parse(text);
   } catch {
-    // Fallback: minimal structure
-    structured = {
-      titleTr,
+    parsed = {
+      titleTr: title,
+      contentTrHtml: html,
       summary: "Bu yama notu işlenirken bir hata oluştu.",
       summaryEn: "An error occurred while processing this patch note.",
       sections: [],
     };
   }
 
+  const { contentTrHtml, ...structuredData } = parsed;
+
   return {
-    titleTr: structured.titleTr || titleTr,
-    contentTr,
-    structured: JSON.stringify(structured),
+    titleTr: parsed.titleTr || title,
+    contentTr: contentTrHtml || html,
+    structured: JSON.stringify(structuredData),
   };
 }
 
@@ -256,18 +230,17 @@ export async function POST(req: Request) {
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
+  // boardNo: specific note to (re)process
+  // listAll: return all available boardNos without processing
   const specificBoardNo: number | undefined = body.boardNo;
+  const listAll: boolean = body.listAll === true;
 
   try {
-    let toFetch: number[] = [];
-
-    if (specificBoardNo) {
-      toFetch = [specificBoardNo];
-    } else {
-      const list = await fetchPatchList(3);
-      // Skip notes that are already fetched AND already have structured data
+    // ── list mode: return all pending boardNos so frontend can chain ──
+    if (listAll) {
+      const list = await fetchPatchList(30);
       const existing = await db.patchNote.findMany({
-        where: { boardNo: { in: list.map((l) => l.boardNo) } },
+        where: { boardNo: { in: list.map((l: { boardNo: number }) => l.boardNo) } },
         select: { boardNo: true, structured: true },
       });
       const fullyProcessed = new Set(
@@ -275,56 +248,82 @@ export async function POST(req: Request) {
           .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
           .map((e: { boardNo: number }) => e.boardNo)
       );
-      toFetch = list.map((l) => l.boardNo).filter((n: number) => !fullyProcessed.has(n));
+      const pending = list.map((l: { boardNo: number }) => l.boardNo).filter((n: number) => !fullyProcessed.has(n));
+      return NextResponse.json({ ok: true, pending, total: list.length });
     }
 
-    if (toFetch.length === 0) {
-      return NextResponse.json({ ok: true, message: "Yeni yama notu yok, tümü zaten mevcut.", added: 0 });
-    }
+    // ── single mode: process exactly one note ──
+    let boardNoToProcess: number | undefined = specificBoardNo;
 
-    const added: number[] = [];
-
-    for (const boardNo of toFetch) {
-      const detail = await fetchPatchDetail(boardNo);
-      if (!detail.content) {
-        console.error(`[patch-notes] boardNo=${boardNo} content boş.`);
-        continue;
-      }
-
-      const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, boardNo);
-
-      await db.patchNote.upsert({
-        where: { boardNo },
-        create: {
-          boardNo,
-          title: detail.title,
-          titleTr,
-          content: detail.content,
-          contentTr,
-          structured,
-          thumbnail: detail.thumbnail,
-          publishedAt: detail.publishedAt,
-        },
-        update: {
-          title: detail.title,
-          titleTr,
-          content: detail.content,
-          contentTr,
-          structured,
-          thumbnail: detail.thumbnail,
-          publishedAt: detail.publishedAt,
-          fetchedAt: new Date(),
-        },
+    if (!boardNoToProcess) {
+      // Pick the most recent unprocessed note
+      const list = await fetchPatchList(30);
+      const existing = await db.patchNote.findMany({
+        where: { boardNo: { in: list.map((l: { boardNo: number }) => l.boardNo) } },
+        select: { boardNo: true, structured: true },
       });
-      added.push(boardNo);
+      const fullyProcessed = new Set(
+        existing
+          .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
+          .map((e: { boardNo: number }) => e.boardNo)
+      );
+      const pending = list.map((l: { boardNo: number }) => l.boardNo).filter((n: number) => !fullyProcessed.has(n));
+      if (pending.length === 0) {
+        return NextResponse.json({ ok: true, message: "Tüm yama notları zaten işlenmiş.", added: 0, remaining: 0 });
+      }
+      boardNoToProcess = pending[0];
     }
+
+    const detail = await fetchPatchDetail(boardNoToProcess);
+    if (!detail.content) {
+      return NextResponse.json({ ok: false, error: `#${boardNoToProcess} için içerik alınamadı.` }, { status: 500 });
+    }
+
+    const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, boardNoToProcess);
+
+    await db.patchNote.upsert({
+      where: { boardNo: boardNoToProcess },
+      create: {
+        boardNo: boardNoToProcess,
+        title: detail.title,
+        titleTr,
+        content: detail.content,
+        contentTr,
+        structured,
+        thumbnail: detail.thumbnail,
+        publishedAt: detail.publishedAt,
+      },
+      update: {
+        title: detail.title,
+        titleTr,
+        content: detail.content,
+        contentTr,
+        structured,
+        thumbnail: detail.thumbnail,
+        publishedAt: detail.publishedAt,
+        fetchedAt: new Date(),
+      },
+    });
+
+    // Count remaining
+    const list2 = await fetchPatchList(30);
+    const existing2 = await db.patchNote.findMany({
+      where: { boardNo: { in: list2.map((l: { boardNo: number }) => l.boardNo) } },
+      select: { boardNo: true, structured: true },
+    });
+    const processed2 = new Set(
+      existing2
+        .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
+        .map((e: { boardNo: number }) => e.boardNo)
+    );
+    const remaining = list2.filter((l: { boardNo: number }) => !processed2.has(l.boardNo)).length;
 
     return NextResponse.json({
       ok: true,
-      added: added.length,
-      boardNos: added,
-
-      message: `${added.length} yama notu çekildi, çevrildi ve yapılandırıldı.`,
+      added: 1,
+      boardNo: boardNoToProcess,
+      remaining,
+      message: `#${boardNoToProcess} işlendi. Kalan: ${remaining}`,
     });
   } catch (err) {
     console.error("Patch note fetch error:", err);
