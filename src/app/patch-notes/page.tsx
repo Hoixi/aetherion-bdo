@@ -22,6 +22,12 @@ function timeAgo(date: string) {
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
 
+const SKILL_CLASS_IDS = [
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+  15, 16, 17, 19, 20, 21, 23, 24, 25, 26, 27,
+  28, 29, 30, 31, 32, 33, 34,
+];
+
 export default function PatchNotesPage() {
   const { data: session } = useSession();
   const [notes, setNotes] = useState<PatchNote[]>([]);
@@ -29,6 +35,12 @@ export default function PatchNotesPage() {
   const [fetching, setFetching] = useState(false);
   const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [fetchMsg, setFetchMsg] = useState<string | null>(null);
+
+  // Skill DB state
+  const [skillStats, setSkillStats] = useState<{ total: number; classesDone: number; totalClasses: number } | null>(null);
+  const [fetchingSkills, setFetchingSkills] = useState(false);
+  const [skillProgress, setSkillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [skillMsg, setSkillMsg] = useState<string | null>(null);
 
   async function refreshList() {
     const r = await fetch("/api/patch-notes");
@@ -41,6 +53,9 @@ export default function PatchNotesPage() {
       setNotes(Array.isArray(data) ? data : []);
       setLoading(false);
     });
+    fetch("/api/admin/fetch-skills").then((r) => r.json()).then((d) => {
+      if (d.total !== undefined) setSkillStats(d);
+    }).catch(() => {});
   }, []);
 
   async function fetchLatest() {
@@ -62,6 +77,36 @@ export default function PatchNotesPage() {
     }
     setFetching(false);
     setTimeout(() => setFetchMsg(null), 6000);
+  }
+
+  async function fetchAllSkills() {
+    setFetchingSkills(true);
+    setSkillProgress({ done: 0, total: SKILL_CLASS_IDS.length });
+    setSkillMsg("⏳ Skill veritabanı oluşturuluyor...");
+    let done = 0;
+    for (const classId of SKILL_CLASS_IDS) {
+      setSkillMsg(`⏳ Sınıf ${classId} işleniyor... (${done}/${SKILL_CLASS_IDS.length})`);
+      const res = await fetch("/api/admin/fetch-skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId }),
+      });
+      const data = await res.json();
+      done++;
+      setSkillProgress({ done, total: SKILL_CLASS_IDS.length });
+      if (!data.ok) {
+        setSkillMsg(`❌ Sınıf ${classId} hatası: ${data.error}`);
+        break;
+      }
+    }
+    // Refresh stats
+    const statsRes = await fetch("/api/admin/fetch-skills");
+    const stats = await statsRes.json();
+    if (stats.total !== undefined) setSkillStats(stats);
+    setFetchingSkills(false);
+    setSkillProgress(null);
+    setSkillMsg(`✅ Tamamlandı! ${stats.total ?? "?"} skill kaydedildi.`);
+    setTimeout(() => setSkillMsg(null), 8000);
   }
 
   async function reprocessNote(boardNo: number, noteId: number) {
@@ -114,6 +159,46 @@ export default function PatchNotesPage() {
           {fetchMsg}
         </div>
       )}
+
+      {/* Admin: Skill DB panel */}
+      {session.user.isAdmin && (
+        <div className="mb-6 bg-bdo-surface border border-bdo-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs font-bold text-bdo-text-primary mb-0.5">🗃 Skill Veritabanı</p>
+              {skillStats ? (
+                <p className="text-[11px] text-bdo-text-muted">
+                  {skillStats.total.toLocaleString()} skill kayıtlı — {skillStats.classesDone}/{skillStats.totalClasses} sınıf
+                </p>
+              ) : (
+                <p className="text-[11px] text-bdo-text-muted">Yükleniyor...</p>
+              )}
+            </div>
+            <button
+              onClick={fetchAllSkills}
+              disabled={fetchingSkills}
+              className="bg-violet-500/10 text-violet-400 border border-violet-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-violet-500/20 transition-colors disabled:opacity-50 shrink-0"
+            >
+              {fetchingSkills ? "⏳ Çekiliyor..." : skillStats?.total ? "🔄 Yenile" : "📥 Skill DB Oluştur"}
+            </button>
+          </div>
+          {skillProgress && (
+            <div className="mt-3">
+              <div className="h-1 bg-bdo-border rounded-full overflow-hidden">
+                <div className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.round((skillProgress.done / skillProgress.total) * 100)}%` }} />
+              </div>
+              <p className="text-[10px] text-bdo-text-muted mt-1 text-right">{skillProgress.done}/{skillProgress.total} sınıf</p>
+            </div>
+          )}
+          {skillMsg && (
+            <p className={`mt-2 text-[11px] ${skillMsg.startsWith("✅") ? "text-green-400" : skillMsg.startsWith("❌") ? "text-red-400" : "text-bdo-text-muted"}`}>
+              {skillMsg}
+            </p>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-20 text-bdo-text-muted">Yükleniyor...</div>
       ) : notes.length === 0 ? (

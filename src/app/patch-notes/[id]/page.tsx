@@ -153,7 +153,7 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
                         className="w-8 h-8 object-contain rounded"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     )}
-                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillName}</span>
+                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillNameTr || group.skillName}</span>
                   </div>
                 )}
                 <ul className="divide-y divide-bdo-border/30">
@@ -321,7 +321,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                         />
                       )}
                       <span className="text-xs font-semibold text-bdo-text-muted">
-                        {group.skillName}
+                        {group.skillNameTr || group.skillName}
                       </span>
                     </div>
                   )}

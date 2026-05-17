@@ -298,6 +298,19 @@ model ClassDiscordRole {
 
 // ─── PATCH NOTES ─────────────────────────────────────────────
 
+model SkillTranslation {
+  id      Int     @id @default(autoincrement())
+  skillId Int
+  classId Int
+  kr      String  @db.VarChar(300)  // Korean skill name
+  tr      String  @db.VarChar(300)  // Turkish skill name
+  en      String? @db.VarChar(300)  // English skill name (optional)
+
+  @@unique([skillId, classId])
+  @@index([kr])
+  @@map("skill_translations")
+}
+
 model PatchNote {
   id          Int      @id @default(autoincrement())
   boardNo     Int      @unique

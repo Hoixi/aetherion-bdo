@@ -60,8 +60,7 @@ Return this exact JSON shape:
       "emoji": "⚔️ combat class | 🛡 defense/tank | 🏹 ranged | 🧙 magic | 🔧 system/UI | 🌟 general | ⚡ new content | 🐛 bug fix",
       "changes": [
         {
-          "skillName": "Original skill name or sub-heading if present (e.g. 'Shadow Explosion', 'Fox Claw'). Omit if no sub-heading.",
-          "skillNameTr": "Turkish translation of the skill name. Omit if no sub-heading.",
+          "skillName": "Skill name EXACTLY as it appears in the source (Korean: '검술 수련 I', English: 'Shadow Explosion'). Omit if no sub-heading.",
           "skillImageUrl": "The [IMG:url] that appears immediately before the skill sub-heading in the content. This is the skill icon. Omit if none.",
           "en": "Concise English description of this change (1-2 sentences)",
           "tr": "Turkish translation of the change",
@@ -76,8 +75,8 @@ CRITICAL LANGUAGE RULES:
 - "heading" field = always English (class/category name in English)
 - "headingTr" field = always Turkish. For BDO class names use these: Warrior→Savaşçı, Ranger→Okçu, Sorceress→Büyücü, Berserker→Berserker, Tamer→Evcil Hayvan Ustası, Musa→Musa, Maehwa→Maehwa, Valkyrie→Valkiri, Kunoichi→Kunoichi, Ninja→Ninja, Wizard→Büyücü, Witch→Cadı, Dark Knight→Karanlık Şövalye, Striker→Dövüşçü, Mystic→Mistik, Lahn→Lahn, Archer→Okçu, Shai→Shai, Guardian→Gardiyan, Hashashin→Hashaşin, Nova→Nova, Sage→Bilge, Corsair→Korsar, Drakania→Drakania, Woosa→Woosa, Maegu→Maegu, Scholar→Alim. If unknown keep same as English.
 - If you see Korean/Hangul text (e.g. 매화, 흑마법사), convert it to its English equivalent first, then apply the rule above.
-- "skillName" = English skill name (keep as-is, these are proper nouns — do NOT translate)
-- "skillNameTr" = omit entirely, skill names stay in English
+- "skillName" = copy the skill name EXACTLY as written in the source — if it's Korean keep Korean, if English keep English. Do NOT translate skill names.
+- Do NOT include "skillNameTr" in your output — we handle translation separately.
 
 IMPORTANT: BDO patch notes have a 2-level structure:
 - Top level: class name (Maehwa, Warrior, etc.) → becomes a section
@@ -264,6 +263,39 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
   return { title, content, thumbnail, publishedAt };
 }
 
+// ─── Skill name translation lookup ───────────────────────────────────────────
+
+async function applySkillTranslations(structuredJson: string): Promise<string> {
+  try {
+    const data: StructuredPatchNote = JSON.parse(structuredJson);
+    const allSkillNames = data.sections
+      .flatMap((s) => s.changes.map((c) => c.skillName))
+      .filter((n): n is string => !!n);
+
+    if (allSkillNames.length === 0) return structuredJson;
+
+    // Look up by Korean name
+    const rows = await db.skillTranslation.findMany({
+      where: { kr: { in: allSkillNames } },
+      select: { kr: true, tr: true },
+    });
+    const krToTr = new Map<string, string>(rows.map((r: { kr: string; tr: string }) => [r.kr, r.tr]));
+
+    if (krToTr.size === 0) return structuredJson;
+
+    for (const section of data.sections) {
+      for (const change of section.changes) {
+        if (change.skillName && krToTr.has(change.skillName)) {
+          change.skillNameTr = krToTr.get(change.skillName);
+        }
+      }
+    }
+    return JSON.stringify(data);
+  } catch {
+    return structuredJson;
+  }
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -282,7 +314,8 @@ export async function POST(req: Request) {
       if (!detail.content) {
         return NextResponse.json({ ok: false, error: `#${specificBoardNo} için içerik alınamadı.` }, { status: 500 });
       }
-      const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, specificBoardNo);
+      const { titleTr, contentTr, structured: rawStructured } = await parseWithGemini(detail.content, detail.title, specificBoardNo);
+      const structured = await applySkillTranslations(rawStructured);
       await db.patchNote.upsert({
         where: { boardNo: specificBoardNo },
         create: { boardNo: specificBoardNo, title: detail.title, titleTr, content: detail.content, contentTr, structured, thumbnail: detail.thumbnail, publishedAt: detail.publishedAt },
@@ -315,7 +348,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: `#${latestBoardNo} için içerik alınamadı.` }, { status: 500 });
     }
 
-    const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, latestBoardNo);
+    const { titleTr, contentTr, structured: rawStructured } = await parseWithGemini(detail.content, detail.title, latestBoardNo);
+    const structured = await applySkillTranslations(rawStructured);
 
     await db.patchNote.upsert({
       where: { boardNo: latestBoardNo },
