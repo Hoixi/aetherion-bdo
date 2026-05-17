@@ -288,7 +288,7 @@ export function GuildStats() {
             </div>
           </div>
         </div>
-      ))
+      )}
     </div>
   );
 }
