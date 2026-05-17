@@ -77,6 +77,8 @@ export default function AdminPage() {
   const [registerCmdsResult, setRegisterCmdsResult] = useState<string | null>(null);
   const [syncingClassRoles, setSyncingClassRoles] = useState(false);
   const [classRolesResult, setClassRolesResult] = useState<{ created: string[]; existing: string[]; assigned: number; removed: number; errors: number } | null>(null);
+  const [recalcingAbsences, setRecalcingAbsences] = useState(false);
+  const [recalcResult, setRecalcResult] = useState<{ warsProcessed: number; totalAbsences: number; affectedUsers: number } | null>(null);
 
   async function setWarResult(warId: number, result: string | null) {
     setSettingResult(warId);
@@ -210,6 +212,21 @@ export default function AdminPage() {
       setRegisterCmdsResult(`❌ Hata: ${JSON.stringify(data.error)}`);
     }
     setRegisteringCmds(false);
+  }
+
+  async function recalcAbsences() {
+    if (!confirm("Tüm kullanıcıların absenceCount'u sıfırlanıp geçmiş savaşlardan yeniden hesaplanacak. Devam edilsin mi?")) return;
+    setRecalcingAbsences(true);
+    setRecalcResult(null);
+    const res = await fetch("/api/admin/recalc-absences", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      setRecalcResult(data);
+    } else {
+      setMessage(`❌ Hata: ${data.error}`);
+      setTimeout(() => setMessage(null), 4000);
+    }
+    setRecalcingAbsences(false);
   }
 
   async function syncClassRoles() {
@@ -630,6 +647,39 @@ export default function AdminPage() {
                   <div className="flex justify-between"><span className="text-bdo-text-muted">Rol atandı</span><span className="font-mono text-emerald-400">{classRolesResult.assigned}</span></div>
                   <div className="flex justify-between"><span className="text-bdo-text-muted">Yanlış rol kaldırıldı</span><span className="font-mono text-orange-400">{classRolesResult.removed}</span></div>
                   {classRolesResult.errors > 0 && <div className="flex justify-between"><span className="text-bdo-text-muted">Hata</span><span className="font-mono text-red-400">{classRolesResult.errors}</span></div>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Retroactive Absence Recalc */}
+          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">⚠️ Geçmiş Devamsızlık Hesapla</h3>
+                <p className="text-xs text-bdo-text-muted mt-0.5">Tüm eski savaşlara bakarak absenceCount'u sıfırdan hesaplar.</p>
+              </div>
+              <button
+                onClick={recalcAbsences}
+                disabled={recalcingAbsences}
+                className="text-sm bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
+              >
+                {recalcingAbsences ? "⏳ Hesaplanıyor..." : "🔄 Yeniden Hesapla"}
+              </button>
+            </div>
+            {recalcResult && !recalcingAbsences && (
+              <div className="mt-3 flex gap-4 text-xs">
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
+                  <span className="text-bdo-text-muted">İşlenen savaş</span>
+                  <span className="ml-2 font-mono text-bdo-gold font-bold">{recalcResult.warsProcessed}</span>
+                </div>
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
+                  <span className="text-bdo-text-muted">Toplam devamsızlık</span>
+                  <span className="ml-2 font-mono text-red-400 font-bold">{recalcResult.totalAbsences}</span>
+                </div>
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
+                  <span className="text-bdo-text-muted">Etkilenen üye</span>
+                  <span className="ml-2 font-mono text-orange-400 font-bold">{recalcResult.affectedUsers}</span>
                 </div>
               </div>
             )}
