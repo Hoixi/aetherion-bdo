@@ -23,7 +23,7 @@ async function parseWithGemini(
   title: string,
   boardNo: number,
 ): Promise<{ titleTr: string; contentTr: string; structured: string }> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
   // Single call: structured JSON only (avoids timeout from 2 Gemini calls)
   // "Tam Metin" view shows the original English HTML — translation skipped.
