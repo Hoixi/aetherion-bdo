@@ -80,6 +80,8 @@ export default function AdminPage() {
   const [classRolesResult, setClassRolesResult] = useState<{ created: string[]; existing: string[]; assigned: number; removed: number; errors: number } | null>(null);
   const [recalcingAbsences, setRecalcingAbsences] = useState(false);
   const [recalcResult, setRecalcResult] = useState<{ warsProcessed: number; totalAbsences: number; affectedUsers: number } | null>(null);
+  const [fixingDb, setFixingDb] = useState(false);
+  const [fixDbResult, setFixDbResult] = useState<string | null>(null);
 
   async function setWarResult(warId: number, result: string | null) {
     setSettingResult(warId);
@@ -213,6 +215,15 @@ export default function AdminPage() {
       setRegisterCmdsResult(`❌ Hata: ${JSON.stringify(data.error)}`);
     }
     setRegisteringCmds(false);
+  }
+
+  async function fixLongText() {
+    setFixingDb(true);
+    setFixDbResult(null);
+    const res = await fetch("/api/admin/fix-longtext", { method: "POST" });
+    const data = await res.json();
+    setFixDbResult(data.message ?? data.error ?? (res.ok ? "Tamam" : "Hata"));
+    setFixingDb(false);
   }
 
   async function recalcAbsences() {
@@ -656,6 +667,26 @@ export default function AdminPage() {
                   {classRolesResult.errors > 0 && <div className="flex justify-between"><span className="text-bdo-text-muted">Hata</span><span className="font-mono text-red-400">{classRolesResult.errors}</span></div>}
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* DB Fix: TEXT → LONGTEXT */}
+          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">🛠 Forum DB Düzelt</h3>
+                <p className="text-xs text-bdo-text-muted mt-0.5">forum_posts.content kolonunu TEXT → LONGTEXT yapar (resim yükleme için gerekli).</p>
+              </div>
+              <button
+                onClick={fixLongText}
+                disabled={fixingDb}
+                className="text-sm bg-blue-500/10 text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
+              >
+                {fixingDb ? "⏳ Çalışıyor..." : "🛠 Fix Uygula"}
+              </button>
+            </div>
+            {fixDbResult && (
+              <p className="text-xs mt-2 text-bdo-text-muted">{fixDbResult}</p>
             )}
           </div>
 
