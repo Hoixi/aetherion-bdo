@@ -289,7 +289,7 @@ export async function GET(req: Request) {
     status: r.status,
     html_len: html.length,
     snippet: html.slice(0, 2000),
-    boardNos: [...new Set(boardNos)].slice(0, 20),
+    boardNos: Array.from(new Set(boardNos)).slice(0, 20),
     hrefs,
   });
 }
