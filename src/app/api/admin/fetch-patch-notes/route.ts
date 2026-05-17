@@ -271,101 +271,59 @@ export async function POST(req: Request) {
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
-  // boardNo: specific note to (re)process
-  // listAll: return all available boardNos without processing
+  // boardNo: specific note to (re)process (♻️ admin button)
+  // (no body): fetch latest note, skip if already in DB
   const specificBoardNo: number | undefined = body.boardNo;
-  const listAll: boolean = body.listAll === true;
 
   try {
-    // ── list mode: return all pending boardNos so frontend can chain ──
-    if (listAll) {
-      const list = await fetchPatchList(30);
-      const existing = await db.patchNote.findMany({
-        where: { boardNo: { in: list.map((l: { boardNo: number }) => l.boardNo) } },
-        select: { boardNo: true, structured: true },
-      });
-      const fullyProcessed = new Set(
-        existing
-          .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
-          .map((e: { boardNo: number }) => e.boardNo)
-      );
-      const pending = list.map((l: { boardNo: number }) => l.boardNo).filter((n: number) => !fullyProcessed.has(n));
-      return NextResponse.json({ ok: true, pending, total: list.length });
-    }
-
-    // ── single mode: process exactly one note ──
-    let boardNoToProcess: number | undefined = specificBoardNo;
-
-    if (!boardNoToProcess) {
-      // Pick the most recent unprocessed note
-      const list = await fetchPatchList(30);
-      const existing = await db.patchNote.findMany({
-        where: { boardNo: { in: list.map((l: { boardNo: number }) => l.boardNo) } },
-        select: { boardNo: true, structured: true },
-      });
-      const fullyProcessed = new Set(
-        existing
-          .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
-          .map((e: { boardNo: number }) => e.boardNo)
-      );
-      const pending = list.map((l: { boardNo: number }) => l.boardNo).filter((n: number) => !fullyProcessed.has(n));
-      if (pending.length === 0) {
-        return NextResponse.json({ ok: true, message: "Tüm yama notları zaten işlenmiş.", added: 0, remaining: 0 });
+    // ── reprocess mode: admin clicked ♻️ on a specific note ──
+    if (specificBoardNo) {
+      const detail = await fetchPatchDetail(specificBoardNo);
+      if (!detail.content) {
+        return NextResponse.json({ ok: false, error: `#${specificBoardNo} için içerik alınamadı.` }, { status: 500 });
       }
-      boardNoToProcess = pending[0];
+      const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, specificBoardNo);
+      await db.patchNote.upsert({
+        where: { boardNo: specificBoardNo },
+        create: { boardNo: specificBoardNo, title: detail.title, titleTr, content: detail.content, contentTr, structured, thumbnail: detail.thumbnail, publishedAt: detail.publishedAt },
+        update: { title: detail.title, titleTr, content: detail.content, contentTr, structured, thumbnail: detail.thumbnail, publishedAt: detail.publishedAt, fetchedAt: new Date() },
+      });
+      return NextResponse.json({ ok: true, added: 1, boardNo: specificBoardNo, message: `#${specificBoardNo} yeniden işlendi.` });
     }
 
-    const detail = await fetchPatchDetail(boardNoToProcess);
-    if (!detail.content) {
-      return NextResponse.json({ ok: false, error: `#${boardNoToProcess} için içerik alınamadı.` }, { status: 500 });
+    // ── default mode: fetch latest note only, skip if already in DB ──
+    const list = await fetchPatchList(3); // only need the top few to find the latest
+    if (list.length === 0) {
+      return NextResponse.json({ ok: false, error: "Liste alınamadı." }, { status: 500 });
     }
 
-    const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, boardNoToProcess);
+    const latestBoardNo = list[0].boardNo;
 
-    await db.patchNote.upsert({
-      where: { boardNo: boardNoToProcess },
-      create: {
-        boardNo: boardNoToProcess,
-        title: detail.title,
-        titleTr,
-        content: detail.content,
-        contentTr,
-        structured,
-        thumbnail: detail.thumbnail,
-        publishedAt: detail.publishedAt,
-      },
-      update: {
-        title: detail.title,
-        titleTr,
-        content: detail.content,
-        contentTr,
-        structured,
-        thumbnail: detail.thumbnail,
-        publishedAt: detail.publishedAt,
-        fetchedAt: new Date(),
-      },
-    });
-
-    // Count remaining
-    const list2 = await fetchPatchList(30);
-    const existing2 = await db.patchNote.findMany({
-      where: { boardNo: { in: list2.map((l: { boardNo: number }) => l.boardNo) } },
+    // Check if it already exists with structured data
+    const existing = await db.patchNote.findUnique({
+      where: { boardNo: latestBoardNo },
       select: { boardNo: true, structured: true },
     });
-    const processed2 = new Set(
-      existing2
-        .filter((e: { boardNo: number; structured: string | null }) => e.structured !== null)
-        .map((e: { boardNo: number }) => e.boardNo)
-    );
-    const remaining = list2.filter((l: { boardNo: number }) => !processed2.has(l.boardNo)).length;
 
-    return NextResponse.json({
-      ok: true,
-      added: 1,
-      boardNo: boardNoToProcess,
-      remaining,
-      message: `#${boardNoToProcess} işlendi. Kalan: ${remaining}`,
+    if (existing?.structured) {
+      return NextResponse.json({ ok: true, upToDate: true, boardNo: latestBoardNo, message: "Son yama notu zaten mevcut." });
+    }
+
+    // Fetch and process
+    const detail = await fetchPatchDetail(latestBoardNo);
+    if (!detail.content) {
+      return NextResponse.json({ ok: false, error: `#${latestBoardNo} için içerik alınamadı.` }, { status: 500 });
+    }
+
+    const { titleTr, contentTr, structured } = await parseWithGemini(detail.content, detail.title, latestBoardNo);
+
+    await db.patchNote.upsert({
+      where: { boardNo: latestBoardNo },
+      create: { boardNo: latestBoardNo, title: detail.title, titleTr, content: detail.content, contentTr, structured, thumbnail: detail.thumbnail, publishedAt: detail.publishedAt },
+      update: { title: detail.title, titleTr, content: detail.content, contentTr, structured, thumbnail: detail.thumbnail, publishedAt: detail.publishedAt, fetchedAt: new Date() },
     });
+
+    return NextResponse.json({ ok: true, added: 1, boardNo: latestBoardNo, message: `#${latestBoardNo} işlendi.` });
   } catch (err) {
     console.error("Patch note fetch error:", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
