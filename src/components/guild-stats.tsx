@@ -212,13 +212,13 @@ export function GuildStats() {
       {/* GS Bracket Distribution - Pie Chart */}
       {stats.gsBrackets && (
         <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-          <h3 className="text-xs uppercase text-bdo-text-muted mb-4">GS Dağılımı</h3>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-            <svg width="200" height="200" className="flex-shrink-0">
+          <h3 className="text-xs uppercase text-bdo-text-muted mb-6">GS Dağılımı</h3>
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
+            <svg width="320" height="320" className="flex-shrink-0" viewBox="0 0 300 300">
               {(() => {
                 const brackets = stats.gsBrackets;
                 const total = brackets.reduce((sum, b) => sum + b.count, 0) || 1;
-                const colors = ["#7a5c1e", "#a67c28", "#d4a853", "#e8b960", "#f0c566", "#c9963f"];
+                const colors = ["#ff4444", "#ff8844", "#ffdd44", "#44aaff", "#2244ff"];
                 let currentAngle = -90;
                 
                 return brackets.map((b, i) => {
@@ -227,40 +227,60 @@ export function GuildStats() {
                   const endAngle = currentAngle + sliceAngle;
                   const startRad = (startAngle * Math.PI) / 180;
                   const endRad = (endAngle * Math.PI) / 180;
-                  const x1 = 100 + 70 * Math.cos(startRad);
-                  const y1 = 100 + 70 * Math.sin(startRad);
-                  const x2 = 100 + 70 * Math.cos(endRad);
-                  const y2 = 100 + 70 * Math.sin(endRad);
+                  const x1 = 150 + 100 * Math.cos(startRad);
+                  const y1 = 150 + 100 * Math.sin(startRad);
+                  const x2 = 150 + 100 * Math.cos(endRad);
+                  const y2 = 150 + 100 * Math.sin(endRad);
                   const largeArc = sliceAngle > 180 ? 1 : 0;
-                  const path = `M 100 100 L ${x1} ${y1} A 70 70 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                  const path = `M 150 150 L ${x1} ${y1} A 100 100 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                  
+                  const textAngle = startAngle + sliceAngle / 2;
+                  const textRad = (textAngle * Math.PI) / 180;
+                  const textX = 150 + 65 * Math.cos(textRad);
+                  const textY = 150 + 65 * Math.sin(textRad);
                   
                   currentAngle = endAngle;
                   
                   return (
-                    <path
-                      key={b.label}
-                      d={path}
-                      fill={colors[i % colors.length]}
-                      stroke="#1a1a1a"
-                      strokeWidth="1"
-                      opacity="0.85"
-                    />
+                    <g key={b.label}>
+                      <path
+                        d={path}
+                        fill={colors[i % colors.length]}
+                        stroke="#1a1a1a"
+                        strokeWidth="2"
+                        opacity="0.9"
+                      />
+                      {sliceAngle > 12 && (
+                        <text
+                          x={textX}
+                          y={textY}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="text-[11px] font-bold pointer-events-none"
+                          fill="#ffffff"
+                          stroke="#000000"
+                          strokeWidth="0.5"
+                        >
+                          {b.label}
+                        </text>
+                      )}
+                    </g>
                   );
                 });
               })()}
             </svg>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3 text-sm">
               {stats.gsBrackets.map((b, i) => {
-                const colors = ["#7a5c1e", "#a67c28", "#d4a853", "#e8b960", "#f0c566", "#c9963f"];
+                const colors = ["#ff4444", "#ff8844", "#ffdd44", "#44aaff", "#2244ff"];
                 const total = stats.gsBrackets.reduce((sum, x) => sum + x.count, 0) || 1;
                 const pct = Math.round((b.count / total) * 100);
                 return (
-                  <div key={b.label} className="flex items-center gap-2">
+                  <div key={b.label} className="flex items-center gap-3">
                     <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: colors[i % colors.length], opacity: 0.85 }}
+                      className="w-5 h-5 rounded-full border border-bdo-border"
+                      style={{ backgroundColor: colors[i % colors.length], opacity: 0.9 }}
                     />
-                    <span className="text-bdo-text-muted">{b.label}</span>
+                    <span className="text-bdo-text-muted min-w-16">{b.label}</span>
                     <span className="ml-auto font-mono text-bdo-gold font-bold">{b.count} ({pct}%)</span>
                   </div>
                 );
@@ -268,7 +288,7 @@ export function GuildStats() {
             </div>
           </div>
         </div>
-      )}
+      ))
     </div>
   );
 }

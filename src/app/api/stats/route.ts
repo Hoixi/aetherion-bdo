@@ -134,8 +134,7 @@ export async function GET() {
       { label: "800-820", count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 800 && gs < 820; }).length },
       { label: "820+",  count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 820 && gs < 840; }).length },
       { label: "840+",  count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 840 && gs < 860; }).length },
-      { label: "860+",  count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 860 && gs < 880; }).length },
-      { label: "880+",  count: members.filter((m) => m.ap + m.dp >= 880).length },
+      { label: "860+",  count: members.filter((m) => m.ap + m.dp >= 860).length },
     ],
   });
 }
