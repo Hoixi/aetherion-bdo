@@ -18,6 +18,7 @@ model User {
   avatarUrl   String   @default("")
   isAdmin     Boolean   @default(false)
   siteRoleId  Int?
+  absenceCount Int     @default(0)
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
