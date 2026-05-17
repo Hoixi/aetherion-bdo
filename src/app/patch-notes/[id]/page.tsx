@@ -5,6 +5,42 @@ import { useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { StructuredPatchNote, StructuredChange } from "@/lib/patch-notes-types";
+import { BDO_CLASSES, getClassImageUrl } from "@/lib/classes";
+
+// ─── Class splash art helper ──────────────────────────────────────────────────
+
+const CLASS_NAME_MAP: Record<string, number> = Object.fromEntries(
+  BDO_CLASSES.flatMap((c) => [
+    [c.name.toLowerCase(), c.classType],
+    [c.id.toLowerCase(), c.classType],
+  ])
+);
+// Extra English name aliases used in patch notes
+const EXTRA_ALIASES: Record<string, number> = {
+  warrior: 0, hashashin: 1, sage: 2, wukong: 3, ranger: 4, guardian: 5,
+  scholar: 6, drakania: 7, sorceress: 8, nova: 9, corsair: 10, lahn: 11,
+  berserker: 12, maegu: 15, archer: 16, shai: 17, striker: 19, musa: 20,
+  maehwa: 21, mystic: 23, valkyrie: 24, kunoichi: 25, ninja: 26,
+  "dark knight": 27, wizard: 28, "dark archer": 29, witch: 31, woosa: 30,
+  seraph: 32, dosa: 33, deadeye: 34,
+};
+
+function getSectionSplash(heading: string): string | null {
+  const h = heading.toLowerCase();
+  const spec: "awakening" | "succession" = h.includes("succession") ? "succession" : "awakening";
+  // Remove spec words to get class name
+  const cleaned = h.replace(/\b(awakening|succession|uyanış|devam)\b/g, "").trim();
+
+  const classType =
+    EXTRA_ALIASES[cleaned] ??
+    CLASS_NAME_MAP[cleaned] ??
+    // Try partial match
+    Object.entries({ ...EXTRA_ALIASES, ...CLASS_NAME_MAP }).find(([k]) => cleaned.includes(k))?.[1] ??
+    null;
+
+  if (classType === null || classType === undefined) return null;
+  return getClassImageUrl(classType, spec);
+}
 
 interface PatchNote {
   id: number;
@@ -88,10 +124,21 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
     <div className="flex flex-col gap-5">
       {data.sections.map((sec) => (
         <div key={sec.id} className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-            <span className="text-lg">{sec.emoji}</span>
-            <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
-          </div>
+          {(() => {
+            const splash = getSectionSplash(sec.heading);
+            return (
+              <div className="relative flex items-center gap-2.5 px-5 py-4 border-b border-bdo-border overflow-hidden">
+                {splash && (
+                  <>
+                    <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-20 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
+                  </>
+                )}
+                <span className="relative text-lg">{sec.emoji}</span>
+                <h2 className="relative text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+              </div>
+            );
+          })()}
           <div>
             {groupBySkill(sec.changes).map((group, gi) => (
               <div key={gi} className="border-t border-bdo-border/40 first:border-t-0">
@@ -102,7 +149,7 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
                         className="w-8 h-8 object-contain rounded"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     )}
-                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillNameTr || group.skillName}</span>
+                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillName}</span>
                   </div>
                 )}
                 <ul className="divide-y divide-bdo-border/30">
@@ -220,16 +267,26 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
             className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden scroll-mt-20"
           >
             {/* Section header */}
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-              <span className="text-xl">{sec.emoji}</span>
-              <div>
-                <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
-                {sec.heading !== sec.headingTr && (
-                  <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
-                )}
-              </div>
+            {(() => {
+              const splash = getSectionSplash(sec.heading);
+              return (
+                <div className="relative flex items-center gap-3 px-5 py-4 border-b border-bdo-border overflow-hidden">
+                  {/* Splash background */}
+                  {splash && (
+                    <>
+                      <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-20 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
+                    </>
+                  )}
+                  <span className="relative text-xl">{sec.emoji}</span>
+                  <div className="relative">
+                    <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+                    {sec.heading !== sec.headingTr && (
+                      <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
+                    )}
+                  </div>
               {/* Count pills */}
-              <div className="ml-auto flex items-center gap-1 flex-wrap justify-end">
+              <div className="relative ml-auto flex items-center gap-1 flex-wrap justify-end">
                 {(["BUFF", "NERF", "FIX", "NEW", "CHANGE"] as const).map((t) => {
                   const count = sec.changes.filter((c) => c.type === t).length;
                   if (!count) return null;
@@ -241,7 +298,9 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                   );
                 })}
               </div>
-            </div>
+                </div>
+              );
+            })()}
 
             {/* Changes — grouped by skill */}
             <div>
@@ -259,10 +318,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                         />
                       )}
                       <span className="text-xs font-semibold text-bdo-text-muted">
-                        {group.skillNameTr || group.skillName}
-                        {group.skillNameTr && group.skillName !== group.skillNameTr && (
-                          <span className="ml-1.5 opacity-50 font-normal">{group.skillName}</span>
-                        )}
+                        {group.skillName}
                       </span>
                     </div>
                   )}
