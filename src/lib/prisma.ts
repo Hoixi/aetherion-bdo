@@ -2,15 +2,19 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
+// connection_limit=3: shared hosting için yeterli, max_user_connections'a takılmaz
+// pool_timeout=0: timeout fırlatmak yerine sonsuza kadar bekle (kuyrukta tut)
+function buildUrl() {
+  const base = process.env.DATABASE_URL ?? "";
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}connection_limit=3&pool_timeout=0`;
+}
+
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL + (process.env.DATABASE_URL?.includes("?") ? "&" : "?") + "connection_limit=1&pool_timeout=10",
-      },
-    },
+    datasources: { db: { url: buildUrl() } },
   });
 
-// Singleton'ı hem dev hem production'da sakla
+// Hem dev hem production'da singleton tut
 globalForPrisma.prisma = prisma;
