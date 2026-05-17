@@ -252,6 +252,48 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
   return { title, content, thumbnail, publishedAt, debug };
 }
 
+// ─── Debug route ─────────────────────────────────────────────────────────────
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const boardNo = searchParams.get("boardNo");
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+  };
+
+  if (boardNo) {
+    // Test a specific detail URL
+    const urlsToTry = [
+      `${BASE}/GlobalLab/en-US/News/Detail?_boardNo=${boardNo}`,
+      `${BASE}/en-US/News/Detail?_boardNo=${boardNo}`,
+      `${BASE}/GlobalLab/en-US/News/${boardNo}`,
+    ];
+    const results: Record<string, { status: number; len: number; snippet: string }> = {};
+    for (const url of urlsToTry) {
+      const r = await fetch(url, { headers });
+      const text = await r.text();
+      results[url] = { status: r.status, len: text.length, snippet: text.slice(0, 500) };
+    }
+    return Response.json(results);
+  }
+
+  // Dump list page HTML snippet + all _boardNo links found
+  const r = await fetch(LIST_URL, { headers });
+  const html = await r.text();
+  const boardNos = Array.from(html.matchAll(/[?&]_boardNo=(\d+)/g)).map((m) => m[1]);
+  const hrefs = Array.from(html.matchAll(/href="([^"]*_boardNo[^"]*)"/g)).map((m) => m[1]).slice(0, 20);
+  return Response.json({
+    status: r.status,
+    html_len: html.length,
+    snippet: html.slice(0, 2000),
+    boardNos: [...new Set(boardNos)].slice(0, 20),
+    hrefs,
+  });
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
