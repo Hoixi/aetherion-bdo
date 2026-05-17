@@ -2,7 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { MemberChip } from "./member-chip";
+import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
 
 interface PartyColumnProps {
@@ -15,9 +15,10 @@ interface PartyColumnProps {
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
   onToggleDefense: (partyId: number, isDefense: boolean) => Promise<{ error?: string }>;
+  memberStats?: Record<number, UserPerfStats>;
 }
 
-export function PartyColumn({ party, onRename, onDelete, onToggleDefense }: PartyColumnProps) {
+export function PartyColumn({ party, onRename, onDelete, onToggleDefense, memberStats }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
   const [defenseErr, setDefenseErr] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense }: Part
             </div>
           )}
           {party.members.map((m) => (
-            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user} />
+            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} />
           ))}
         </div>
       </SortableContext>

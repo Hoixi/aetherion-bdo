@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PartyBuilder } from "@/components/party-builder";
+import { UserPerfStats } from "@/components/member-chip";
 import { getTypeName } from "@/lib/classes";
 
 interface WarPerf {
@@ -89,6 +90,7 @@ export default function WarDetailPage() {
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [performances, setPerformances] = useState<WarPerf[]>([]);
   const [absentMembers, setAbsentMembers] = useState<{ id: number; familyName: string; avatarUrl: string }[]>([]);
+  const [memberStats, setMemberStats] = useState<Record<number, UserPerfStats>>({});
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -99,10 +101,11 @@ export default function WarDetailPage() {
 
     async function fetchWar() {
       setLoading(true);
-      const [warRes, membersRes, perfRes] = await Promise.all([
+      const [warRes, membersRes, perfRes, statsRes] = await Promise.all([
         fetch(`/api/wars/${warId}`),
         fetch("/api/members"),
         fetch(`/api/wars/${warId}/performance`),
+        fetch("/api/performances/user-averages"),
       ]);
       if (warRes.ok) {
         const data = await warRes.json();
@@ -120,6 +123,7 @@ export default function WarDetailPage() {
         setPerformances(perfData.performances ?? []);
         setAbsentMembers(perfData.absent ?? []);
       }
+      if (statsRes.ok) setMemberStats(await statsRes.json());
       setLoading(false);
     }
 
@@ -290,6 +294,7 @@ export default function WarDetailPage() {
             attendees={attending}
             initialParties={war.parties}
             maxParticipants={war.maxParticipants}
+            memberStats={memberStats}
           />
         </div>
       )}
