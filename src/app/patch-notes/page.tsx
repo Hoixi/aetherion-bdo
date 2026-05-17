@@ -236,7 +236,7 @@ export default function PatchNotesPage() {
                 </div>
               </Link>
               {/* Admin: re-process button */}
-              {session?.user.isAdmin && !note.hasStructured && (
+              {session?.user.isAdmin && (
                 <button
                   onClick={(e) => { e.preventDefault(); reprocessNote(note.boardNo, note.id); }}
                   disabled={reprocessingId === note.id}
