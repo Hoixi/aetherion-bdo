@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BDO_CLASSES } from "@/lib/classes";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export interface UserPerfStats {
   wars: number;
@@ -57,6 +57,8 @@ function ScoreDot({ score }: { score: number }) {
 export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+  const chipRef = useRef<HTMLDivElement>(null);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -66,17 +68,29 @@ export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
 
   const className = BDO_CLASSES.find((c) => c.id === user.class)?.name ?? user.class;
 
+  function handleMouseEnter() {
+    if (!chipRef.current) return;
+    const rect = chipRef.current.getBoundingClientRect();
+    // Tooltip'i chip'in üstüne yerleştir, ekranın sağına taşmamas için sola hizala
+    const left = Math.min(rect.left, window.innerWidth - 240);
+    setTooltipPos({ top: rect.top - 8, left });
+    setShowTooltip(true);
+  }
+
+  // Sürükleme başlayınca kapat
+  useEffect(() => { if (isDragging) setShowTooltip(false); }, [isDragging]);
+
   return (
     <div
       ref={setNodeRef}
       style={isDragOverlay ? undefined : style}
       className="relative"
     >
-      {/* Tooltip */}
+      {/* Tooltip — fixed pozisyon, overflow sorununu çözer */}
       {perf && showTooltip && !isDragging && (
         <div
-          className="absolute bottom-full left-0 mb-2 z-50 w-56 bg-[#13131a] border border-bdo-border rounded-xl p-3 shadow-2xl pointer-events-none"
-          style={{ minWidth: 220 }}
+          className="fixed z-[9999] w-56 bg-[#13131a] border border-bdo-border rounded-xl p-3 shadow-2xl pointer-events-none"
+          style={{ top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-100%)", minWidth: 220 }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
@@ -134,9 +148,10 @@ export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
 
       {/* Chip */}
       <div
+        ref={chipRef}
         {...attributes}
         {...listeners}
-        onMouseEnter={() => setShowTooltip(true)}
+        onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setShowTooltip(false)}
         className={`flex items-center gap-2 bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none ${
           isDragOverlay ? "shadow-lg border-bdo-gold/50" : "hover:border-bdo-gold/30"
