@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/members", label: "Üyeler" },
   { href: "/etkinlikler", label: "Etkinlikler" },
+  { href: "/forum", label: "Forum" },
   { href: "/calendar", label: "Takvim" },
   { href: "/hasar-raporu", label: "Hasar Raporu" },
   { href: "/profile", label: "Profil" },

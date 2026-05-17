@@ -35,6 +35,9 @@ model User {
   warPerformances   WarPerformance[]
   createdActivities Activity[]
   activityJoins     ActivityMember[]
+  forumPosts        ForumPost[]
+  forumComments     ForumComment[]
+  forumReactions    ForumReaction[]
 
   @@map("users")
 }
@@ -290,4 +293,78 @@ model ClassDiscordRole {
   createdAt DateTime @default(now())
 
   @@map("class_discord_roles")
+}
+
+// ─── FORUM ───────────────────────────────────────────────────
+
+enum ForumTagType {
+  CATEGORY
+  CLASS
+}
+
+model ForumTag {
+  id    Int          @id @default(autoincrement())
+  name  String       @unique
+  slug  String       @unique
+  type  ForumTagType
+  color String       @default("#d4a853")
+
+  posts ForumPostTag[]
+
+  @@map("forum_tags")
+}
+
+model ForumPost {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  authorId  Int
+  pinned    Boolean  @default(false)
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author    User           @relation(fields: [authorId], references: [id])
+  tags      ForumPostTag[]
+  comments  ForumComment[]
+  reactions ForumReaction[]
+
+  @@map("forum_posts")
+}
+
+model ForumPostTag {
+  postId Int
+  tagId  Int
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  ForumTag  @relation(fields: [tagId], references: [id])
+
+  @@id([postId, tagId])
+  @@map("forum_post_tags")
+}
+
+model ForumComment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  authorId  Int
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User      @relation(fields: [authorId], references: [id])
+
+  @@map("forum_comments")
+}
+
+model ForumReaction {
+  id     Int    @id @default(autoincrement())
+  postId Int
+  userId Int
+  emoji  String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, emoji])
+  @@map("forum_reactions")
 }
