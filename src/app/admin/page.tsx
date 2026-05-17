@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [roles, setRoles] = useState<SiteRole[]>([]);
   const [showWarForm, setShowWarForm] = useState(false);
   const [editingWar, setEditingWar] = useState<War | null>(null);
-  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar">("wars");
+  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar">("wars");
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annSaving, setAnnSaving] = useState(false);
@@ -372,7 +372,7 @@ export default function AdminPage() {
       )}
 
       <div className="flex gap-2 flex-wrap">
-        {(["wars", "announcements", "members", "roles", "hasar"] as const).map((t) => (
+        {(["wars", "announcements", "members", "roles", "hasar", "araçlar"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -380,7 +380,12 @@ export default function AdminPage() {
               tab === t ? "bg-bdo-gold text-bdo-bg" : "bg-bdo-surface text-bdo-text-muted hover:text-bdo-gold"
             }`}
           >
-            {t === "wars" ? "Savaşlar" : t === "announcements" ? "Duyurular" : t === "members" ? "Üyeler" : t === "roles" ? "Roller" : "Hasar Raporu"}
+            {t === "wars" ? "Savaşlar"
+              : t === "announcements" ? "Duyurular"
+              : t === "members" ? "Üyeler"
+              : t === "roles" ? "Roller"
+              : t === "hasar" ? "Hasar Raporu"
+              : "🛠 Araçlar"}
           </button>
         ))}
       </div>
@@ -525,113 +530,70 @@ export default function AdminPage() {
         </div>
       )}
 
-      {tab === "members" && (
+      {tab === "araçlar" && (
         <div className="space-y-4">
-          {/* Sync Section */}
+          {/* Discord Sync */}
           <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">Discord Üye Senkronizasyonu</h3>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">🔄 Discord Üye Senkronizasyonu</h3>
                 <p className="text-xs text-bdo-text-muted mt-0.5">Guild rolü olanları çeker, rolü olmayanları gizler.</p>
               </div>
-              <button
-                onClick={syncMembers}
-                disabled={syncing}
-                className="text-sm bg-bdo-gold/10 text-bdo-gold px-4 py-2 rounded-lg hover:bg-bdo-gold/20 transition-colors disabled:opacity-50 font-semibold"
-              >
+              <button onClick={syncMembers} disabled={syncing} className="text-sm bg-bdo-gold/10 text-bdo-gold px-4 py-2 rounded-lg hover:bg-bdo-gold/20 transition-colors disabled:opacity-50 font-semibold">
                 {syncing ? "Syncleniyor..." : "🔄 Sync"}
               </button>
             </div>
-
             {syncResult && (
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-3 text-xs">
-                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-lg">
-                    ✅ {syncResult.created} yeni üye eklendi
-                  </span>
-                  <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg">
-                    🔁 {syncResult.restored} üye geri getirildi
-                  </span>
-                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg">
-                    🗑 {syncResult.softDeleted} üye gizlendi
-                  </span>
-                  <span className="bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/20 px-3 py-1.5 rounded-lg">
-                    👥 Toplam {syncResult.totalWithRole} guild üyesi
-                  </span>
+                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-lg">✅ {syncResult.created} yeni üye</span>
+                  <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg">🔁 {syncResult.restored} geri döndü</span>
+                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg">🗑 {syncResult.softDeleted} gizlendi</span>
+                  <span className="bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/20 px-3 py-1.5 rounded-lg">👥 {syncResult.totalWithRole} guild üyesi</span>
                 </div>
-
                 {syncResult.incomplete.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-amber-400">
-                        ⚠️ {syncResult.incomplete.length} üye profilini henüz doldurmamış
-                      </p>
-                      <button
-                        onClick={sendDmAll}
-                        disabled={dmSendingAll}
-                        className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
-                      >
-                        {dmSendingAll ? "Gönderiliyor..." : "📨 Tümüne DM Gönder"}
+                      <p className="text-xs font-semibold text-amber-400">⚠️ {syncResult.incomplete.length} üye profilini doldurmamış</p>
+                      <button onClick={sendDmAll} disabled={dmSendingAll} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap">
+                        {dmSendingAll ? "Gönderiliyor..." : "📨 Tümüne DM"}
                       </button>
                     </div>
-                    {dmAllResult && (
-                      <p className="text-xs text-bdo-text-muted">
-                        ✅ {dmAllResult.sent} gönderildi{dmAllResult.failed > 0 && ` · ❌ ${dmAllResult.failed} başarısız`}
-                      </p>
-                    )}
+                    {dmAllResult && <p className="text-xs text-bdo-text-muted">✅ {dmAllResult.sent} gönderildi{dmAllResult.failed > 0 && ` · ❌ ${dmAllResult.failed} başarısız`}</p>}
                     {syncResult.incomplete.map((u) => (
                       <div key={u.id} className="flex items-center justify-between bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
                         <div className="flex items-center gap-2">
-                          {u.avatarUrl ? (
-                            <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-xs text-bdo-text-muted">?</div>
-                          )}
+                          {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full" /> : <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-xs text-bdo-text-muted">?</div>}
                           <div>
                             <span className="text-sm text-bdo-text-primary">{u.familyName || u.discordUsername}</span>
                             <span className="ml-2 text-xs text-bdo-text-muted font-mono">{u.discordId}</span>
-                            <div className="text-xs text-bdo-text-muted">
-                              {[!u.familyName && "Aile adı yok", !u.class && "Class yok", !u.ap && !u.dp && "GS yok"].filter(Boolean).join(" · ")}
-                            </div>
+                            <div className="text-xs text-bdo-text-muted">{[!u.familyName && "Aile adı yok", !u.class && "Class yok", !u.ap && !u.dp && "GS yok"].filter(Boolean).join(" · ")}</div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => sendDm(u.id)}
-                          disabled={dmSending === u.id}
-                          className="text-xs bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 px-3 py-1.5 rounded-lg hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50 whitespace-nowrap"
-                        >
-                          {dmSending === u.id ? "Gönderiliyor..." : "💬 DM Gönder"}
+                        <button onClick={() => sendDm(u.id)} disabled={dmSending === u.id} className="text-xs bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 px-3 py-1.5 rounded-lg hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50 whitespace-nowrap">
+                          {dmSending === u.id ? "Gönderiliyor..." : "💬 DM"}
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {syncResult.incomplete.length === 0 && (
-                  <p className="text-xs text-green-400">✅ Tüm üyeler profillerini doldurmuş!</p>
-                )}
+                {syncResult.incomplete.length === 0 && <p className="text-xs text-green-400">✅ Tüm üyeler profillerini doldurmuş!</p>}
               </div>
             )}
           </div>
 
-          {/* Register Discord Commands */}
+          {/* Discord Slash Commands */}
           <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">Discord Slash Komutları</h3>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">🤖 Discord Slash Komutları</h3>
                 <p className="text-xs text-bdo-text-muted mt-0.5">Yeni komutları Discord'a kaydetmek için tıkla.</p>
               </div>
-              <button
-                onClick={registerDiscordCommands}
-                disabled={registeringCmds}
-                className="text-sm bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-50 font-semibold"
-              >
-                {registeringCmds ? "Kaydediliyor..." : "🤖 Komutları Kaydet"}
+              <button onClick={registerDiscordCommands} disabled={registeringCmds} className="text-sm bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-50 font-semibold">
+                {registeringCmds ? "Kaydediliyor..." : "Komutları Kaydet"}
               </button>
             </div>
-            {registerCmdsResult && (
-              <p className="text-xs mt-2 text-bdo-text-muted">{registerCmdsResult}</p>
-            )}
+            {registerCmdsResult && <p className="text-xs mt-2 text-bdo-text-muted">{registerCmdsResult}</p>}
           </div>
 
           {/* Class Roles Sync */}
@@ -641,17 +603,11 @@ export default function AdminPage() {
                 <h3 className="text-sm font-semibold text-bdo-text-primary">🎭 Karakter Rolleri</h3>
                 <p className="text-xs text-bdo-text-muted mt-0.5">Eksik class rollerini oluşturur ve üyelere otomatik atar.</p>
               </div>
-              <button
-                onClick={syncClassRoles}
-                disabled={syncingClassRoles}
-                className="text-sm bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
-              >
-                {syncingClassRoles ? "⏳ Çalışıyor..." : "🎭 Rolleri Sync Et"}
+              <button onClick={syncClassRoles} disabled={syncingClassRoles} className="text-sm bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
+                {syncingClassRoles ? "⏳ Çalışıyor..." : "Rolleri Sync Et"}
               </button>
             </div>
-            {syncingClassRoles && (
-              <p className="text-xs mt-2 text-bdo-text-muted animate-pulse">Roller oluşturuluyor ve atanıyor, bu işlem 1-2 dakika sürebilir…</p>
-            )}
+            {syncingClassRoles && <p className="text-xs mt-2 text-bdo-text-muted animate-pulse">Roller oluşturuluyor ve atanıyor, 1-2 dakika sürebilir…</p>}
             {classRolesResult && !syncingClassRoles && (
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 {classRolesResult.created.length > 0 && (
@@ -661,33 +617,27 @@ export default function AdminPage() {
                   </div>
                 )}
                 <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg p-2 space-y-1">
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Mevcut roller</span><span className="font-mono text-bdo-gold">{classRolesResult.existing.length}</span></div>
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Rol atandı</span><span className="font-mono text-emerald-400">{classRolesResult.assigned}</span></div>
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Yanlış rol kaldırıldı</span><span className="font-mono text-orange-400">{classRolesResult.removed}</span></div>
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Mevcut</span><span className="font-mono text-bdo-gold">{classRolesResult.existing.length}</span></div>
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Atandı</span><span className="font-mono text-emerald-400">{classRolesResult.assigned}</span></div>
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Kaldırıldı</span><span className="font-mono text-orange-400">{classRolesResult.removed}</span></div>
                   {classRolesResult.errors > 0 && <div className="flex justify-between"><span className="text-bdo-text-muted">Hata</span><span className="font-mono text-red-400">{classRolesResult.errors}</span></div>}
                 </div>
               </div>
             )}
           </div>
 
-          {/* DB Fix: TEXT → LONGTEXT */}
+          {/* DB Fix */}
           <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-bdo-text-primary">🛠 Forum DB Düzelt</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">forum_posts.content kolonunu TEXT → LONGTEXT yapar (resim yükleme için gerekli).</p>
+                <p className="text-xs text-bdo-text-muted mt-0.5">forum_posts.content → LONGTEXT (resim yükleme için).</p>
               </div>
-              <button
-                onClick={fixLongText}
-                disabled={fixingDb}
-                className="text-sm bg-blue-500/10 text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
-              >
-                {fixingDb ? "⏳ Çalışıyor..." : "🛠 Fix Uygula"}
+              <button onClick={fixLongText} disabled={fixingDb} className="text-sm bg-blue-500/10 text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
+                {fixingDb ? "⏳ Çalışıyor..." : "Fix Uygula"}
               </button>
             </div>
-            {fixDbResult && (
-              <p className="text-xs mt-2 text-bdo-text-muted">{fixDbResult}</p>
-            )}
+            {fixDbResult && <p className="text-xs mt-2 text-bdo-text-muted">{fixDbResult}</p>}
           </div>
 
           {/* Retroactive Absence Recalc */}
@@ -697,32 +647,23 @@ export default function AdminPage() {
                 <h3 className="text-sm font-semibold text-bdo-text-primary">⚠️ Geçmiş Devamsızlık Hesapla</h3>
                 <p className="text-xs text-bdo-text-muted mt-0.5">Tüm eski savaşlara bakarak absenceCount'u sıfırdan hesaplar.</p>
               </div>
-              <button
-                onClick={recalcAbsences}
-                disabled={recalcingAbsences}
-                className="text-sm bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
-              >
-                {recalcingAbsences ? "⏳ Hesaplanıyor..." : "🔄 Yeniden Hesapla"}
+              <button onClick={recalcAbsences} disabled={recalcingAbsences} className="text-sm bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
+                {recalcingAbsences ? "⏳ Hesaplanıyor..." : "Yeniden Hesapla"}
               </button>
             </div>
             {recalcResult && !recalcingAbsences && (
-              <div className="mt-3 flex gap-4 text-xs">
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
-                  <span className="text-bdo-text-muted">İşlenen savaş</span>
-                  <span className="ml-2 font-mono text-bdo-gold font-bold">{recalcResult.warsProcessed}</span>
-                </div>
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
-                  <span className="text-bdo-text-muted">Toplam devamsızlık</span>
-                  <span className="ml-2 font-mono text-red-400 font-bold">{recalcResult.totalAbsences}</span>
-                </div>
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2">
-                  <span className="text-bdo-text-muted">Etkilenen üye</span>
-                  <span className="ml-2 font-mono text-orange-400 font-bold">{recalcResult.affectedUsers}</span>
-                </div>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">İşlenen savaş</span><span className="ml-2 font-mono text-bdo-gold font-bold">{recalcResult.warsProcessed}</span></div>
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">Toplam devamsızlık</span><span className="ml-2 font-mono text-red-400 font-bold">{recalcResult.totalAbsences}</span></div>
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">Etkilenen üye</span><span className="ml-2 font-mono text-orange-400 font-bold">{recalcResult.affectedUsers}</span></div>
               </div>
             )}
           </div>
+        </div>
+      )}
 
+      {tab === "members" && (
+        <div className="space-y-4">
           {/* Member List */}
           <div className="space-y-2">
           {members.map((member) => (
