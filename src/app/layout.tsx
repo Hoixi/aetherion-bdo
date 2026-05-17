@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -14,18 +14,19 @@ export const metadata: Metadata = {
   title: "Aetherion",
   description: "Aetherion Guild Management",
   manifest: "/manifest.json",
-  themeColor: "#d4a853",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Aetherion",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#d4a853",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
