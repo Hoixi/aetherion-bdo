@@ -296,6 +296,22 @@ model ClassDiscordRole {
   @@map("class_discord_roles")
 }
 
+// ─── PATCH NOTES ─────────────────────────────────────────────
+
+model PatchNote {
+  id          Int      @id @default(autoincrement())
+  boardNo     Int      @unique
+  title       String
+  titleTr     String   @db.Text
+  content     String   @db.LongText
+  contentTr   String   @db.LongText
+  thumbnail   String?
+  publishedAt DateTime
+  fetchedAt   DateTime @default(now())
+
+  @@map("patch_notes")
+}
+
 // ─── FORUM ───────────────────────────────────────────────────
 
 enum ForumTagType {

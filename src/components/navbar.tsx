@@ -12,6 +12,7 @@ const navLinks = [
   { href: "/forum", label: "Forum" },
   { href: "/calendar", label: "Takvim" },
   { href: "/hasar-raporu", label: "Hasar Raporu" },
+  { href: "/patch-notes", label: "Yama Notları" },
   { href: "/profile", label: "Profil" },
 ];
 
