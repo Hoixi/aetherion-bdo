@@ -148,9 +148,9 @@ export function GuildStats() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-4 items-start">
+      <div className="grid md:grid-cols-2 gap-4 items-stretch">
         {/* Left column: Class Distribution + GS Donut */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
             <h3 className="text-xs uppercase text-bdo-text-muted mb-3">Class Dağılımı</h3>
             <div className="space-y-1.5">
@@ -180,20 +180,18 @@ export function GuildStats() {
             const brackets = stats.gsBrackets;
             const total = brackets.reduce((s, b) => s + b.count, 0) || 1;
             const COLORS = ["#e84545", "#f07f3c", "#f5c842", "#4ab3f4", "#5b6ef5"];
-            const R = 38;
+            const R = 70;
             const CIRC = 2 * Math.PI * R;
             let offset = 0;
 
             return (
-              <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-                <h3 className="text-xs uppercase text-bdo-text-muted mb-4">GS Dağılımı</h3>
-                <div className="flex items-center gap-6">
+              <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5 flex-1 flex flex-col justify-center">
+                <h3 className="text-xs uppercase text-bdo-text-muted mb-5">GS Dağılımı</h3>
+                <div className="flex items-center justify-between gap-6">
                   {/* Donut */}
-                  <div className="relative flex-shrink-0">
-                    <svg width="120" height="120" viewBox="0 0 100 100">
-                      {/* Track */}
-                      <circle cx="50" cy="50" r={R} fill="none" stroke="#1e2028" strokeWidth="18" />
-                      {/* Segments */}
+                  <div className="flex-shrink-0">
+                    <svg width="180" height="180" viewBox="0 0 180 180">
+                      <circle cx="90" cy="90" r={R} fill="none" stroke="#1a1c24" strokeWidth="28" />
                       {brackets.map((b, i) => {
                         const dash = (b.count / total) * CIRC;
                         const gap = CIRC - dash;
@@ -201,10 +199,10 @@ export function GuildStats() {
                         const el = (
                           <circle
                             key={b.label}
-                            cx="50" cy="50" r={R}
+                            cx="90" cy="90" r={R}
                             fill="none"
                             stroke={COLORS[i % COLORS.length]}
-                            strokeWidth="18"
+                            strokeWidth="26"
                             strokeDasharray={`${dash} ${gap}`}
                             strokeDashoffset={segOffset}
                             strokeLinecap="butt"
@@ -213,26 +211,29 @@ export function GuildStats() {
                         offset += dash;
                         return el;
                       })}
-                      {/* Gap ring */}
-                      <circle cx="50" cy="50" r={R} fill="none" stroke="#0f1117" strokeWidth="2" />
-                      {/* Center label */}
-                      <text x="50" y="47" textAnchor="middle" fill="#d4a853" fontSize="14" fontWeight="bold" fontFamily="monospace">{total}</text>
-                      <text x="50" y="58" textAnchor="middle" fill="#6b7280" fontSize="7">üye</text>
+                      {/* Divider ring */}
+                      <circle cx="90" cy="90" r={R} fill="none" stroke="#0f1117" strokeWidth="2" />
+                      {/* Center */}
+                      <text x="90" y="84" textAnchor="middle" fill="#d4a853" fontSize="26" fontWeight="bold" fontFamily="monospace">{total}</text>
+                      <text x="90" y="101" textAnchor="middle" fill="#6b7280" fontSize="11">üye</text>
                     </svg>
                   </div>
                   {/* Legend */}
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-3">
                     {brackets.map((b, i) => {
                       const pct = Math.round((b.count / total) * 100);
+                      const barW = `${pct}%`;
                       return (
-                        <div key={b.label} className="flex items-center gap-2 text-xs">
-                          <span
-                            className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                          />
-                          <span className="text-bdo-text-muted flex-1">{b.label}</span>
-                          <span className="font-mono text-bdo-text-secondary">{b.count}</span>
-                          <span className="font-mono text-bdo-gold w-9 text-right">%{pct}</span>
+                        <div key={b.label}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="text-xs text-bdo-text-muted flex-1">{b.label}</span>
+                            <span className="text-xs font-mono text-bdo-text-secondary">{b.count}</span>
+                            <span className="text-xs font-mono font-bold text-bdo-gold w-8 text-right">%{pct}</span>
+                          </div>
+                          <div className="h-1 bg-bdo-bg rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: barW, backgroundColor: COLORS[i % COLORS.length], opacity: 0.7 }} />
+                          </div>
                         </div>
                       );
                     })}
