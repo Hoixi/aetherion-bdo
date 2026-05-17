@@ -75,6 +75,8 @@ export default function AdminPage() {
   const [dmAllResult, setDmAllResult] = useState<{ sent: number; failed: number } | null>(null);
   const [registeringCmds, setRegisteringCmds] = useState(false);
   const [registerCmdsResult, setRegisterCmdsResult] = useState<string | null>(null);
+  const [syncingClassRoles, setSyncingClassRoles] = useState(false);
+  const [classRolesResult, setClassRolesResult] = useState<{ created: string[]; existing: string[]; assigned: number; removed: number; errors: number } | null>(null);
 
   async function setWarResult(warId: number, result: string | null) {
     setSettingResult(warId);
@@ -208,6 +210,21 @@ export default function AdminPage() {
       setRegisterCmdsResult(`❌ Hata: ${JSON.stringify(data.error)}`);
     }
     setRegisteringCmds(false);
+  }
+
+  async function syncClassRoles() {
+    if (!confirm("Tüm sınıf rolleri Discord'da kontrol edilecek, eksikler oluşturulacak ve üyelere atanacak. Devam edilsin mi?")) return;
+    setSyncingClassRoles(true);
+    setClassRolesResult(null);
+    const res = await fetch("/api/admin/class-roles", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      setClassRolesResult(data);
+    } else {
+      setMessage(`❌ Hata: ${data.error}`);
+      setTimeout(() => setMessage(null), 4000);
+    }
+    setSyncingClassRoles(false);
   }
 
   async function deleteMember(memberId: number, name: string) {
@@ -579,6 +596,42 @@ export default function AdminPage() {
             </div>
             {registerCmdsResult && (
               <p className="text-xs mt-2 text-bdo-text-muted">{registerCmdsResult}</p>
+            )}
+          </div>
+
+          {/* Class Roles Sync */}
+          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">🎭 Karakter Rolleri</h3>
+                <p className="text-xs text-bdo-text-muted mt-0.5">Eksik class rollerini oluşturur ve üyelere otomatik atar.</p>
+              </div>
+              <button
+                onClick={syncClassRoles}
+                disabled={syncingClassRoles}
+                className="text-sm bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
+              >
+                {syncingClassRoles ? "⏳ Çalışıyor..." : "🎭 Rolleri Sync Et"}
+              </button>
+            </div>
+            {syncingClassRoles && (
+              <p className="text-xs mt-2 text-bdo-text-muted animate-pulse">Roller oluşturuluyor ve atanıyor, bu işlem 1-2 dakika sürebilir…</p>
+            )}
+            {classRolesResult && !syncingClassRoles && (
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                {classRolesResult.created.length > 0 && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
+                    <span className="font-semibold text-emerald-400">✅ {classRolesResult.created.length} rol oluşturuldu</span>
+                    <p className="text-bdo-text-muted mt-0.5 leading-relaxed">{classRolesResult.created.join(", ")}</p>
+                  </div>
+                )}
+                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg p-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Mevcut roller</span><span className="font-mono text-bdo-gold">{classRolesResult.existing.length}</span></div>
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Rol atandı</span><span className="font-mono text-emerald-400">{classRolesResult.assigned}</span></div>
+                  <div className="flex justify-between"><span className="text-bdo-text-muted">Yanlış rol kaldırıldı</span><span className="font-mono text-orange-400">{classRolesResult.removed}</span></div>
+                  {classRolesResult.errors > 0 && <div className="flex justify-between"><span className="text-bdo-text-muted">Hata</span><span className="font-mono text-red-400">{classRolesResult.errors}</span></div>}
+                </div>
+              </div>
             )}
           </div>
 

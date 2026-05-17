@@ -282,3 +282,12 @@ model ActivityMember {
   @@unique([activityId, userId])
   @@map("activity_members")
 }
+
+model ClassDiscordRole {
+  id        Int      @id @default(autoincrement())
+  className String   @unique
+  roleId    String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("class_discord_roles")
+}
