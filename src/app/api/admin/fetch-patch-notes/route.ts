@@ -172,7 +172,7 @@ async function fetchPatchList(count = 5): Promise<{ boardNo: number; title: stri
   return items;
 }
 
-async function fetchPatchDetail(boardNo: number): Promise<{ title: string; content: string; thumbnail: string; publishedAt: Date; debug: string[] }> {
+async function fetchPatchDetail(boardNo: number): Promise<{ title: string; content: string; thumbnail: string; publishedAt: Date }> {
   const url = `${DETAIL_BASE}?_boardNo=${boardNo}`;
   const res = await fetch(url, {
     headers: {
@@ -182,7 +182,6 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
     },
   });
   const html = await res.text();
-  const debug: string[] = [`html_len:${html.length}`, `status:${res.status}`];
 
   // Title — try multiple patterns
   const titlePatterns = [
@@ -194,7 +193,7 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
   let title = `Patch Note #${boardNo}`;
   for (const p of titlePatterns) {
     const m = html.match(p);
-    if (m) { title = m[1].replace(/<[^>]+>/g, "").trim(); debug.push("title:ok"); break; }
+    if (m) { title = m[1].replace(/<[^>]+>/g, "").trim(); break; }
   }
 
   // Date
@@ -205,7 +204,7 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
   let publishedAt = new Date();
   for (const p of datePatterns) {
     const m = html.match(p);
-    if (m) { const d = new Date(m[1].replace(/<[^>]+>/g, "").trim()); if (!isNaN(d.getTime())) { publishedAt = d; debug.push("date:ok"); } break; }
+    if (m) { const d = new Date(m[1].replace(/<[^>]+>/g, "").trim()); if (!isNaN(d.getTime())) { publishedAt = d; } break; }
   }
 
   // Thumbnail
@@ -218,7 +217,7 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
   let thumbnail = "";
   for (const p of thumbPatterns) {
     const m = html.match(p);
-    if (m) { thumbnail = m[1]; debug.push("thumb:ok"); break; }
+    if (m) { thumbnail = m[1]; break; }
   }
 
   // Content — try many patterns, most specific to least specific
@@ -238,59 +237,16 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
     const m = html.match(p);
     if (m && m[1].length > 100) {
       content = m[1];
-      debug.push(`content:ok(pattern${contentPatterns.indexOf(p)})`);
       break;
     }
   }
-
-  if (!content) debug.push("content:FAILED");
 
   // Fix relative URLs
   content = content
     .replace(/src="\/\//g, 'src="https://')
     .replace(/src="\//g, `src="${BASE}/`);
 
-  return { title, content, thumbnail, publishedAt, debug };
-}
-
-// ─── Debug route ─────────────────────────────────────────────────────────────
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const boardNo = searchParams.get("boardNo");
-
-  const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-  };
-
-  if (boardNo) {
-    // Test a specific detail URL
-    const urlsToTry = [
-      `${DETAIL_BASE}?_boardNo=${boardNo}`,
-    ];
-    const results: Record<string, { status: number; len: number; snippet: string }> = {};
-    for (const url of urlsToTry) {
-      const r = await fetch(url, { headers });
-      const text = await r.text();
-      results[url] = { status: r.status, len: text.length, snippet: text.slice(0, 500) };
-    }
-    return Response.json(results);
-  }
-
-  // Dump list page HTML snippet + all _boardNo links found
-  const r = await fetch(LIST_URL, { headers });
-  const html = await r.text();
-  const boardNos = Array.from(html.matchAll(/[?&]_boardNo=(\d+)/g)).map((m) => m[1]);
-  const hrefs = Array.from(html.matchAll(/href="([^"]*_boardNo[^"]*)"/g)).map((m) => m[1]).slice(0, 20);
-  return Response.json({
-    status: r.status,
-    html_len: html.length,
-    snippet: html.slice(0, 2000),
-    boardNos: Array.from(new Set(boardNos)).slice(0, 20),
-    hrefs,
-  });
+  return { title, content, thumbnail, publishedAt };
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -327,13 +283,11 @@ export async function POST(req: Request) {
     }
 
     const added: number[] = [];
-    const debugInfo: Record<number, string[]> = {};
 
     for (const boardNo of toFetch) {
       const detail = await fetchPatchDetail(boardNo);
-      debugInfo[boardNo] = detail.debug;
       if (!detail.content) {
-        console.error(`[patch-notes] boardNo=${boardNo} content boş. Debug:`, detail.debug);
+        console.error(`[patch-notes] boardNo=${boardNo} content boş.`);
         continue;
       }
 
@@ -369,8 +323,7 @@ export async function POST(req: Request) {
       ok: true,
       added: added.length,
       boardNos: added,
-      attempted: toFetch,
-      debug: debugInfo,
+
       message: `${added.length} yama notu çekildi, çevrildi ve yapılandırıldı.`,
     });
   } catch (err) {
