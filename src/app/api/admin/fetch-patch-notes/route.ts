@@ -12,6 +12,7 @@ import type { StructuredPatchNote } from "@/lib/patch-notes-types";
 
 const BASE = "https://blackdesert.pearlabyss.com";
 const LIST_URL = `${BASE}/GlobalLab/en-US/News/Notice?_categoryNo=2`;
+const DETAIL_BASE = `${BASE}/GlobalLab/en-US/News/Notice/Detail`;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
@@ -172,7 +173,7 @@ async function fetchPatchList(count = 5): Promise<{ boardNo: number; title: stri
 }
 
 async function fetchPatchDetail(boardNo: number): Promise<{ title: string; content: string; thumbnail: string; publishedAt: Date; debug: string[] }> {
-  const url = `${BASE}/GlobalLab/en-US/News/Detail?_boardNo=${boardNo}`;
+  const url = `${DETAIL_BASE}?_boardNo=${boardNo}`;
   const res = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -267,9 +268,7 @@ export async function GET(req: Request) {
   if (boardNo) {
     // Test a specific detail URL
     const urlsToTry = [
-      `${BASE}/GlobalLab/en-US/News/Detail?_boardNo=${boardNo}`,
-      `${BASE}/en-US/News/Detail?_boardNo=${boardNo}`,
-      `${BASE}/GlobalLab/en-US/News/${boardNo}`,
+      `${DETAIL_BASE}?_boardNo=${boardNo}`,
     ];
     const results: Record<string, { status: number; len: number; snippet: string }> = {};
     for (const url of urlsToTry) {

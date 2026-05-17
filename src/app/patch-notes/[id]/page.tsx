@@ -258,7 +258,7 @@ export default function PatchNoteDetailPage() {
               })}
             </span>
             <a
-              href={`https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Detail?_boardNo=${note.boardNo}`}
+              href={`https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Notice/Detail?_boardNo=${note.boardNo}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-bdo-text-muted hover:text-bdo-gold transition-colors ml-auto"
