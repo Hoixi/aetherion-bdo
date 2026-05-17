@@ -206,25 +206,46 @@ async function fetchPatchDetail(boardNo: number): Promise<{ title: string; conte
     if (m) { thumbnail = m[1]; break; }
   }
 
-  // Content — try many patterns, most specific to least specific
-  const contentPatterns = [
-    /class="[^"]*contents_area[^"]*editor_area[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/,
-    /class="[^"]*editor_area[^"]*contents_area[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/,
-    /class="[^"]*editor_area[^"]*"[^>]*>([\s\S]{200,}?)<\/div>\s*<\/div>/,
-    /class="[^"]*contents_area[^"]*"[^>]*>([\s\S]{200,}?)<\/div>\s*<\/div>/,
-    /class="[^"]*view_content[^"]*"[^>]*>([\s\S]{200,}?)<\/div>/,
-    /class="[^"]*article[^"]*content[^"]*"[^>]*>([\s\S]{200,}?)<\/div>/,
-    /class="[^"]*news[^"]*content[^"]*"[^>]*>([\s\S]{200,}?)<\/div>/,
-    /<article[^>]*>([\s\S]{200,}?)<\/article>/,
-    /<main[^>]*>([\s\S]{200,}?)<\/main>/,
-  ];
+  // Content — find the opening tag then extract until a known end marker
   let content = "";
-  for (const p of contentPatterns) {
-    const m = html.match(p);
-    if (m && m[1].length > 100) {
-      content = m[1];
-      break;
+
+  // Find where the content div starts
+  const contentStartPatterns = [
+    /class="[^"]*contents_area[^"]*editor_area[^"]*"[^>]*>/,
+    /class="[^"]*editor_area[^"]*contents_area[^"]*"[^>]*>/,
+    /class="[^"]*editor_area[^"]*"[^>]*>/,
+    /class="[^"]*contents_area[^"]*"[^>]*>/,
+  ];
+
+  for (const p of contentStartPatterns) {
+    const startMatch = p.exec(html);
+    if (!startMatch) continue;
+
+    const startIdx = startMatch.index + startMatch[0].length;
+    const rest = html.slice(startIdx);
+
+    // Walk forward counting div depth until we're back to 0 (closing the content div)
+    let depth = 1;
+    let i = 0;
+    while (i < rest.length && depth > 0) {
+      const openIdx = rest.indexOf("<div", i);
+      const closeIdx = rest.indexOf("</div", i);
+      if (closeIdx === -1) break;
+      if (openIdx !== -1 && openIdx < closeIdx) {
+        depth++;
+        i = openIdx + 4;
+      } else {
+        depth--;
+        if (depth === 0) {
+          content = rest.slice(0, closeIdx);
+          break;
+        }
+        i = closeIdx + 6;
+      }
     }
+
+    if (content.length > 200) break;
+    content = ""; // reset and try next pattern
   }
 
   // Fix relative URLs
