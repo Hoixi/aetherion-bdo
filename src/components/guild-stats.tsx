@@ -148,33 +148,102 @@ export function GuildStats() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-4 items-stretch">
-        {/* Class Distribution */}
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 flex flex-col">
-          <h3 className="text-xs uppercase text-bdo-text-muted mb-3">Class Dağılımı</h3>
-          <div className="space-y-1.5 flex-1 overflow-y-auto">
-            {stats.classDistribution
-              .sort((a, b) => b.count - a.count)
-              .map((c, i) => (
-                <div key={c.class} className="flex items-center gap-2 text-xs">
-                  <span className="text-bdo-text-muted w-20 truncate">{getClassName2(c.class)}</span>
-                  <div className="flex-1 bg-bdo-bg rounded-full h-4 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${(c.count / maxClassCount) * 100}%`,
-                        backgroundColor: classColors[i % classColors.length],
-                        opacity: 0.7,
-                      }}
-                    />
+      <div className="grid md:grid-cols-2 gap-4 items-start">
+        {/* Left column: Class Distribution + GS Donut */}
+        <div className="space-y-4">
+          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
+            <h3 className="text-xs uppercase text-bdo-text-muted mb-3">Class Dağılımı</h3>
+            <div className="space-y-1.5">
+              {stats.classDistribution
+                .sort((a, b) => b.count - a.count)
+                .map((c, i) => (
+                  <div key={c.class} className="flex items-center gap-2 text-xs">
+                    <span className="text-bdo-text-muted w-20 truncate">{getClassName2(c.class)}</span>
+                    <div className="flex-1 bg-bdo-bg rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(c.count / maxClassCount) * 100}%`,
+                          backgroundColor: classColors[i % classColors.length],
+                          opacity: 0.75,
+                        }}
+                      />
+                    </div>
+                    <span className="text-bdo-text-muted font-mono w-5 text-right">{c.count}</span>
                   </div>
-                  <span className="text-bdo-text-muted font-mono w-6 text-right">{c.count}</span>
-                </div>
-              ))}
+                ))}
+            </div>
           </div>
+
+          {/* GS Bracket Donut Chart */}
+          {stats.gsBrackets && (() => {
+            const brackets = stats.gsBrackets;
+            const total = brackets.reduce((s, b) => s + b.count, 0) || 1;
+            const COLORS = ["#e84545", "#f07f3c", "#f5c842", "#4ab3f4", "#5b6ef5"];
+            const R = 38;
+            const CIRC = 2 * Math.PI * R;
+            let offset = 0;
+
+            return (
+              <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
+                <h3 className="text-xs uppercase text-bdo-text-muted mb-4">GS Dağılımı</h3>
+                <div className="flex items-center gap-6">
+                  {/* Donut */}
+                  <div className="relative flex-shrink-0">
+                    <svg width="120" height="120" viewBox="0 0 100 100">
+                      {/* Track */}
+                      <circle cx="50" cy="50" r={R} fill="none" stroke="#1e2028" strokeWidth="18" />
+                      {/* Segments */}
+                      {brackets.map((b, i) => {
+                        const dash = (b.count / total) * CIRC;
+                        const gap = CIRC - dash;
+                        const segOffset = CIRC * 0.25 - offset;
+                        const el = (
+                          <circle
+                            key={b.label}
+                            cx="50" cy="50" r={R}
+                            fill="none"
+                            stroke={COLORS[i % COLORS.length]}
+                            strokeWidth="18"
+                            strokeDasharray={`${dash} ${gap}`}
+                            strokeDashoffset={segOffset}
+                            strokeLinecap="butt"
+                          />
+                        );
+                        offset += dash;
+                        return el;
+                      })}
+                      {/* Gap ring */}
+                      <circle cx="50" cy="50" r={R} fill="none" stroke="#0f1117" strokeWidth="2" />
+                      {/* Center label */}
+                      <text x="50" y="47" textAnchor="middle" fill="#d4a853" fontSize="14" fontWeight="bold" fontFamily="monospace">{total}</text>
+                      <text x="50" y="58" textAnchor="middle" fill="#6b7280" fontSize="7">üye</text>
+                    </svg>
+                  </div>
+                  {/* Legend */}
+                  <div className="flex-1 space-y-2">
+                    {brackets.map((b, i) => {
+                      const pct = Math.round((b.count / total) * 100);
+                      return (
+                        <div key={b.label} className="flex items-center gap-2 text-xs">
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                          />
+                          <span className="text-bdo-text-muted flex-1">{b.label}</span>
+                          <span className="font-mono text-bdo-text-secondary">{b.count}</span>
+                          <span className="font-mono text-bdo-gold w-9 text-right">%{pct}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Leaderboards */}
+        {/* Right column: Leaderboards */}
         <div className="space-y-4">
           <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
             <h3 className="text-xs uppercase text-bdo-text-muted mb-3">En Yüksek GS</h3>
@@ -208,87 +277,6 @@ export function GuildStats() {
           </div>
         </div>
       </div>
-
-      {/* GS Bracket Distribution - Pie Chart */}
-      {stats.gsBrackets && (
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-          <h3 className="text-xs uppercase text-bdo-text-muted mb-6">GS Dağılımı</h3>
-          <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
-            <svg width="320" height="320" className="flex-shrink-0" viewBox="0 0 300 300">
-              {(() => {
-                const brackets = stats.gsBrackets;
-                const total = brackets.reduce((sum, b) => sum + b.count, 0) || 1;
-                const colors = ["#ff4444", "#ff8844", "#ffdd44", "#44aaff", "#2244ff"];
-                let currentAngle = -90;
-                
-                return brackets.map((b, i) => {
-                  const sliceAngle = (b.count / total) * 360;
-                  const startAngle = currentAngle;
-                  const endAngle = currentAngle + sliceAngle;
-                  const startRad = (startAngle * Math.PI) / 180;
-                  const endRad = (endAngle * Math.PI) / 180;
-                  const x1 = 150 + 100 * Math.cos(startRad);
-                  const y1 = 150 + 100 * Math.sin(startRad);
-                  const x2 = 150 + 100 * Math.cos(endRad);
-                  const y2 = 150 + 100 * Math.sin(endRad);
-                  const largeArc = sliceAngle > 180 ? 1 : 0;
-                  const path = `M 150 150 L ${x1} ${y1} A 100 100 0 ${largeArc} 1 ${x2} ${y2} Z`;
-                  
-                  const textAngle = startAngle + sliceAngle / 2;
-                  const textRad = (textAngle * Math.PI) / 180;
-                  const textX = 150 + 65 * Math.cos(textRad);
-                  const textY = 150 + 65 * Math.sin(textRad);
-                  
-                  currentAngle = endAngle;
-                  
-                  return (
-                    <g key={b.label}>
-                      <path
-                        d={path}
-                        fill={colors[i % colors.length]}
-                        stroke="#1a1a1a"
-                        strokeWidth="2"
-                        opacity="0.9"
-                      />
-                      {sliceAngle > 12 && (
-                        <text
-                          x={textX}
-                          y={textY}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          className="text-[11px] font-bold pointer-events-none"
-                          fill="#ffffff"
-                          stroke="#000000"
-                          strokeWidth="0.5"
-                        >
-                          {b.label}
-                        </text>
-                      )}
-                    </g>
-                  );
-                });
-              })()}
-            </svg>
-            <div className="space-y-3 text-sm">
-              {stats.gsBrackets.map((b, i) => {
-                const colors = ["#ff4444", "#ff8844", "#ffdd44", "#44aaff", "#2244ff"];
-                const total = stats.gsBrackets.reduce((sum, x) => sum + x.count, 0) || 1;
-                const pct = Math.round((b.count / total) * 100);
-                return (
-                  <div key={b.label} className="flex items-center gap-3">
-                    <div
-                      className="w-5 h-5 rounded-full border border-bdo-border"
-                      style={{ backgroundColor: colors[i % colors.length], opacity: 0.9 }}
-                    />
-                    <span className="text-bdo-text-muted min-w-16">{b.label}</span>
-                    <span className="ml-auto font-mono text-bdo-gold font-bold">{b.count} ({pct}%)</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
