@@ -190,7 +190,7 @@ export default function PatchNotesPage() {
           <p className="text-5xl mb-4">📋</p>
           <p className="text-bdo-text-muted text-sm mb-4">Henüz yama notu çekilmemiş.</p>
           {session.user.isAdmin && (
-            <button onClick={fetchLatest} disabled={fetching} className="bg-bdo-gold text-bdo-bg font-semibold px-6 py-2 rounded-lg text-sm hover:bg-bdo-gold-dim disabled:opacity-50">
+            <button onClick={fetchAll} disabled={fetching} className="bg-bdo-gold text-bdo-bg font-semibold px-6 py-2 rounded-lg text-sm hover:bg-bdo-gold-dim disabled:opacity-50">
               İlk Yamayı Çek
             </button>
           )}
