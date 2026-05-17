@@ -109,8 +109,9 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
   function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Resim 5MB'dan küçük olmalı.");
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Resim maksimum 2MB olabilir. Daha büyük resimleri sıkıştırıp tekrar dene.");
+      e.target.value = "";
       return;
     }
     const reader = new FileReader();

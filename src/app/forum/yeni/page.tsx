@@ -58,8 +58,14 @@ export default function NewPostPage() {
       const post = await res.json();
       router.push(`/forum/${post.id}`);
     } else {
-      const data = await res.json();
-      setError(data.error ?? "Gönderi oluşturulamadı.");
+      let errMsg = "Gönderi oluşturulamadı.";
+      try {
+        const data = await res.json();
+        errMsg = data.error ?? errMsg;
+      } catch {
+        if (res.status === 413) errMsg = "İçerik çok büyük. Resimleri küçülterek tekrar dene.";
+      }
+      setError(errMsg);
       setSaving(false);
     }
   }
@@ -95,7 +101,7 @@ export default function NewPostPage() {
             minHeight={300}
           />
           <p className="text-[11px] text-bdo-text-muted mt-1">
-            Resimler 5MB limitiyle doğrudan yüklenebilir. Dosya → İçe Kod seçenekleri de mevcuttur.
+            Resimler maksimum 2MB olabilir (JPG/PNG). Daha büyük resimler için sıkıştırıp yükle.
           </p>
         </div>
 

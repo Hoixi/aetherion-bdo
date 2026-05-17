@@ -318,7 +318,7 @@ model ForumTag {
 model ForumPost {
   id        Int      @id @default(autoincrement())
   title     String
-  content   String   @db.Text
+  content   String   @db.LongText
   authorId  Int
   pinned    Boolean  @default(false)
   viewCount Int      @default(0)
