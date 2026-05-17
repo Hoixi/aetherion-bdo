@@ -23,7 +23,7 @@ async function parseWithGemini(
   title: string,
   boardNo: number,
 ): Promise<{ titleTr: string; contentTr: string; structured: string }> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   // Single call: structured JSON only (avoids timeout from 2 Gemini calls)
   // "Tam Metin" view shows the original English HTML — translation skipped.
@@ -45,7 +45,7 @@ Title: "${title}"
 Board: ${boardNo}
 
 Content:
-${plainText.slice(0, 25000)}
+${plainText.slice(0, 15000)}
 
 Return this exact JSON shape:
 {
