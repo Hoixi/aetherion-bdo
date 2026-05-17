@@ -12,6 +12,9 @@ interface PatchNote {
   thumbnail: string | null;
   publishedAt: string;
   fetchedAt: string;
+  summary: string | null;
+  summaryEn: string | null;
+  hasStructured: boolean;
 }
 
 function timeAgo(date: string) {
@@ -24,7 +27,14 @@ export default function PatchNotesPage() {
   const [notes, setNotes] = useState<PatchNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [reprocessingId, setReprocessingId] = useState<number | null>(null);
   const [fetchMsg, setFetchMsg] = useState<string | null>(null);
+
+  async function refreshList() {
+    const r = await fetch("/api/patch-notes");
+    const d = await r.json();
+    setNotes(Array.isArray(d) ? d : []);
+  }
 
   useEffect(() => {
     fetch("/api/patch-notes").then((r) => r.json()).then((data) => {
@@ -44,15 +54,31 @@ export default function PatchNotesPage() {
     const data = await res.json();
     if (data.ok) {
       setFetchMsg(`✅ ${data.message}`);
-      // Listeyi yenile
-      const r2 = await fetch("/api/patch-notes");
-      const d2 = await r2.json();
-      setNotes(Array.isArray(d2) ? d2 : []);
+      await refreshList();
     } else {
       setFetchMsg(`❌ Hata: ${data.error}`);
     }
     setFetching(false);
     setTimeout(() => setFetchMsg(null), 8000);
+  }
+
+  async function reprocessNote(boardNo: number, noteId: number) {
+    setReprocessingId(noteId);
+    setFetchMsg(`♻️ #${boardNo} yeniden işleniyor...`);
+    const res = await fetch("/api/admin/fetch-patch-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boardNo }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setFetchMsg(`✅ #${boardNo} yeniden yapılandırıldı.`);
+      await refreshList();
+    } else {
+      setFetchMsg(`❌ Hata: ${data.error}`);
+    }
+    setReprocessingId(null);
+    setTimeout(() => setFetchMsg(null), 6000);
   }
 
   if (!session) return null;
@@ -100,33 +126,55 @@ export default function PatchNotesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {notes.map((note) => (
-            <Link key={note.id} href={`/patch-notes/${note.id}`}>
-              <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden hover:border-bdo-gold/40 transition-all group">
-                {note.thumbnail ? (
-                  <div className="aspect-video overflow-hidden bg-bdo-bg">
-                    <img
-                      src={note.thumbnail}
-                      alt={note.titleTr || note.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+            <div key={note.id} className="relative group">
+              <Link href={`/patch-notes/${note.id}`}>
+                <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden hover:border-bdo-gold/40 transition-all">
+                  {note.thumbnail ? (
+                    <div className="aspect-video overflow-hidden bg-bdo-bg">
+                      <img
+                        src={note.thumbnail}
+                        alt={note.titleTr || note.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-video bg-gradient-to-br from-bdo-gold/10 to-bdo-bg flex items-center justify-center">
+                      <span className="text-4xl">⚔️</span>
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <p className="text-[10px] text-bdo-text-muted mb-1.5 flex items-center gap-1.5">
+                      <span className="bg-bdo-gold/10 text-bdo-gold px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">Global Lab</span>
+                      {timeAgo(note.publishedAt)}
+                      {note.hasStructured && (
+                        <span className="ml-auto bg-violet-500/10 text-violet-400 border border-violet-500/20 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                          📋
+                        </span>
+                      )}
+                    </p>
+                    <h2 className="text-sm font-semibold text-bdo-text-primary group-hover:text-bdo-gold transition-colors leading-snug line-clamp-2">
+                      {note.titleTr || note.title}
+                    </h2>
+                    {note.summary ? (
+                      <p className="text-xs text-bdo-text-muted mt-2 leading-relaxed line-clamp-2">{note.summary}</p>
+                    ) : (
+                      <p className="text-[10px] text-bdo-text-muted mt-2 italic opacity-60">{note.title}</p>
+                    )}
                   </div>
-                ) : (
-                  <div className="aspect-video bg-gradient-to-br from-bdo-gold/10 to-bdo-bg flex items-center justify-center">
-                    <span className="text-4xl">⚔️</span>
-                  </div>
-                )}
-                <div className="p-4">
-                  <p className="text-[10px] text-bdo-text-muted mb-1.5 flex items-center gap-1.5">
-                    <span className="bg-bdo-gold/10 text-bdo-gold px-1.5 py-0.5 rounded text-[9px] font-bold uppercase">Global Lab</span>
-                    {timeAgo(note.publishedAt)}
-                  </p>
-                  <h2 className="text-sm font-semibold text-bdo-text-primary group-hover:text-bdo-gold transition-colors leading-snug line-clamp-2">
-                    {note.titleTr || note.title}
-                  </h2>
-                  <p className="text-[10px] text-bdo-text-muted mt-2 italic opacity-60">{note.title}</p>
                 </div>
-              </div>
-            </Link>
+              </Link>
+              {/* Admin: re-process button */}
+              {session?.user.isAdmin && !note.hasStructured && (
+                <button
+                  onClick={(e) => { e.preventDefault(); reprocessNote(note.boardNo, note.id); }}
+                  disabled={reprocessingId === note.id}
+                  title="Yapılandırılmış formata dönüştür"
+                  className="absolute top-2 right-2 bg-bdo-bg/90 border border-bdo-border text-bdo-text-muted hover:text-bdo-gold hover:border-bdo-gold/50 text-[10px] px-2 py-0.5 rounded-lg transition-colors disabled:opacity-50 backdrop-blur-sm"
+                >
+                  {reprocessingId === note.id ? "⏳" : "♻️ İşle"}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}

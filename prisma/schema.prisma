@@ -305,6 +305,7 @@ model PatchNote {
   titleTr     String   @db.Text
   content     String   @db.LongText
   contentTr   String   @db.LongText
+  structured  String?  @db.LongText  // JSON: { sections: [...], summary: "..." }
   thumbnail   String?
   publishedAt DateTime
   fetchedAt   DateTime @default(now())
