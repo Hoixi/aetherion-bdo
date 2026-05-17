@@ -38,7 +38,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     select: { ap: true, dp: true, createdAt: true },
   });
 
-  return NextResponse.json({
+  const response: any = {
     id: user.id,
     familyName: user.familyName,
     class: user.class,
@@ -58,5 +58,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .map((p) => p.war)
       .slice(0, 20),
     gsHistory,
-  });
+  };
+
+  // Sadece admin görebilsin
+  if (session.user?.isAdmin) {
+    response.absenceCount = user.absenceCount;
+  }
+
+  return NextResponse.json(response);
 }

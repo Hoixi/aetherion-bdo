@@ -221,6 +221,34 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       savedRows.push({ ...record, matched: userId !== null });
     }
 
+    // Partide var ama ekranda yok olanların absenceCount'ını artır
+    const perfNames = new Set(rows.map((r) => r.familyName.toLowerCase().trim()));
+    const parties = await prisma.party.findMany({
+      where: { warId },
+      include: {
+        members: {
+          include: { user: true },
+        },
+      },
+    });
+
+    const usersToIncrement: number[] = [];
+    for (const party of parties) {
+      for (const member of party.members) {
+        if (!perfNames.has(member.user.familyName.toLowerCase().trim())) {
+          usersToIncrement.push(member.userId);
+        }
+      }
+    }
+
+    // Sayaç değerlerini artır
+    if (usersToIncrement.length > 0) {
+      await prisma.user.updateMany({
+        where: { id: { in: usersToIncrement } },
+        data: { absenceCount: { increment: 1 } },
+      });
+    }
+
     return NextResponse.json({ rows: savedRows, total: savedRows.length });
   } catch (err: unknown) {
     console.error("Performance POST error:", err);

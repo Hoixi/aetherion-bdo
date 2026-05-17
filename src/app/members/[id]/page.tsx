@@ -35,6 +35,7 @@ interface MemberProfile {
   stats: { totalWars: number; attended: number; attendanceRate: number };
   wars: WarEntry[];
   gsHistory: GsHistoryEntry[];
+  absenceCount?: number;
 }
 
 export default function MemberProfilePage() {
@@ -84,26 +85,37 @@ export default function MemberProfilePage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
-          <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Katılım</div>
-          <div className="text-2xl font-bold font-mono text-bdo-gold mt-1">{member.stats.attended}</div>
-          <div className="text-[10px] text-bdo-text-muted">/ {member.stats.totalWars} savaş</div>
-        </div>
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
-          <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Katılım Oranı</div>
-          <div className={`text-2xl font-bold font-mono mt-1 ${
-            member.stats.attendanceRate >= 70 ? "text-green-400" :
-            member.stats.attendanceRate >= 40 ? "text-yellow-400" : "text-red-400"
-          }`}>
-            %{member.stats.attendanceRate}
+      <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
+            <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Katılım</div>
+            <div className="text-2xl font-bold font-mono text-bdo-gold mt-1">{member.stats.attended}</div>
+            <div className="text-[10px] text-bdo-text-muted">/ {member.stats.totalWars} savaş</div>
+          </div>
+          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
+            <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Katılım Oranı</div>
+            <div className={`text-2xl font-bold font-mono mt-1 ${
+              member.stats.attendanceRate >= 70 ? "text-green-400" :
+              member.stats.attendanceRate >= 40 ? "text-yellow-400" : "text-red-400"
+            }`}>
+              %{member.stats.attendanceRate}
+            </div>
+          </div>
+          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
+            <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Gear Score</div>
+            <div className="text-2xl font-bold font-mono text-bdo-gold mt-1">{member.ap + member.dp}</div>
+            <div className="text-[10px] text-bdo-text-muted">{member.ap} AP / {member.dp} DP</div>
           </div>
         </div>
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 text-center">
-          <div className="text-[10px] uppercase text-bdo-text-muted tracking-wider">Gear Score</div>
-          <div className="text-2xl font-bold font-mono text-bdo-gold mt-1">{member.ap + member.dp}</div>
-          <div className="text-[10px] text-bdo-text-muted">{member.ap} AP / {member.dp} DP</div>
-        </div>
+
+        {/* Admin-only absence counter */}
+        {session.user?.isAdmin && member.absenceCount !== undefined && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center">
+            <div className="text-[10px] uppercase text-red-400 tracking-wider">Seçildiği halde Katılmama</div>
+            <div className="text-2xl font-bold font-mono text-red-400 mt-1">{member.absenceCount}</div>
+            <div className="text-[10px] text-red-300/70">Partide olup savaşa katılmamış sayısı</div>
+          </div>
+        )}
       </div>
 
       {/* GS History Chart */}
