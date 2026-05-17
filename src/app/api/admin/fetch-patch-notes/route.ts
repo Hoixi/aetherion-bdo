@@ -25,7 +25,29 @@ async function parseWithGemini(
 ): Promise<{ titleTr: string; contentTr: string; structured: string }> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  // Strip HTML to plain text for structured parsing
+  // ── Call 1: Full HTML translation ─────────────────────────────────────────
+  const translatePrompt = `You are a professional game translator. Translate the following Black Desert Online Global Lab patch note from English to Turkish.
+
+Rules:
+- Keep ALL HTML tags exactly as they are — only translate the TEXT content inside tags
+- Keep game terms in English: skill names, class names, AP, DP, Accuracy, Evasion, Silver, Black Spirit, Succession, Awakening, etc.
+- Keep numbers, percentages, symbols as-is
+- Return ONLY the translated HTML, no explanation
+- First line must be exactly: TITLE: <translated title here>
+
+Title: ${title}
+
+HTML:
+${html.slice(0, 30000)}`;
+
+  const translateResult = await model.generateContent(translatePrompt);
+  const translateText = translateResult.response.text();
+
+  const titleMatch = translateText.match(/^TITLE:\s*(.+)$/m);
+  const titleTr = titleMatch ? titleMatch[1].trim() : title;
+  const contentTr = translateText.replace(/^TITLE:.*$/m, "").trim();
+
+  // ── Call 2: Structured JSON extraction ────────────────────────────────────
   const plainText = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -38,71 +60,61 @@ async function parseWithGemini(
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  // Single combined prompt: structured JSON + translated HTML in one call
-  const prompt = `You are a professional Black Desert Online game translator and patch note analyst.
-Given the patch note below, return a single JSON object containing BOTH the Turkish translation AND structured analysis.
+  const structurePrompt = `You are analyzing a Black Desert Online Global Lab patch note. Extract structured data and return ONLY valid JSON — no markdown, no explanation.
 
-Patch note title: "${title}"
-Board number: ${boardNo}
+Title: "${title}"
+Board: ${boardNo}
 
-Plain text content:
-${plainText.slice(0, 8000)}
+Content:
+${plainText.slice(0, 20000)}
 
-Original HTML (for translation):
-${html.slice(0, 8000)}
-
-Return ONLY this JSON (no markdown, no explanation):
+Return this exact JSON shape:
 {
-  "titleTr": "Turkish translation of the title",
-  "contentTrHtml": "Full HTML with only TEXT nodes translated to Turkish — keep ALL HTML tags exactly as-is, keep game terms in English (Succession, Awakening, AP, DP, Silver, Black Spirit, skill names, class names)",
-  "summary": "1-2 sentence Turkish summary of what this patch changes overall",
+  "titleTr": "Turkish title",
+  "summary": "1-2 sentence Turkish summary",
   "summaryEn": "1-2 sentence English summary",
   "sections": [
     {
-      "id": "slug-lowercase-hyphens",
-      "heading": "English section heading",
-      "headingTr": "Turkish section heading",
-      "emoji": "one emoji: ⚔️ combat class, 🛡 tank/defense, 🏹 ranged, 🧙 magic, 🔧 system/UI, 🌟 general, ⚡ new content, 🐛 bug fix",
+      "id": "slug-lowercase",
+      "heading": "English heading",
+      "headingTr": "Turkish heading",
+      "emoji": "⚔️ combat | 🛡 defense | 🏹 ranged | 🧙 magic | 🔧 system | 🌟 general | ⚡ new | 🐛 bugfix",
       "changes": [
         {
-          "en": "Concise English description (1-2 sentences)",
-          "tr": "Turkish translation",
+          "en": "English description",
+          "tr": "Turkish description",
           "type": "BUFF|NERF|FIX|NEW|CHANGE",
-          "imageUrl": "only if [IMG:url] appears right before/after this change"
+          "imageUrl": "url only if [IMG:url] is adjacent"
         }
       ]
     }
   ]
 }
 
-Type rules: BUFF=stat/damage up or cooldown down, NERF=stat/damage down or cooldown up, FIX=bug fix, NEW=new feature/item/skill, CHANGE=neutral rework or visual.
-Group by class or category. Use id="general" headingTr="Genel" if no clear section.`;
+BUFF=increase/improve, NERF=decrease/worsen, FIX=bug fix, NEW=new feature, CHANGE=neutral.
+Group by class/category. If no sections: id="general", headingTr="Genel".
+Keep game terms in English.`;
 
-  const result = await model.generateContent(prompt);
-  let text = result.response.text().trim();
+  const structureResult = await model.generateContent(structurePrompt);
+  let structureText = structureResult.response.text().trim()
+    .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
-  // Strip markdown code blocks
-  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-
-  let parsed: StructuredPatchNote & { contentTrHtml?: string };
+  let structured: StructuredPatchNote;
   try {
-    parsed = JSON.parse(text);
+    structured = JSON.parse(structureText);
   } catch {
-    parsed = {
-      titleTr: title,
-      contentTrHtml: html,
+    structured = {
+      titleTr,
       summary: "Bu yama notu işlenirken bir hata oluştu.",
       summaryEn: "An error occurred while processing this patch note.",
       sections: [],
     };
   }
 
-  const { contentTrHtml, ...structuredData } = parsed;
-
   return {
-    titleTr: parsed.titleTr || title,
-    contentTr: contentTrHtml || html,
-    structured: JSON.stringify(structuredData),
+    titleTr: structured.titleTr || titleTr,
+    contentTr,
+    structured: JSON.stringify(structured),
   };
 }
 
