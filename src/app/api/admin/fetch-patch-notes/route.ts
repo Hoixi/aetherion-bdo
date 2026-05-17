@@ -25,29 +25,8 @@ async function parseWithGemini(
 ): Promise<{ titleTr: string; contentTr: string; structured: string }> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  // ── Call 1: Full HTML translation ─────────────────────────────────────────
-  const translatePrompt = `You are a professional game translator. Translate the following Black Desert Online Global Lab patch note from English to Turkish.
-
-Rules:
-- Keep ALL HTML tags exactly as they are — only translate the TEXT content inside tags
-- Keep game terms in English: skill names, class names, AP, DP, Accuracy, Evasion, Silver, Black Spirit, Succession, Awakening, etc.
-- Keep numbers, percentages, symbols as-is
-- Return ONLY the translated HTML, no explanation
-- First line must be exactly: TITLE: <translated title here>
-
-Title: ${title}
-
-HTML:
-${html.slice(0, 30000)}`;
-
-  const translateResult = await model.generateContent(translatePrompt);
-  const translateText = translateResult.response.text();
-
-  const titleMatch = translateText.match(/^TITLE:\s*(.+)$/m);
-  const titleTr = titleMatch ? titleMatch[1].trim() : title;
-  const contentTr = translateText.replace(/^TITLE:.*$/m, "").trim();
-
-  // ── Call 2: Structured JSON extraction ────────────────────────────────────
+  // Single call: structured JSON only (avoids timeout from 2 Gemini calls)
+  // "Tam Metin" view shows the original English HTML — translation skipped.
   const plainText = html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -60,51 +39,51 @@ ${html.slice(0, 30000)}`;
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const structurePrompt = `You are analyzing a Black Desert Online Global Lab patch note. Extract structured data and return ONLY valid JSON — no markdown, no explanation.
+  const prompt = `You are analyzing a Black Desert Online Global Lab patch note. Extract structured data and return ONLY valid JSON — no markdown, no explanation.
 
 Title: "${title}"
 Board: ${boardNo}
 
 Content:
-${plainText.slice(0, 20000)}
+${plainText.slice(0, 25000)}
 
 Return this exact JSON shape:
 {
   "titleTr": "Turkish title",
-  "summary": "1-2 sentence Turkish summary",
+  "summary": "1-2 sentence Turkish summary of overall changes",
   "summaryEn": "1-2 sentence English summary",
   "sections": [
     {
-      "id": "slug-lowercase",
-      "heading": "English heading",
-      "headingTr": "Turkish heading",
-      "emoji": "⚔️ combat | 🛡 defense | 🏹 ranged | 🧙 magic | 🔧 system | 🌟 general | ⚡ new | 🐛 bugfix",
+      "id": "slug-lowercase-hyphens",
+      "heading": "English section heading (class name or category)",
+      "headingTr": "Turkish section heading",
+      "emoji": "⚔️ combat class | 🛡 defense/tank | 🏹 ranged | 🧙 magic | 🔧 system/UI | 🌟 general | ⚡ new content | 🐛 bug fix",
       "changes": [
         {
-          "en": "English description",
-          "tr": "Turkish description",
+          "en": "Concise English description (1-2 sentences max)",
+          "tr": "Turkish translation",
           "type": "BUFF|NERF|FIX|NEW|CHANGE",
-          "imageUrl": "url only if [IMG:url] is adjacent"
+          "imageUrl": "include ONLY if [IMG:url] appears directly before or after this change"
         }
       ]
     }
   ]
 }
 
-BUFF=increase/improve, NERF=decrease/worsen, FIX=bug fix, NEW=new feature, CHANGE=neutral.
-Group by class/category. If no sections: id="general", headingTr="Genel".
-Keep game terms in English.`;
+Type guide: BUFF=stat/damage increase or cooldown decrease, NERF=stat/damage decrease or cooldown increase, FIX=bug fix, NEW=new feature/item/skill, CHANGE=neutral rework or description update.
+Group changes by class or category section. If no clear grouping exists: id="general", headingTr="Genel".
+Keep all game terms in English (class names, skill names, AP, DP, Accuracy, Evasion, Silver, Succession, Awakening, etc.).`;
 
-  const structureResult = await model.generateContent(structurePrompt);
-  let structureText = structureResult.response.text().trim()
+  const result = await model.generateContent(prompt);
+  let text = result.response.text().trim()
     .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 
   let structured: StructuredPatchNote;
   try {
-    structured = JSON.parse(structureText);
+    structured = JSON.parse(text);
   } catch {
     structured = {
-      titleTr,
+      titleTr: title,
       summary: "Bu yama notu işlenirken bir hata oluştu.",
       summaryEn: "An error occurred while processing this patch note.",
       sections: [],
@@ -112,8 +91,8 @@ Keep game terms in English.`;
   }
 
   return {
-    titleTr: structured.titleTr || titleTr,
-    contentTr,
+    titleTr: structured.titleTr || title,
+    contentTr: html, // original English HTML — no translation to avoid timeout
     structured: JSON.stringify(structured),
   };
 }

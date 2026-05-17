@@ -343,9 +343,12 @@ export default function PatchNoteDetailPage() {
         <StructuredView data={structured} lang={lang} />
       ) : (
         <div className="bg-bdo-surface border border-bdo-border rounded-xl p-6">
+          <p className="text-xs text-bdo-text-muted mb-4 flex items-center gap-1.5">
+            <span>🇬🇧</span> Orijinal İngilizce içerik
+          </p>
           <div
             className="patch-note-content text-sm text-bdo-text-primary leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: displayContent }}
+            dangerouslySetInnerHTML={{ __html: note.content }}
           />
         </div>
       )}
