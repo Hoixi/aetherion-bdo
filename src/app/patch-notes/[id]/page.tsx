@@ -127,7 +127,7 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
           {(() => {
             const splash = getSectionSplash(sec.heading);
             return (
-              <div className="relative flex items-center gap-3 px-6 py-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
+              <div className="relative flex items-end gap-3 px-6 pb-6 pt-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
                 {splash && (
                   <>
                     <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-50 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -274,7 +274,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
             {(() => {
               const splash = getSectionSplash(sec.heading);
               return (
-                <div className="relative flex items-center gap-3 px-6 py-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
+                <div className="relative flex items-end gap-3 px-6 pb-6 pt-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
                   {/* Splash background */}
                   {splash && (
                     <>
