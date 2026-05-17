@@ -26,7 +26,7 @@ async function fetchSkillIds(classId: number): Promise<number[]> {
   if (!res.ok) return [];
   const data = await res.json().catch(() => null);
   const html: string = data?.data ?? "";
-  const ids = [...html.matchAll(/data-skill_id="(\d+)"/g)].map((m) => parseInt(m[1]));
+  const ids = Array.from(html.matchAll(/data-skill_id="(\d+)"/g)).map((m) => parseInt(m[1]));
   return Array.from(new Set(ids));
 }
 
