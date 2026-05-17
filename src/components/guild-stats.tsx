@@ -209,31 +209,63 @@ export function GuildStats() {
         </div>
       </div>
 
-      {/* GS Bracket Distribution */}
+      {/* GS Bracket Distribution - Pie Chart */}
       {stats.gsBrackets && (
         <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
           <h3 className="text-xs uppercase text-bdo-text-muted mb-4">GS Dağılımı</h3>
-          <div className="flex items-end gap-2 h-28">
-            {stats.gsBrackets.map((b) => {
-              const max = Math.max(...stats.gsBrackets.map((x) => x.count), 1);
-              const pct = (b.count / max) * 100;
-              return (
-                <div key={b.label} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-xs font-mono font-bold text-bdo-gold">{b.count > 0 ? b.count : ""}</span>
-                  <div className="w-full bg-bdo-bg rounded-t-md overflow-hidden flex items-end" style={{ height: "80px" }}>
-                    <div
-                      className="w-full rounded-t-md transition-all"
-                      style={{
-                        height: `${Math.max(pct, b.count > 0 ? 4 : 0)}%`,
-                        background: pct > 60 ? "#d4a853" : pct > 30 ? "#b8892e" : "#7a5c1e",
-                        opacity: 0.85,
-                      }}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            <svg width="200" height="200" className="flex-shrink-0">
+              {(() => {
+                const brackets = stats.gsBrackets;
+                const total = brackets.reduce((sum, b) => sum + b.count, 0) || 1;
+                const colors = ["#7a5c1e", "#a67c28", "#d4a853", "#e8b960", "#f0c566", "#c9963f"];
+                let currentAngle = -90;
+                
+                return brackets.map((b, i) => {
+                  const sliceAngle = (b.count / total) * 360;
+                  const startAngle = currentAngle;
+                  const endAngle = currentAngle + sliceAngle;
+                  const startRad = (startAngle * Math.PI) / 180;
+                  const endRad = (endAngle * Math.PI) / 180;
+                  const x1 = 100 + 70 * Math.cos(startRad);
+                  const y1 = 100 + 70 * Math.sin(startRad);
+                  const x2 = 100 + 70 * Math.cos(endRad);
+                  const y2 = 100 + 70 * Math.sin(endRad);
+                  const largeArc = sliceAngle > 180 ? 1 : 0;
+                  const path = `M 100 100 L ${x1} ${y1} A 70 70 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                  
+                  currentAngle = endAngle;
+                  
+                  return (
+                    <path
+                      key={b.label}
+                      d={path}
+                      fill={colors[i % colors.length]}
+                      stroke="#1a1a1a"
+                      strokeWidth="1"
+                      opacity="0.85"
                     />
+                  );
+                });
+              })()}
+            </svg>
+            <div className="space-y-2 text-sm">
+              {stats.gsBrackets.map((b, i) => {
+                const colors = ["#7a5c1e", "#a67c28", "#d4a853", "#e8b960", "#f0c566", "#c9963f"];
+                const total = stats.gsBrackets.reduce((sum, x) => sum + x.count, 0) || 1;
+                const pct = Math.round((b.count / total) * 100);
+                return (
+                  <div key={b.label} className="flex items-center gap-2">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: colors[i % colors.length], opacity: 0.85 }}
+                    />
+                    <span className="text-bdo-text-muted">{b.label}</span>
+                    <span className="ml-auto font-mono text-bdo-gold font-bold">{b.count} ({pct}%)</span>
                   </div>
-                  <span className="text-[10px] text-bdo-text-muted whitespace-nowrap">{b.label}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
