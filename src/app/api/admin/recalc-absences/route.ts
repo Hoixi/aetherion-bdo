@@ -41,7 +41,7 @@ export async function POST() {
   }
 
   // Toplu güncelle
-  for (const [userId, count] of absentMap.entries()) {
+  for (const [userId, count] of Array.from(absentMap.entries())) {
     await prisma.user.update({
       where: { id: userId },
       data: { absenceCount: count },

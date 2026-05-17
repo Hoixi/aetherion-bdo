@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const RichTextEditor = dynamic(
+  () => import("@/components/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="border border-bdo-border rounded-xl h-64 animate-pulse bg-bdo-bg" /> }
+);
 
 interface Tag {
   id: number;
@@ -37,7 +43,9 @@ export default function NewPostPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return setError("Başlık ve içerik zorunlu.");
+    if (!title.trim()) return setError("Başlık zorunlu.");
+    const plainText = content.replace(/<[^>]+>/g, "").trim();
+    if (!plainText) return setError("İçerik zorunlu.");
     if (selectedTags.length === 0) return setError("En az bir tag seçmelisin.");
     setSaving(true);
     setError(null);
@@ -77,16 +85,18 @@ export default function NewPostPage() {
           />
         </div>
 
-        {/* İçerik */}
+        {/* İçerik — Zengin Metin Editörü */}
         <div>
           <label className="block text-sm text-bdo-text-muted mb-1.5">İçerik</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Gönderini buraya yaz..."
-            rows={10}
-            className="w-full bg-bdo-surface border border-bdo-border rounded-lg px-4 py-2.5 text-bdo-text-primary focus:border-bdo-gold focus:outline-none text-sm resize-y font-mono leading-relaxed"
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            placeholder="Gönderini buraya yaz... (resim, başlık, liste ekleyebilirsin)"
+            minHeight={300}
           />
+          <p className="text-[11px] text-bdo-text-muted mt-1">
+            Resimler 5MB limitiyle doğrudan yüklenebilir. Dosya → İçe Kod seçenekleri de mevcuttur.
+          </p>
         </div>
 
         {/* Tag Seçimi */}

@@ -3,6 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { RichTextContent } from "@/components/rich-text-editor";
+
+const RichTextEditor = dynamic(
+  () => import("@/components/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="border border-bdo-border rounded-xl h-64 animate-pulse bg-bdo-bg" /> }
+);
 
 interface Tag { id: number; name: string; slug: string; type: string; color: string; }
 interface Author { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null; }
@@ -45,12 +52,19 @@ export default function ForumPostPage() {
   const [submitting, setSubmitting] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
+  // Edit mode
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetch(`/api/forum/posts/${params.id}`)
       .then((r) => r.json())
       .then((data: Post) => {
         setPost(data);
-        // Reaksiyonları hesapla
+        setEditTitle(data.title);
+        setEditContent(data.content);
         const grouped: Record<string, number> = {};
         data.reactions.forEach((r) => { grouped[r.emoji] = (grouped[r.emoji] ?? 0) + 1; });
         setReactions(Object.entries(grouped).map(([emoji, count]) => ({ emoji, count })));
@@ -107,9 +121,26 @@ export default function ForumPostPage() {
     if (res.ok) setPost((p) => p ? { ...p, pinned: !p.pinned } : p);
   }
 
+  async function saveEdit() {
+    if (!editTitle.trim()) return;
+    const plainText = editContent.replace(/<[^>]+>/g, "").trim();
+    if (!plainText) return;
+    setSaving(true);
+    const res = await fetch(`/api/forum/posts/${params.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editTitle, content: editContent }),
+    });
+    if (res.ok) {
+      setPost((p) => p ? { ...p, title: editTitle, content: editContent } : p);
+      setEditing(false);
+    }
+    setSaving(false);
+  }
+
   if (!post) return <div className="text-center py-20 text-bdo-text-muted">Yükleniyor...</div>;
 
-  const canDelete = session?.user.id === post.author.id || session?.user.isAdmin;
+  const canEdit = session?.user.id === post.author.id || session?.user.isAdmin;
   const isAdmin = session?.user.isAdmin;
 
   return (
@@ -133,17 +164,28 @@ export default function ForumPostPage() {
                 </span>
               )}
               <span className="text-xs text-bdo-text-muted">{timeAgo(post.createdAt)}</span>
+              {post.updatedAt !== post.createdAt && (
+                <span className="text-xs text-bdo-text-muted italic">(düzenlendi)</span>
+              )}
               <span className="text-xs text-bdo-text-muted">· 👁 {post.viewCount}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {post.pinned && <span className="text-[10px] bg-bdo-gold/20 text-bdo-gold px-1.5 py-0.5 rounded font-bold">📌</span>}
             {isAdmin && (
               <button onClick={togglePin} className="text-xs text-bdo-text-muted hover:text-bdo-gold px-2 py-1 rounded hover:bg-bdo-bg">
                 {post.pinned ? "Sabitlemeyi Kaldır" : "Sabitle"}
               </button>
             )}
-            {canDelete && (
+            {canEdit && !editing && (
+              <button
+                onClick={() => { setEditTitle(post.title); setEditContent(post.content); setEditing(true); }}
+                className="text-xs text-bdo-text-muted hover:text-bdo-gold px-2 py-1 rounded hover:bg-bdo-bg"
+              >
+                Düzenle
+              </button>
+            )}
+            {canEdit && (
               <button onClick={deletePost} className="text-xs text-red-400/60 hover:text-red-400 px-2 py-1 rounded hover:bg-bdo-bg">
                 Sil
               </button>
@@ -151,42 +193,76 @@ export default function ForumPostPage() {
           </div>
         </div>
 
-        {/* Title + Tags */}
-        <h1 className="text-xl font-bold text-bdo-text-primary mb-3">{post.title}</h1>
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {post.tags.map(({ tag }) => (
-            <span
-              key={tag.id}
-              className="text-xs px-2.5 py-0.5 rounded-full font-medium border"
-              style={{ color: tag.color, borderColor: `${tag.color}40`, backgroundColor: `${tag.color}15` }}
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
+        {editing ? (
+          /* Edit mode */
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              maxLength={120}
+              className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-4 py-2.5 text-bdo-text-primary focus:border-bdo-gold focus:outline-none text-sm font-bold"
+            />
+            <RichTextEditor content={editContent} onChange={setEditContent} minHeight={200} />
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                disabled={saving}
+                className="bg-bdo-gold text-bdo-bg text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-bdo-gold-dim disabled:opacity-50 transition-colors"
+              >
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="text-sm text-bdo-text-muted hover:text-bdo-text-primary px-3 py-1.5"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* View mode */
+          <>
+            {/* Title + Tags */}
+            <h1 className="text-xl font-bold text-bdo-text-primary mb-3">{post.title}</h1>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {post.tags.map(({ tag }) => (
+                <span
+                  key={tag.id}
+                  className="text-xs px-2.5 py-0.5 rounded-full font-medium border"
+                  style={{ color: tag.color, borderColor: `${tag.color}40`, backgroundColor: `${tag.color}15` }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
 
-        {/* Content */}
-        <div className="text-sm text-bdo-text-primary leading-relaxed whitespace-pre-wrap border-t border-bdo-border pt-4">
-          {post.content}
-        </div>
+            {/* Content */}
+            <div className="border-t border-bdo-border pt-4">
+              <RichTextContent html={post.content} />
+            </div>
+          </>
+        )}
 
         {/* Reactions */}
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-bdo-border flex-wrap">
-          {EMOJIS.map((emoji) => {
-            const r = reactions.find((x) => x.emoji === emoji);
-            const mine = myReactions.includes(emoji);
-            return (
-              <button
-                key={emoji}
-                onClick={() => react(emoji)}
-                className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-full border transition-all ${mine ? "border-bdo-gold/60 bg-bdo-gold/10 text-bdo-gold" : "border-bdo-border bg-bdo-bg text-bdo-text-muted hover:border-bdo-gold/30"}`}
-              >
-                <span>{emoji}</span>
-                {r && <span className="text-xs font-mono">{r.count}</span>}
-              </button>
-            );
-          })}
-        </div>
+        {!editing && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-bdo-border flex-wrap">
+            {EMOJIS.map((emoji) => {
+              const r = reactions.find((x) => x.emoji === emoji);
+              const mine = myReactions.includes(emoji);
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => react(emoji)}
+                  className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-full border transition-all ${mine ? "border-bdo-gold/60 bg-bdo-gold/10 text-bdo-gold" : "border-bdo-border bg-bdo-bg text-bdo-text-muted hover:border-bdo-gold/30"}`}
+                >
+                  <span>{emoji}</span>
+                  {r && <span className="text-xs font-mono">{r.count}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Comments */}
