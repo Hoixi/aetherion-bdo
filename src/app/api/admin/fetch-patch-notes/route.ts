@@ -76,8 +76,8 @@ CRITICAL LANGUAGE RULES:
 - "heading" field = always English (class/category name in English)
 - "headingTr" field = always Turkish. For BDO class names use these: Warrior→Savaşçı, Ranger→Okçu, Sorceress→Büyücü, Berserker→Berserker, Tamer→Evcil Hayvan Ustası, Musa→Musa, Maehwa→Maehwa, Valkyrie→Valkiri, Kunoichi→Kunoichi, Ninja→Ninja, Wizard→Büyücü, Witch→Cadı, Dark Knight→Karanlık Şövalye, Striker→Dövüşçü, Mystic→Mistik, Lahn→Lahn, Archer→Okçu, Shai→Shai, Guardian→Gardiyan, Hashashin→Hashaşin, Nova→Nova, Sage→Bilge, Corsair→Korsar, Drakania→Drakania, Woosa→Woosa, Maegu→Maegu, Scholar→Alim. If unknown keep same as English.
 - If you see Korean/Hangul text (e.g. 매화, 흑마법사), convert it to its English equivalent first, then apply the rule above.
-- "skillName" = English skill name (keep as-is, these are proper nouns)
-- "skillNameTr" = ALWAYS provide Turkish translation. For BDO skills: Flow:→Akış:, Succession→Uyanış Devamı, Awakening→Uyanış, translate descriptive words (Pierce→Delme, Claw→Pençe, Step→Adım, Slash→Kesme, Strike→Vuruş, Burst→Patlama, Dash→Atılış, Guard→Savunma, Heal→İyileşme etc.) but keep proper names. If unsure, keep English.
+- "skillName" = English skill name (keep as-is, these are proper nouns — do NOT translate)
+- "skillNameTr" = omit entirely, skill names stay in English
 
 IMPORTANT: BDO patch notes have a 2-level structure:
 - Top level: class name (Maehwa, Warrior, etc.) → becomes a section
@@ -94,9 +94,9 @@ So if the content looks like:
 
 Then generate:
   section heading="Maehwa", headingTr="Maehwa", changes=[
-    { skillName:"Flow: Cloud Pierce", skillNameTr:"Akış: Bulut Delme", skillImageUrl:"icon1.png", en:"Cooldown removed", tr:"Yeniden kullanım süresi kaldırıldı.", type:"CHANGE" },
-    { skillName:"Flow: Cloud Pierce", skillNameTr:"Akış: Bulut Delme", skillImageUrl:"icon1.png", en:"HP recovery removed", tr:"HP iyileşmesi kaldırıldı.", type:"NERF" },
-    { skillName:"Frostbite", skillNameTr:"Buz Isırması", skillImageUrl:"icon2.png", en:"HP recovery on hit 150→300", tr:"Vuruşta HP iyileşmesi 150→300'e çıkarıldı.", type:"BUFF" }
+    { skillName:"Flow: Cloud Pierce", skillImageUrl:"icon1.png", en:"Cooldown removed", tr:"Yeniden kullanım süresi kaldırıldı.", type:"CHANGE" },
+    { skillName:"Flow: Cloud Pierce", skillImageUrl:"icon1.png", en:"HP recovery removed", tr:"HP iyileşmesi kaldırıldı.", type:"NERF" },
+    { skillName:"Frostbite", skillImageUrl:"icon2.png", en:"HP recovery on hit 150→300", tr:"Vuruşta HP iyileşmesi 150→300'e çıkarıldı.", type:"BUFF" }
   ]
 
 Type guide: BUFF=stat/damage increase or cooldown decrease, NERF=stat/damage decrease or cooldown increase, FIX=bug fix, NEW=new feature/item/skill, CHANGE=neutral rework or description update.
