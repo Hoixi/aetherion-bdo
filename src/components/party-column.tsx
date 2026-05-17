@@ -25,6 +25,11 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense }: Part
 
   const memberIds = party.members.map((m) => `member-${m.userId}`);
 
+  const count = party.members.length;
+  const avgAp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.ap, 0) / count) : 0;
+  const avgDp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.dp, 0) / count) : 0;
+  const avgGs = avgAp + avgDp;
+
   function handleNameSave() {
     setEditing(false);
     if (name !== party.name) onRename(party.id, name);
@@ -83,6 +88,16 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense }: Part
         </div>
       </div>
       {defenseErr && <p className="text-[10px] text-red-400 mb-1">{defenseErr}</p>}
+
+      {/* AP/DP ortalama */}
+      {count > 0 && (
+        <div className="flex items-center gap-2 mb-2 text-[10px] font-mono">
+          <span className="text-red-400/80" title="Ort. AP">⚔ {avgAp}</span>
+          <span className="text-blue-400/80" title="Ort. DP">🛡 {avgDp}</span>
+          <span className="ml-auto text-bdo-gold/70" title="Ort. GS">GS {avgGs}</span>
+        </div>
+      )}
+
       <SortableContext items={memberIds} strategy={verticalListSortingStrategy}>
         <div className="space-y-2 min-h-[60px]">
           {party.members.length === 0 && (

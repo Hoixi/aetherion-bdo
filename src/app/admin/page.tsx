@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { WarForm } from "@/components/war-form";
 import { WarPerformanceTab } from "@/components/war-performance-tab";
 import { getTypeName } from "@/lib/classes";
@@ -422,6 +423,12 @@ export default function AdminPage() {
                   >
                     {publishing === war.id ? "..." : "Discord'a Gönder"}
                   </button>
+                  <Link
+                    href={`/wars/${war.id}`}
+                    className="text-xs bg-bdo-gold/10 text-bdo-gold px-2 py-1 rounded hover:bg-bdo-gold/20 transition-colors font-semibold"
+                  >
+                    ⚔️ Parti Kur
+                  </Link>
                   <button
                     onClick={() => { setEditingWar(war); setShowWarForm(false); }}
                     className="text-xs text-bdo-gold hover:underline"
@@ -689,10 +696,13 @@ export default function AdminPage() {
           <div className="space-y-2">
           {members.map((member) => (
             <div key={member.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {member.avatarUrl && <img src={member.avatarUrl} alt="" className="w-8 h-8 rounded-full" />}
+              <Link href={`/members/${member.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                {member.avatarUrl
+                  ? <img src={member.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                  : <div className="w-8 h-8 rounded-full bg-bdo-border flex items-center justify-center text-xs text-bdo-text-muted">{member.familyName?.[0] ?? "?"}</div>
+                }
                 <div>
-                  <span className="text-bdo-text-primary">{member.familyName || "İsimsiz"}</span>
+                  <span className="text-bdo-text-primary hover:text-bdo-gold transition-colors">{member.familyName || "İsimsiz"}</span>
                   {member.siteRole && (
                     <span
                       className="ml-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border"
@@ -702,7 +712,7 @@ export default function AdminPage() {
                     </span>
                   )}
                 </div>
-              </div>
+              </Link>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleAdmin(member.id, !member.isAdmin)}
