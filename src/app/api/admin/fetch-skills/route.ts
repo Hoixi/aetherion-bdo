@@ -5,17 +5,11 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { SKILL_CLASS_IDS } from "@/lib/skill-class-ids";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
 const BDOCODEX = "https://bdocodex.com";
-
-// All valid bdocodex class IDs (some are missing/unused in the game)
-export const SKILL_CLASS_IDS = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-  15, 16, 17, 19, 20, 21, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34,
-];
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
