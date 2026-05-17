@@ -18,45 +18,105 @@ interface PatchNote {
   publishedAt: string;
 }
 
-// ─── Change type badge ────────────────────────────────────────────────────────
+// ─── Change type config ───────────────────────────────────────────────────────
 
 const TYPE_META: Record<
   StructuredChange["type"],
-  { label: string; labelTr: string; icon: string; className: string }
+  { labelTr: string; bg: string; text: string; border: string; icon: React.ReactNode }
 > = {
-  BUFF:   { label: "Buff",   labelTr: "Güçlendirme", icon: "▲", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  NERF:   { label: "Nerf",   labelTr: "Zayıflatma",  icon: "▼", className: "bg-red-500/15 text-red-400 border-red-500/30" },
-  FIX:    { label: "Fix",    labelTr: "Düzeltme",    icon: "🔧", className: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
-  NEW:    { label: "New",    labelTr: "Yeni",         icon: "✨", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
-  CHANGE: { label: "Change", labelTr: "Değişiklik",  icon: "⚡", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  BUFF: {
+    labelTr: "Güçlendirme",
+    bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30",
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+        <path d="M6 1L10.5 9H1.5L6 1Z" />
+      </svg>
+    ),
+  },
+  NERF: {
+    labelTr: "Zayıflatma",
+    bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30",
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+        <path d="M6 11L1.5 3H10.5L6 11Z" />
+      </svg>
+    ),
+  },
+  FIX: {
+    labelTr: "Düzeltme",
+    bg: "bg-sky-500/10", text: "text-sky-400", border: "border-sky-500/30",
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <path d="M9.5 2.5L7 5l-1.5-.5L5 3l2.5-2.5A3 3 0 002 4.5L5.5 8 3 10.5h3l1-1L10.5 6A3 3 0 009.5 2.5z" />
+      </svg>
+    ),
+  },
+  NEW: {
+    labelTr: "Yeni",
+    bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/30",
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+        <path d="M6 0l1.2 3.8H11l-3 2.2 1.1 3.8L6 7.5l-3.1 2.3L4 6 1 3.8h3.8L6 0z" />
+      </svg>
+    ),
+  },
+  CHANGE: {
+    labelTr: "Değişiklik",
+    bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30",
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+        <path d="M6 0l1.5 4.5H12L8 7.5l1.5 4.5L6 9l-3.5 3L4 7.5 0 4.5h4.5L6 0z" />
+      </svg>
+    ),
+  },
 };
 
-function ChangeBadge({ type, lang }: { type: StructuredChange["type"]; lang: "tr" | "en" }) {
+function ChangeBadge({ type }: { type: StructuredChange["type"] }) {
   const meta = TYPE_META[type] ?? TYPE_META.CHANGE;
   return (
-    <span
-      className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${meta.className}`}
-    >
-      <span>{meta.icon}</span>
-      <span>{lang === "tr" ? meta.labelTr : meta.label}</span>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}>
+      {meta.icon}
+      <span>{meta.labelTr}</span>
     </span>
+  );
+}
+
+// ─── Tam Metin: Turkish flat view from structured data ────────────────────────
+
+function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
+  return (
+    <div className="flex flex-col gap-5">
+      {data.sections.map((sec) => (
+        <div key={sec.id} className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
+            <span className="text-lg">{sec.emoji}</span>
+            <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+          </div>
+          <ul className="divide-y divide-bdo-border/40">
+            {sec.changes.map((c, i) => (
+              <li key={i} className="px-5 py-3 flex items-start gap-3">
+                <ChangeBadge type={c.type} />
+                <p className="text-sm text-bdo-text-primary leading-relaxed">{c.tr}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }
 
 // ─── Structured view ─────────────────────────────────────────────────────────
 
-function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" | "en" }) {
+function StructuredView({ data }: { data: StructuredPatchNote }) {
   const [activeId, setActiveId] = useState<string>(data.sections[0]?.id ?? "");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  // Highlight active section on scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
+          if (entry.isIntersecting) setActiveId(entry.target.id);
         }
       },
       { rootMargin: "-20% 0px -70% 0px" },
@@ -66,13 +126,12 @@ function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" 
   }, [data.sections]);
 
   const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <div className="flex gap-6 relative">
-      {/* ── Sidebar TOC ── */}
+      {/* Sidebar TOC */}
       <aside className="hidden lg:block w-52 shrink-0">
         <div className="sticky top-20">
           <p className="text-[10px] font-bold uppercase text-bdo-text-muted tracking-widest mb-3">İçerik</p>
@@ -88,16 +147,16 @@ function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" 
                 }`}
               >
                 <span className="text-sm">{sec.emoji}</span>
-                <span className="truncate">{lang === "tr" ? sec.headingTr : sec.heading}</span>
+                <span className="truncate">{sec.headingTr}</span>
               </button>
             ))}
           </nav>
         </div>
       </aside>
 
-      {/* ── Sections ── */}
+      {/* Sections */}
       <div className="flex-1 min-w-0 flex flex-col gap-6">
-        {/* Mobile TOC (horizontal scroll) */}
+        {/* Mobile TOC */}
         {data.sections.length > 1 && (
           <div className="lg:hidden flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {data.sections.map((sec) => (
@@ -107,11 +166,11 @@ function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" 
                 className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${
                   activeId === sec.id
                     ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold font-semibold"
-                    : "border-bdo-border text-bdo-text-muted hover:border-bdo-gold/50 hover:text-bdo-text-primary"
+                    : "border-bdo-border text-bdo-text-muted hover:border-bdo-gold/50"
                 }`}
               >
                 <span>{sec.emoji}</span>
-                <span>{lang === "tr" ? sec.headingTr : sec.heading}</span>
+                <span>{sec.headingTr}</span>
               </button>
             ))}
           </div>
@@ -128,21 +187,19 @@ function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" 
             <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
               <span className="text-xl">{sec.emoji}</span>
               <div>
-                <h2 className="text-sm font-bold text-bdo-text-primary">
-                  {lang === "tr" ? sec.headingTr : sec.heading}
-                </h2>
-                {lang === "tr" && sec.heading !== sec.headingTr && (
+                <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+                {sec.heading !== sec.headingTr && (
                   <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
                 )}
               </div>
-              {/* Change type summary pills */}
+              {/* Count pills */}
               <div className="ml-auto flex items-center gap-1 flex-wrap justify-end">
                 {(["BUFF", "NERF", "FIX", "NEW", "CHANGE"] as const).map((t) => {
                   const count = sec.changes.filter((c) => c.type === t).length;
                   if (!count) return null;
                   const meta = TYPE_META[t];
                   return (
-                    <span key={t} className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.className}`}>
+                    <span key={t} className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}>
                       {meta.icon} {count}
                     </span>
                   );
@@ -150,29 +207,21 @@ function StructuredView({ data, lang }: { data: StructuredPatchNote; lang: "tr" 
               </div>
             </div>
 
-            {/* Change list */}
+            {/* Changes */}
             <ul className="divide-y divide-bdo-border/50">
               {sec.changes.map((change, i) => (
                 <li key={i} className="px-5 py-3">
-                  {/* Image if present */}
                   {change.imageUrl && (
                     <div className="mb-2 rounded-lg overflow-hidden border border-bdo-border">
-                      <img
-                        src={change.imageUrl}
-                        alt=""
-                        className="w-full object-cover max-h-48"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
+                      <img src={change.imageUrl} alt="" className="w-full object-cover max-h-48" loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
                   )}
                   <div className="flex items-start gap-2.5">
                     <div className="mt-0.5 shrink-0">
-                      <ChangeBadge type={change.type} lang={lang} />
+                      <ChangeBadge type={change.type} />
                     </div>
-                    <p className="text-sm text-bdo-text-primary leading-relaxed">
-                      {lang === "tr" ? change.tr : change.en}
-                    </p>
+                    <p className="text-sm text-bdo-text-primary leading-relaxed">{change.tr}</p>
                   </div>
                 </li>
               ))}
@@ -190,9 +239,8 @@ export default function PatchNoteDetailPage() {
   const { data: session } = useSession();
   const params = useParams();
   const [note, setNote] = useState<PatchNote | null>(null);
-  const [lang, setLang] = useState<"tr" | "en">("tr");
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"structured" | "raw">("structured");
+  const [viewMode, setViewMode] = useState<"structured" | "flat">("structured");
 
   useEffect(() => {
     fetch(`/api/patch-notes/${params.id}`)
@@ -200,45 +248,39 @@ export default function PatchNoteDetailPage() {
       .then((data) => {
         setNote(data);
         setLoading(false);
-        // If no structured data, fall back to raw view
-        if (!data.structured) setViewMode("raw");
+        if (!data.structured) setViewMode("flat");
       });
   }, [params.id]);
 
   if (!session) return null;
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 gap-2 text-bdo-text-muted">
-        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-        Yükleniyor...
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center py-20 gap-2 text-bdo-text-muted">
+      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+      </svg>
+      Yükleniyor...
+    </div>
+  );
   if (!note) return <div className="text-center py-20 text-bdo-text-muted">Yama notu bulunamadı.</div>;
 
   const structured: StructuredPatchNote | null = note.structured
     ? (() => { try { return JSON.parse(note.structured!); } catch { return null; } })()
     : null;
 
-  const displayTitle = lang === "tr" ? (structured?.titleTr || note.titleTr || note.title) : note.title;
-  const displayContent = lang === "tr" ? (note.contentTr || note.content) : note.content;
+  const displayTitle = structured?.titleTr || note.titleTr || note.title;
+  const summary = structured?.summary;
 
-  const summary = lang === "tr" ? structured?.summary : structured?.summaryEn;
+  // Total change counts for header legend
+  const allChanges = structured?.sections.flatMap((s) => s.changes) ?? [];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-24 md:pb-8">
-      {/* Back */}
-      <Link
-        href="/patch-notes"
-        className="inline-flex items-center gap-1 text-sm text-bdo-text-muted hover:text-bdo-text-primary mb-5 transition-colors"
-      >
+      <Link href="/patch-notes" className="inline-flex items-center gap-1 text-sm text-bdo-text-muted hover:text-bdo-text-primary mb-5 transition-colors">
         ← Tüm Yama Notları
       </Link>
 
-      {/* Hero header */}
+      {/* Hero */}
       <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden mb-6">
         {note.thumbnail && (
           <div className="aspect-video bg-bdo-bg overflow-hidden max-h-64">
@@ -247,20 +289,13 @@ export default function PatchNoteDetailPage() {
         )}
         <div className="p-5">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
-              Global Lab
-            </span>
+            <span className="bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Global Lab</span>
             <span className="text-xs text-bdo-text-muted">
-              {new Date(note.publishedAt).toLocaleDateString("tr-TR", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+              {new Date(note.publishedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
             </span>
             <a
               href={`https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Notice/Detail?_boardNo=${note.boardNo}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              target="_blank" rel="noopener noreferrer"
               className="text-xs text-bdo-text-muted hover:text-bdo-gold transition-colors ml-auto"
             >
               Orjinal ↗
@@ -270,65 +305,39 @@ export default function PatchNoteDetailPage() {
           <h1 className="text-lg font-bold text-bdo-text-primary leading-snug mb-2">{displayTitle}</h1>
 
           {summary && (
-            <p className="text-sm text-bdo-text-muted leading-relaxed mb-4 border-l-2 border-bdo-gold/40 pl-3">
-              {summary}
-            </p>
+            <p className="text-sm text-bdo-text-muted leading-relaxed mb-4 border-l-2 border-bdo-gold/40 pl-3">{summary}</p>
           )}
 
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-3">
-            {/* Language */}
-            <div className="flex items-center gap-1.5 bg-bdo-bg rounded-lg p-0.5">
-              <button
-                onClick={() => setLang("tr")}
-                className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${
-                  lang === "tr" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"
-                }`}
-              >
-                🇹🇷 Türkçe
-              </button>
-              <button
-                onClick={() => setLang("en")}
-                className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${
-                  lang === "en" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"
-                }`}
-              >
-                🇬🇧 English
-              </button>
-            </div>
-
-            {/* View mode (only if structured data exists) */}
+            {/* View toggle */}
             {structured && (
-              <div className="flex items-center gap-1.5 bg-bdo-bg rounded-lg p-0.5">
+              <div className="flex items-center gap-1 bg-bdo-bg rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode("structured")}
-                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${
-                    viewMode === "structured" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"
-                  }`}
+                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${viewMode === "structured" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}
                 >
-                  📋 Yapılandırılmış
+                  📋 Değişiklikler
                 </button>
                 <button
-                  onClick={() => setViewMode("raw")}
-                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${
-                    viewMode === "raw" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"
-                  }`}
+                  onClick={() => setViewMode("flat")}
+                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${viewMode === "flat" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}
                 >
                   📄 Tam Metin
                 </button>
               </div>
             )}
 
-            {/* Change type legend */}
-            {structured && viewMode === "structured" && (
+            {/* Legend counts */}
+            {structured && allChanges.length > 0 && (
               <div className="flex flex-wrap gap-1 ml-auto">
                 {(["BUFF", "NERF", "FIX", "NEW", "CHANGE"] as const).map((t) => {
-                  const meta = TYPE_META[t];
-                  const count = structured.sections.flatMap((s) => s.changes).filter((c) => c.type === t).length;
+                  const count = allChanges.filter((c) => c.type === t).length;
                   if (!count) return null;
+                  const meta = TYPE_META[t];
                   return (
-                    <span key={t} className={`text-[10px] font-bold px-2 py-0.5 rounded border ${meta.className}`}>
-                      {meta.icon} {lang === "tr" ? meta.labelTr : meta.label} ({count})
+                    <span key={t} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}>
+                      {meta.icon} {meta.labelTr} ({count})
                     </span>
                   );
                 })}
@@ -340,16 +349,13 @@ export default function PatchNoteDetailPage() {
 
       {/* Content */}
       {viewMode === "structured" && structured ? (
-        <StructuredView data={structured} lang={lang} />
+        <StructuredView data={structured} />
+      ) : structured ? (
+        <FlatTurkishView data={structured} />
       ) : (
         <div className="bg-bdo-surface border border-bdo-border rounded-xl p-6">
-          <p className="text-xs text-bdo-text-muted mb-4 flex items-center gap-1.5">
-            <span>🇬🇧</span> Orijinal İngilizce içerik
-          </p>
-          <div
-            className="patch-note-content text-sm text-bdo-text-primary leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: note.content }}
-          />
+          <div className="patch-note-content text-sm text-bdo-text-primary leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: note.content }} />
         </div>
       )}
     </div>
