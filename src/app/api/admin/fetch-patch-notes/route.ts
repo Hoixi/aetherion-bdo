@@ -55,20 +55,42 @@ Return this exact JSON shape:
   "sections": [
     {
       "id": "slug-lowercase-hyphens",
-      "heading": "English section heading (class name, skill name, or category)",
+      "heading": "Top-level English section heading (usually the class name, e.g. Maehwa, Warrior, or a category)",
       "headingTr": "Turkish section heading",
       "emoji": "⚔️ combat class | 🛡 defense/tank | 🏹 ranged | 🧙 magic | 🔧 system/UI | 🌟 general | ⚡ new content | 🐛 bug fix",
-      "imageUrl": "the [IMG:url] that appears immediately before or at the start of this section heading — this is the skill/section icon. Omit if none.",
       "changes": [
         {
-          "en": "Concise English description (1-2 sentences max)",
-          "tr": "Turkish translation",
+          "skillName": "Original skill name or sub-heading if present (e.g. 'Shadow Explosion', 'Fox Claw'). Omit if no sub-heading.",
+          "skillNameTr": "Turkish translation of the skill name. Omit if no sub-heading.",
+          "skillImageUrl": "The [IMG:url] that appears immediately before the skill sub-heading in the content. This is the skill icon. Omit if none.",
+          "en": "Concise English description of this change (1-2 sentences)",
+          "tr": "Turkish translation of the change",
           "type": "BUFF|NERF|FIX|NEW|CHANGE"
         }
       ]
     }
   ]
 }
+
+IMPORTANT: BDO patch notes have a 2-level structure:
+- Top level: class name (Maehwa, Warrior, etc.) → becomes a section
+- Second level: skill name with icon (e.g. [IMG:url] Shadow Explosion) → goes into skillName/skillImageUrl of each change
+- Bullet points under a skill → individual change items, all share the same skillName/skillImageUrl
+
+So if the content looks like:
+  Maehwa
+    [IMG:icon1.png] Shadow Explosion
+      - Damage increased
+      - Cooldown reduced
+    [IMG:icon2.png] Fox Claw
+      - HP recovery removed
+
+Then generate:
+  section heading="Maehwa", changes=[
+    { skillName:"Shadow Explosion", skillImageUrl:"icon1.png", en:"Damage increased", type:"BUFF" },
+    { skillName:"Shadow Explosion", skillImageUrl:"icon1.png", en:"Cooldown reduced", type:"BUFF" },
+    { skillName:"Fox Claw", skillImageUrl:"icon2.png", en:"HP recovery removed", type:"NERF" }
+  ]
 
 Type guide: BUFF=stat/damage increase or cooldown decrease, NERF=stat/damage decrease or cooldown increase, FIX=bug fix, NEW=new feature/item/skill, CHANGE=neutral rework or description update.
 Group changes by class or category section. If no clear grouping exists: id="general", headingTr="Genel".

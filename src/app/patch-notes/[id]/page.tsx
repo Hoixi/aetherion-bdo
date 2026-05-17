@@ -88,27 +88,58 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
     <div className="flex flex-col gap-5">
       {data.sections.map((sec) => (
         <div key={sec.id} className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-            {sec.imageUrl ? (
-              <img src={sec.imageUrl} alt={sec.headingTr} className="w-8 h-8 object-contain rounded"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            ) : (
-              <span className="text-lg">{sec.emoji}</span>
-            )}
+          <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
+            <span className="text-lg">{sec.emoji}</span>
             <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
           </div>
-          <ul className="divide-y divide-bdo-border/40">
-            {sec.changes.map((c, i) => (
-              <li key={i} className="px-5 py-3 flex items-start gap-3">
-                <ChangeBadge type={c.type} />
-                <p className="text-sm text-bdo-text-primary leading-relaxed">{c.tr}</p>
-              </li>
+          <div>
+            {groupBySkill(sec.changes).map((group, gi) => (
+              <div key={gi} className="border-t border-bdo-border/40 first:border-t-0">
+                {group.skillName && (
+                  <div className="flex items-center gap-2.5 px-5 py-2 bg-bdo-bg/20">
+                    {group.skillImageUrl && (
+                      <img src={group.skillImageUrl} alt={group.skillNameTr || group.skillName}
+                        className="w-8 h-8 object-contain rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    )}
+                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillNameTr || group.skillName}</span>
+                  </div>
+                )}
+                <ul className="divide-y divide-bdo-border/30">
+                  {group.changes.map((c, i) => (
+                    <li key={i} className="px-5 py-2.5 flex items-start gap-3">
+                      <ChangeBadge type={c.type} />
+                      <p className="text-sm text-bdo-text-primary leading-relaxed">{c.tr}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       ))}
     </div>
   );
+}
+
+// ─── Group changes by skill ───────────────────────────────────────────────────
+
+function groupBySkill(changes: StructuredChange[]) {
+  const groups: { skillName?: string; skillNameTr?: string; skillImageUrl?: string; changes: StructuredChange[] }[] = [];
+  for (const change of changes) {
+    const last = groups[groups.length - 1];
+    if (last && last.skillName === change.skillName) {
+      last.changes.push(change);
+    } else {
+      groups.push({
+        skillName: change.skillName,
+        skillNameTr: change.skillNameTr,
+        skillImageUrl: change.skillImageUrl,
+        changes: [change],
+      });
+    }
+  }
+  return groups;
 }
 
 // ─── Structured view ─────────────────────────────────────────────────────────
@@ -151,12 +182,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                     : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg/60"
                 }`}
               >
-                {sec.imageUrl ? (
-                  <img src={sec.imageUrl} alt="" className="w-5 h-5 object-contain rounded shrink-0"
-                    onError={(e) => { (e.target as HTMLImageElement).replaceWith(Object.assign(document.createElement("span"), { textContent: sec.emoji })); }} />
-                ) : (
-                  <span className="text-sm shrink-0">{sec.emoji}</span>
-                )}
+                <span className="text-sm shrink-0">{sec.emoji}</span>
                 <span className="truncate">{sec.headingTr}</span>
               </button>
             ))}
@@ -195,16 +221,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
           >
             {/* Section header */}
             <div className="flex items-center gap-3 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-              {sec.imageUrl ? (
-                <img
-                  src={sec.imageUrl}
-                  alt={sec.headingTr}
-                  className="w-9 h-9 object-contain rounded"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              ) : (
-                <span className="text-xl">{sec.emoji}</span>
-              )}
+              <span className="text-xl">{sec.emoji}</span>
               <div>
                 <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
                 {sec.heading !== sec.headingTr && (
@@ -226,25 +243,42 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
               </div>
             </div>
 
-            {/* Changes */}
-            <ul className="divide-y divide-bdo-border/50">
-              {sec.changes.map((change, i) => (
-                <li key={i} className="px-5 py-3">
-                  {change.imageUrl && (
-                    <div className="mb-2 rounded-lg overflow-hidden border border-bdo-border">
-                      <img src={change.imageUrl} alt="" className="w-full object-cover max-h-48" loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            {/* Changes — grouped by skill */}
+            <div>
+              {groupBySkill(sec.changes).map((group, gi) => (
+                <div key={gi} className="border-t border-bdo-border/50 first:border-t-0">
+                  {/* Skill sub-header */}
+                  {group.skillName && (
+                    <div className="flex items-center gap-2.5 px-5 py-2 bg-bdo-bg/20">
+                      {group.skillImageUrl && (
+                        <img
+                          src={group.skillImageUrl}
+                          alt={group.skillNameTr || group.skillName}
+                          className="w-8 h-8 object-contain rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                      <span className="text-xs font-semibold text-bdo-text-muted">
+                        {group.skillNameTr || group.skillName}
+                        {group.skillNameTr && group.skillName !== group.skillNameTr && (
+                          <span className="ml-1.5 opacity-50 font-normal">{group.skillName}</span>
+                        )}
+                      </span>
                     </div>
                   )}
-                  <div className="flex items-start gap-2.5">
-                    <div className="mt-0.5 shrink-0">
-                      <ChangeBadge type={change.type} />
-                    </div>
-                    <p className="text-sm text-bdo-text-primary leading-relaxed">{change.tr}</p>
-                  </div>
-                </li>
+                  <ul className="divide-y divide-bdo-border/30">
+                    {group.changes.map((change, i) => (
+                      <li key={i} className="px-5 py-2.5 flex items-start gap-2.5">
+                        <div className="mt-0.5 shrink-0">
+                          <ChangeBadge type={change.type} />
+                        </div>
+                        <p className="text-sm text-bdo-text-primary leading-relaxed">{change.tr}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         ))}
       </div>
