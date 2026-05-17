@@ -55,15 +55,15 @@ Return this exact JSON shape:
   "sections": [
     {
       "id": "slug-lowercase-hyphens",
-      "heading": "English section heading (class name or category)",
+      "heading": "English section heading (class name, skill name, or category)",
       "headingTr": "Turkish section heading",
       "emoji": "⚔️ combat class | 🛡 defense/tank | 🏹 ranged | 🧙 magic | 🔧 system/UI | 🌟 general | ⚡ new content | 🐛 bug fix",
+      "imageUrl": "the [IMG:url] that appears immediately before or at the start of this section heading — this is the skill/section icon. Omit if none.",
       "changes": [
         {
           "en": "Concise English description (1-2 sentences max)",
           "tr": "Turkish translation",
-          "type": "BUFF|NERF|FIX|NEW|CHANGE",
-          "imageUrl": "include ONLY if [IMG:url] appears directly before or after this change"
+          "type": "BUFF|NERF|FIX|NEW|CHANGE"
         }
       ]
     }

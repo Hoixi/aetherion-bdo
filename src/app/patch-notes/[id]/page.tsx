@@ -88,8 +88,13 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
     <div className="flex flex-col gap-5">
       {data.sections.map((sec) => (
         <div key={sec.id} className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-            <span className="text-lg">{sec.emoji}</span>
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
+            {sec.imageUrl ? (
+              <img src={sec.imageUrl} alt={sec.headingTr} className="w-8 h-8 object-contain rounded"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            ) : (
+              <span className="text-lg">{sec.emoji}</span>
+            )}
             <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
           </div>
           <ul className="divide-y divide-bdo-border/40">
@@ -146,7 +151,12 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                     : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg/60"
                 }`}
               >
-                <span className="text-sm">{sec.emoji}</span>
+                {sec.imageUrl ? (
+                  <img src={sec.imageUrl} alt="" className="w-5 h-5 object-contain rounded shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).replaceWith(Object.assign(document.createElement("span"), { textContent: sec.emoji })); }} />
+                ) : (
+                  <span className="text-sm shrink-0">{sec.emoji}</span>
+                )}
                 <span className="truncate">{sec.headingTr}</span>
               </button>
             ))}
@@ -184,8 +194,17 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
             className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden scroll-mt-20"
           >
             {/* Section header */}
-            <div className="flex items-center gap-2.5 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
-              <span className="text-xl">{sec.emoji}</span>
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-bdo-border bg-bdo-bg/40">
+              {sec.imageUrl ? (
+                <img
+                  src={sec.imageUrl}
+                  alt={sec.headingTr}
+                  className="w-9 h-9 object-contain rounded"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <span className="text-xl">{sec.emoji}</span>
+              )}
               <div>
                 <h2 className="text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
                 {sec.heading !== sec.headingTr && (

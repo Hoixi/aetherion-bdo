@@ -12,6 +12,7 @@ export interface StructuredSection {
   heading: string;    // English heading
   headingTr: string;  // Turkish heading
   emoji: string;
+  imageUrl?: string;  // skill/section icon from patch note HTML
   changes: StructuredChange[];
 }
 
