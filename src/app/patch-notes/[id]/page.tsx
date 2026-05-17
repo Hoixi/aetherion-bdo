@@ -127,15 +127,19 @@ function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
           {(() => {
             const splash = getSectionSplash(sec.heading);
             return (
-              <div className="relative flex items-center gap-2.5 px-5 py-4 border-b border-bdo-border overflow-hidden">
+              <div className="relative flex items-center gap-3 px-6 py-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
                 {splash && (
                   <>
                     <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-50 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
                   </>
                 )}
-                <span className="relative text-lg">{sec.emoji}</span>
-                <h2 className="relative text-sm font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+                <div className="relative">
+                  <h2 className="text-2xl font-bold text-bdo-text-primary drop-shadow-lg">{sec.headingTr}</h2>
+                  {sec.heading !== sec.headingTr && (
+                    <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -270,7 +274,7 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
             {(() => {
               const splash = getSectionSplash(sec.heading);
               return (
-                <div className="relative flex items-center gap-3 px-6 py-8 border-b border-bdo-border overflow-hidden min-h-[120px]">
+                <div className="relative flex items-center gap-3 px-6 py-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
                   {/* Splash background */}
                   {splash && (
                     <>
@@ -278,9 +282,8 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
                       <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
                     </>
                   )}
-                  <span className="relative text-xl">{sec.emoji}</span>
                   <div className="relative">
-                    <h2 className="text-base font-bold text-bdo-text-primary">{sec.headingTr}</h2>
+                    <h2 className="text-2xl font-bold text-bdo-text-primary drop-shadow-lg">{sec.headingTr}</h2>
                     {sec.heading !== sec.headingTr && (
                       <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
                     )}
