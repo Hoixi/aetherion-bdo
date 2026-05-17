@@ -10,6 +10,7 @@ import { SKILL_CLASS_IDS } from "@/lib/skill-class-ids";
 const db = prisma as any;
 
 const BDOCODEX = "https://bdocodex.com";
+const BATCH_SIZE = 20; // skills per API call — keeps response well under 60s
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -33,23 +34,19 @@ async function fetchSkillIds(classId: number): Promise<number[]> {
 // ─── Fetch TR + KR names for a single skill ──────────────────────────────────
 
 async function fetchSkillNames(skillId: number): Promise<{ kr: string; tr: string } | null> {
-  // l=tr returns Turkish name in .tag_skill_name + Korean cross-reference in .item_name b
   const res = await fetch(`${BDOCODEX}/tip.php?id=skill--${skillId}&l=tr&nf=on`, { headers: HEADERS });
   if (!res.ok) return null;
   const html = await res.text();
 
-  // Turkish name (primary)
   const trMatch = html.match(/class="tag_skill_name"[^>]*>\s*([^<\n]+?)\s*<\//);
   if (!trMatch?.[1]?.trim()) return null;
   const tr = trMatch[1].trim();
 
-  // Korean name (cross-reference — appears even when requesting Turkish)
   const krMatch =
     html.match(/class="item_name"[^>]*>[\s\S]*?<b>\s*([^<]+?)\s*<\/b>/) ??
     html.match(/<b class="[^"]*">\s*([가-힣A-Za-z: ]+?)\s*<\/b>/);
   const kr = krMatch?.[1]?.trim() ?? "";
 
-  if (!tr) return null;
   return { kr, tr };
 }
 
@@ -73,7 +70,9 @@ export async function GET() {
   });
 }
 
-// ─── POST — fetch one class ───────────────────────────────────────────────────
+// ─── POST — fetch one batch: { classId, offset } ─────────────────────────────
+// Returns { ok, added, skipped, nextOffset, total, done }
+// Frontend loops: keep calling with nextOffset until done === true
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -81,48 +80,44 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const classId: number = body.classId;
+  const offset: number = body.offset ?? 0;
 
   if (classId === undefined || !SKILL_CLASS_IDS.includes(classId)) {
     return NextResponse.json({ error: "Geçersiz classId" }, { status: 400 });
   }
 
   try {
-    const skillIds = await fetchSkillIds(classId);
-    if (skillIds.length === 0) {
-      return NextResponse.json({ ok: true, classId, added: 0, total: 0, message: "Skill bulunamadı." });
+    const allIds = await fetchSkillIds(classId);
+    const total = allIds.length;
+
+    if (total === 0) {
+      return NextResponse.json({ ok: true, classId, added: 0, skipped: 0, total: 0, nextOffset: 0, done: true });
     }
 
-    // Fetch in parallel chunks of 12 to stay well within 60s timeout
-    const CHUNK = 12;
+    const batch = allIds.slice(offset, offset + BATCH_SIZE);
     let added = 0;
     let skipped = 0;
 
-    for (let i = 0; i < skillIds.length; i += CHUNK) {
-      const chunk = skillIds.slice(i, i + CHUNK);
-      const results = await Promise.allSettled(
-        chunk.map((id) => fetchSkillNames(id).then((names) => ({ id, names }))),
-      );
+    // Fetch all in parallel (20 concurrent is fine within 60s)
+    const results = await Promise.allSettled(
+      batch.map((id) => fetchSkillNames(id).then((names) => ({ id, names }))),
+    );
 
-      for (const result of results) {
-        if (result.status !== "fulfilled" || !result.value.names) { skipped++; continue; }
-        const { id, names } = result.value;
-        await db.skillTranslation.upsert({
-          where: { skillId_classId: { skillId: id, classId } },
-          create: { skillId: id, classId, kr: names.kr, tr: names.tr },
-          update: { kr: names.kr, tr: names.tr },
-        });
-        added++;
-      }
+    for (const result of results) {
+      if (result.status !== "fulfilled" || !result.value.names) { skipped++; continue; }
+      const { id, names } = result.value;
+      await db.skillTranslation.upsert({
+        where: { skillId_classId: { skillId: id, classId } },
+        create: { skillId: id, classId, kr: names.kr, tr: names.tr },
+        update: { kr: names.kr, tr: names.tr },
+      });
+      added++;
     }
 
-    return NextResponse.json({
-      ok: true,
-      classId,
-      added,
-      skipped,
-      total: skillIds.length,
-      message: `Sınıf ${classId}: ${added} skill kaydedildi.`,
-    });
+    const nextOffset = offset + BATCH_SIZE;
+    const done = nextOffset >= total;
+
+    return NextResponse.json({ ok: true, classId, added, skipped, total, nextOffset, done });
   } catch (err) {
     console.error("fetch-skills error:", err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });

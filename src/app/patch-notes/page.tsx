@@ -79,22 +79,32 @@ export default function PatchNotesPage() {
     setFetchingSkills(true);
     setSkillProgress({ done: 0, total: SKILL_CLASS_IDS.length });
     setSkillMsg("⏳ Skill veritabanı oluşturuluyor...");
-    let done = 0;
+    let classesDone = 0;
+
     for (const classId of SKILL_CLASS_IDS) {
-      setSkillMsg(`⏳ Sınıf ${classId} işleniyor... (${done}/${SKILL_CLASS_IDS.length})`);
-      const res = await fetch("/api/admin/fetch-skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId }),
-      });
-      const data = await res.json();
-      done++;
-      setSkillProgress({ done, total: SKILL_CLASS_IDS.length });
-      if (!data.ok) {
-        setSkillMsg(`❌ Sınıf ${classId} hatası: ${data.error}`);
-        break;
+      setSkillMsg(`⏳ Sınıf ${classId}... (${classesDone}/${SKILL_CLASS_IDS.length})`);
+      // Loop through batches for this class until done
+      let offset = 0;
+      while (true) {
+        const res = await fetch("/api/admin/fetch-skills", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classId, offset }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          setSkillMsg(`❌ Sınıf ${classId} hatası: ${data.error}`);
+          setFetchingSkills(false);
+          setSkillProgress(null);
+          return;
+        }
+        if (data.done) break;
+        offset = data.nextOffset;
       }
+      classesDone++;
+      setSkillProgress({ done: classesDone, total: SKILL_CLASS_IDS.length });
     }
+
     // Refresh stats
     const statsRes = await fetch("/api/admin/fetch-skills");
     const stats = await statsRes.json();
