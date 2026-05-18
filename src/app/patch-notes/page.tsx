@@ -83,13 +83,13 @@ export default function PatchNotesPage() {
 
     for (const classId of SKILL_CLASS_IDS) {
       setSkillMsg(`⏳ Sınıf ${classId}... (${classesDone}/${SKILL_CLASS_IDS.length})`);
-      // Loop through batches for this class until done
       let offset = 0;
+      let skillIds: number[] | undefined = undefined;
       while (true) {
         const res = await fetch("/api/admin/fetch-skills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, offset }),
+          body: JSON.stringify({ classId, offset, skillIds }),
         });
         const data = await res.json();
         if (!data.ok) {
@@ -98,6 +98,8 @@ export default function PatchNotesPage() {
           setSkillProgress(null);
           return;
         }
+        // Cache skill IDs from first batch — reuse to skip list re-fetch
+        if (data.skillIds) skillIds = data.skillIds;
         if (data.done) break;
         offset = data.nextOffset;
       }
