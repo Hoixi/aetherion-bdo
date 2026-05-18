@@ -85,26 +85,34 @@ export default function PatchNotesPage() {
       setSkillMsg(`⏳ Sınıf ${classId}... (${classesDone}/${SKILL_CLASS_IDS.length})`);
       let offset = 0;
       let skillIds: number[] | undefined = undefined;
+      let classError = false;
       while (true) {
-        const res: Response = await fetch("/api/admin/fetch-skills", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, offset, skillIds }),
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          setSkillMsg(`❌ Sınıf ${classId} hatası: ${data.error}`);
-          setFetchingSkills(false);
-          setSkillProgress(null);
-          return;
+        try {
+          const res: Response = await fetch("/api/admin/fetch-skills", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ classId, offset, skillIds }),
+          });
+          const data = await res.json();
+          if (!data.ok) {
+            console.warn(`Sınıf ${classId} hatası: ${data.error}`);
+            classError = true;
+            break;
+          }
+          if (data.skillIds) skillIds = data.skillIds;
+          if (data.done) break;
+          offset = data.nextOffset;
+        } catch {
+          console.warn(`Sınıf ${classId} ağ hatası`);
+          classError = true;
+          break;
         }
-        // Cache skill IDs from first batch — reuse to skip list re-fetch
-        if (data.skillIds) skillIds = data.skillIds;
-        if (data.done) break;
-        offset = data.nextOffset;
       }
       classesDone++;
       setSkillProgress({ done: classesDone, total: SKILL_CLASS_IDS.length });
+      classesDone++;
+      setSkillProgress({ done: classesDone, total: SKILL_CLASS_IDS.length });
+      setSkillMsg(`⏳ Sınıf ${classId} tamamlandı. (${classesDone}/${SKILL_CLASS_IDS.length})`);
     }
 
     // Refresh stats
