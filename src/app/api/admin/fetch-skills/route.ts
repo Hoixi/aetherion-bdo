@@ -34,19 +34,22 @@ async function fetchSkillIds(classId: number): Promise<number[]> {
 // ─── Fetch TR + KR names for a single skill ──────────────────────────────────
 
 async function fetchSkillNames(skillId: number): Promise<{ kr: string; tr: string } | null> {
-  const res = await fetch(`${BDOCODEX}/tip.php?id=skill--${skillId}&l=tr&nf=on`, { headers: HEADERS });
-  if (!res.ok) return null;
-  const html = await res.text();
+  // Fetch both languages in parallel — each returns the name directly in tag_skill_name
+  const [trRes, krRes] = await Promise.all([
+    fetch(`${BDOCODEX}/tip.php?id=skill--${skillId}&l=tr&nf=on`, { headers: HEADERS }),
+    fetch(`${BDOCODEX}/tip.php?id=skill--${skillId}&l=kr&nf=on`, { headers: HEADERS }),
+  ]);
+  if (!trRes.ok || !krRes.ok) return null;
 
-  const trMatch = html.match(/class="tag_skill_name"[^>]*>\s*([^<\n]+?)\s*<\//);
-  if (!trMatch?.[1]?.trim()) return null;
-  const tr = trMatch[1].trim();
+  const [trHtml, krHtml] = await Promise.all([trRes.text(), krRes.text()]);
 
-  const krMatch =
-    html.match(/class="item_name"[^>]*>[\s\S]*?<b>\s*([^<]+?)\s*<\/b>/) ??
-    html.match(/<b class="[^"]*">\s*([가-힣A-Za-z: ]+?)\s*<\/b>/);
-  const kr = krMatch?.[1]?.trim() ?? "";
+  const extractName = (html: string) =>
+    html.match(/class="tag_skill_name"[^>]*>\s*([^<\n]+?)\s*<\//)?.[1]?.trim() ?? "";
 
+  const tr = extractName(trHtml);
+  const kr = extractName(krHtml);
+
+  if (!tr) return null;
   return { kr, tr };
 }
 
@@ -96,9 +99,9 @@ export async function POST(req: Request) {
 
     const batch = allIds.slice(offset, offset + BATCH_SIZE);
 
-    // Skip skills already in DB for this class
+    // Skip skills already in DB with a valid KR name
     const existing = await db.skillTranslation.findMany({
-      where: { classId, skillId: { in: batch } },
+      where: { classId, skillId: { in: batch }, kr: { not: "" } },
       select: { skillId: true },
     });
     const existingIds = new Set(existing.map((r: { skillId: number }) => r.skillId));
@@ -115,8 +118,10 @@ export async function POST(req: Request) {
       for (const result of results) {
         if (result.status !== "fulfilled" || !result.value.names) { skipped++; continue; }
         const { id, names } = result.value;
-        await db.skillTranslation.create({
-          data: { skillId: id, classId, kr: names.kr, tr: names.tr },
+        await db.skillTranslation.upsert({
+          where: { skillId_classId: { skillId: id, classId } },
+          create: { skillId: id, classId, kr: names.kr, tr: names.tr },
+          update: { kr: names.kr, tr: names.tr },
         });
         added++;
       }
