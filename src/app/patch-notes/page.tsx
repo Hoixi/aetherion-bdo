@@ -86,7 +86,7 @@ export default function PatchNotesPage() {
       let offset = 0;
       let skillIds: number[] | undefined = undefined;
       while (true) {
-        const res = await fetch("/api/admin/fetch-skills", {
+        const res: Response = await fetch("/api/admin/fetch-skills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ classId, offset, skillIds }),
