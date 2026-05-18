@@ -16,6 +16,57 @@ const DETAIL_BASE = `${BASE}/GlobalLab/en-US/News/Notice/Detail`;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
+// ─── BDO CC / skill-state terms (KR → TR) ────────────────────────────────────
+
+const CC_TERMS: Record<string, string> = {
+  "슈퍼아머": "Süper Zırh",
+  "전방가드": "Cephe Savunması",
+  "불굴": "Sarsılmaz",
+  "넘어뜨리기": "Düşürme",
+  "밀어내기": "Püskürtme",
+  "띄우기": "Yıkma",
+  "경직": "Sersemletme",
+  "잡기": "Yakalanma",
+  "속박": "Bağlama",
+  "빙결": "Dondurma",
+  "다운 공격": "Yerden Vuruş",
+  "공중 공격": "Havadan Vuruş",
+  "다운 타격": "Yerden Darbe",
+  "공중 타격": "Havadan Darbe",
+  "기상 공격": "Kalkış Saldırısı",
+  "후방 공격": "Arka Saldırısı",
+  "경이로운 힘": "Harika Güç",
+};
+
+// ─── Build skill reference table from DB for this patch note ─────────────────
+
+async function buildSkillContext(plainText: string): Promise<string> {
+  // Extract unique Korean word-groups from plainText
+  const koreanSegments = plainText.match(/[가-힣][가-힣\s\-:·()Ⅰ-Ⅻ0-9A-Za-z]*[가-힣]/g) ?? [];
+  const candidates = Array.from(new Set(koreanSegments.map((s) => s.trim()))).filter((s) => s.length >= 2);
+
+  const lines: string[] = [];
+
+  // 1. CC terms that appear in the text
+  for (const [kr, tr] of Object.entries(CC_TERMS)) {
+    if (plainText.includes(kr)) lines.push(`${kr} → ${tr}`);
+  }
+
+  // 2. Skill names from DB
+  if (candidates.length > 0) {
+    const rows: { kr: string; tr: string }[] = await db.skillTranslation.findMany({
+      where: { kr: { in: candidates } },
+      select: { kr: true, tr: true },
+    });
+    for (const row of rows) {
+      lines.push(`${row.kr} → ${row.tr}`);
+    }
+  }
+
+  if (lines.length === 0) return "";
+  return `\nSKILL & TERM REFERENCE (Korean → Turkish — use these exact Turkish names for skillNameTr):\n${lines.join("\n")}\n`;
+}
+
 // ─── Gemini ───────────────────────────────────────────────────────────────────
 
 async function parseWithGemini(
@@ -39,13 +90,15 @@ async function parseWithGemini(
     .replace(/\s{2,}/g, " ")
     .trim();
 
+  const skillContext = await buildSkillContext(plainText);
+
   const prompt = `You are analyzing a Black Desert Online Global Lab patch note. Extract structured data and return ONLY valid JSON — no markdown, no explanation.
 
 Title: "${title}"
 Board: ${boardNo}
-
+${skillContext}
 Content:
-${plainText.slice(0, 15000)}
+${plainText.slice(0, 14000)}
 
 Return this exact JSON shape:
 {
@@ -60,7 +113,8 @@ Return this exact JSON shape:
       "emoji": "⚔️ combat class | 🛡 defense/tank | 🏹 ranged | 🧙 magic | 🔧 system/UI | 🌟 general | ⚡ new content | 🐛 bug fix",
       "changes": [
         {
-          "skillName": "Skill name EXACTLY as it appears in the source (Korean: '검술 수련 I', English: 'Shadow Explosion'). Omit if no sub-heading.",
+          "skillName": "Skill name exactly as it appears in the source (Korean or English). Omit if no sub-heading.",
+          "skillNameTr": "Turkish skill name — look it up in the SKILL & TERM REFERENCE above. Omit if not found there.",
           "skillImageUrl": "The [IMG:url] that appears immediately before the skill sub-heading in the content. This is the skill icon. Omit if none.",
           "en": "Concise English description of this change (1-2 sentences)",
           "tr": "Turkish translation of the change",
@@ -75,8 +129,8 @@ CRITICAL LANGUAGE RULES:
 - "heading" field = always English (class/category name in English)
 - "headingTr" field = always Turkish. For BDO class names use these: Warrior→Savaşçı, Ranger→Okçu, Sorceress→Büyücü, Berserker→Berserker, Tamer→Evcil Hayvan Ustası, Musa→Musa, Maehwa→Maehwa, Valkyrie→Valkiri, Kunoichi→Kunoichi, Ninja→Ninja, Wizard→Büyücü, Witch→Cadı, Dark Knight→Karanlık Şövalye, Striker→Dövüşçü, Mystic→Mistik, Lahn→Lahn, Archer→Okçu, Shai→Shai, Guardian→Gardiyan, Hashashin→Hashaşin, Nova→Nova, Sage→Bilge, Corsair→Korsar, Drakania→Drakania, Woosa→Woosa, Maegu→Maegu, Scholar→Alim. If unknown keep same as English.
 - If you see Korean/Hangul text (e.g. 매화, 흑마법사), convert it to its English equivalent first, then apply the rule above.
-- "skillName" = copy the skill name EXACTLY as written in the source — if it's Korean keep Korean, if English keep English. Do NOT translate skill names.
-- Do NOT include "skillNameTr" in your output — we handle translation separately.
+- "skillName" = copy the skill name EXACTLY as written in the source — Korean or English, do NOT translate it.
+- "skillNameTr" = Turkish skill name from the SKILL & TERM REFERENCE table above. If the skill is not in the reference table, omit skillNameTr entirely.
 
 IMPORTANT: BDO patch notes have a 2-level structure:
 - Top level: class name (Maehwa, Warrior, etc.) → becomes a section
@@ -285,7 +339,8 @@ async function applySkillTranslations(structuredJson: string): Promise<string> {
 
     for (const section of data.sections) {
       for (const change of section.changes) {
-        if (change.skillName && krToTr.has(change.skillName)) {
+        // Only fill if Gemini didn't already set it from the reference table
+        if (change.skillName && !change.skillNameTr && krToTr.has(change.skillName)) {
           change.skillNameTr = krToTr.get(change.skillName);
         }
       }
