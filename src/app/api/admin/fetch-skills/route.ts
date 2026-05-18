@@ -95,23 +95,31 @@ export async function POST(req: Request) {
     }
 
     const batch = allIds.slice(offset, offset + BATCH_SIZE);
+
+    // Skip skills already in DB for this class
+    const existing = await db.skillTranslation.findMany({
+      where: { classId, skillId: { in: batch } },
+      select: { skillId: true },
+    });
+    const existingIds = new Set(existing.map((r: { skillId: number }) => r.skillId));
+    const toFetch = batch.filter((id) => !existingIds.has(id));
+
     let added = 0;
-    let skipped = 0;
+    let skipped = existingIds.size;
 
-    // Fetch all in parallel (20 concurrent is fine within 60s)
-    const results = await Promise.allSettled(
-      batch.map((id) => fetchSkillNames(id).then((names) => ({ id, names }))),
-    );
+    if (toFetch.length > 0) {
+      const results = await Promise.allSettled(
+        toFetch.map((id) => fetchSkillNames(id).then((names) => ({ id, names }))),
+      );
 
-    for (const result of results) {
-      if (result.status !== "fulfilled" || !result.value.names) { skipped++; continue; }
-      const { id, names } = result.value;
-      await db.skillTranslation.upsert({
-        where: { skillId_classId: { skillId: id, classId } },
-        create: { skillId: id, classId, kr: names.kr, tr: names.tr },
-        update: { kr: names.kr, tr: names.tr },
-      });
-      added++;
+      for (const result of results) {
+        if (result.status !== "fulfilled" || !result.value.names) { skipped++; continue; }
+        const { id, names } = result.value;
+        await db.skillTranslation.create({
+          data: { skillId: id, classId, kr: names.kr, tr: names.tr },
+        });
+        added++;
+      }
     }
 
     const nextOffset = offset + BATCH_SIZE;
