@@ -68,43 +68,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // DM targets — fetch matching users with a discordId
+    // DM targets — fetch matching users
     let users: { id: number; discordId: string }[] = [];
 
     if (target === "no_login") {
-      // Users in the DB who haven't filled in their family name (haven't completed login/setup)
-      users = await db.user.findMany({
-        where: {
-          deletedAt: null,
-          discordId: { not: null },
-          OR: [{ familyName: null }, { familyName: "" }],
-        },
+      // familyName is String @default("") — non-nullable, check for empty string
+      users = await prisma.user.findMany({
+        where: { deletedAt: null, familyName: "" },
         select: { id: true, discordId: true },
       });
     } else if (target === "no_gear") {
-      // Users who haven't set their gear (AP and DP both 0)
-      users = await db.user.findMany({
-        where: {
-          deletedAt: null,
-          discordId: { not: null },
-          ap: 0,
-          dp: 0,
-        },
+      users = await prisma.user.findMany({
+        where: { deletedAt: null, familyName: { not: "" }, ap: 0, dp: 0 },
         select: { id: true, discordId: true },
       });
     } else if (target === "pvp") {
-      // Users who participated in at least one war
-      const pvpUserIds: { userId: number }[] = await db.warParticipant.findMany({
+      const pvpRows = await prisma.warParticipant.findMany({
         distinct: ["userId"],
         select: { userId: true },
       });
-      const ids = pvpUserIds.map((r: { userId: number }) => r.userId);
-      users = await db.user.findMany({
-        where: {
-          id: { in: ids },
-          deletedAt: null,
-          discordId: { not: null },
-        },
+      const ids = pvpRows.map((r) => r.userId);
+      users = await prisma.user.findMany({
+        where: { id: { in: ids }, deletedAt: null },
         select: { id: true, discordId: true },
       });
     }

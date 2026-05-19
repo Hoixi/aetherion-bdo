@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = prisma as any;
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -13,30 +11,29 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const target = searchParams.get("target") ?? "all";
 
-  type UserRow = { id: number; discordId: string; familyName: string | null; class: string | null; ap: number; dp: number };
+  type UserRow = { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number };
 
   let users: UserRow[] = [];
 
   if (target === "all") {
-    // Channel message — no individual user list needed
     return NextResponse.json({ mode: "channel", count: null, users: [] });
   }
 
   if (target === "no_login") {
-    users = await db.user.findMany({
+    // familyName is String @default("") — non-nullable, so just check for empty string
+    users = await prisma.user.findMany({
       where: {
         deletedAt: null,
-        discordId: { not: null },
-        OR: [{ familyName: null }, { familyName: "" }],
+        familyName: "",
       },
       select: { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true },
-      orderBy: { familyName: "asc" },
+      orderBy: { discordId: "asc" },
     });
   } else if (target === "no_gear") {
-    users = await db.user.findMany({
+    users = await prisma.user.findMany({
       where: {
         deletedAt: null,
-        discordId: { not: null },
+        familyName: { not: "" },
         ap: 0,
         dp: 0,
       },
@@ -44,16 +41,15 @@ export async function GET(req: Request) {
       orderBy: { familyName: "asc" },
     });
   } else if (target === "pvp") {
-    const pvpUserIds: { userId: number }[] = await db.warParticipant.findMany({
+    const pvpRows = await prisma.warParticipant.findMany({
       distinct: ["userId"],
       select: { userId: true },
     });
-    const ids = pvpUserIds.map((r: { userId: number }) => r.userId);
-    users = await db.user.findMany({
+    const ids = pvpRows.map((r) => r.userId);
+    users = await prisma.user.findMany({
       where: {
         id: { in: ids },
         deletedAt: null,
-        discordId: { not: null },
       },
       select: { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true },
       orderBy: { familyName: "asc" },
