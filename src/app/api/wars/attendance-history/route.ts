@@ -81,13 +81,13 @@ export async function GET() {
 
     // Compute status for every member we know about
     const allUserIds = new Set<number>([
-      ...participantStatus.keys(),
-      ...inParty,
-      ...hasPerformance,
+      ...Array.from(participantStatus.keys()),
+      ...Array.from(inParty),
+      ...Array.from(hasPerformance),
     ]);
 
     const statuses: Record<number, AttendanceStatus> = {};
-    for (const userId of allUserIds) {
+    for (const userId of Array.from(allUserIds)) {
       const pStatus = participantStatus.get(userId); // "ATTENDING" | "DECLINED" | undefined
       const selected = inParty.has(userId);
       const came = hasPerformance.has(userId);
