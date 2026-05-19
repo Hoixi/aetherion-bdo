@@ -28,13 +28,23 @@ interface Member {
   siteRole: { name: string; color: string } | null;
 }
 
+type AnnouncementTarget = "all" | "no_login" | "no_gear" | "pvp";
+
 interface Announcement {
   id: number;
   title: string;
   content: string;
+  target: AnnouncementTarget;
   createdAt: string;
   creator: { familyName: string; avatarUrl: string };
 }
+
+const TARGET_LABELS: Record<AnnouncementTarget, string> = {
+  all: "📢 Tüm Klan (kanal)",
+  no_login: "👤 Siteye giriş yapmamışlar (DM)",
+  no_gear: "⚔️ Gear doldurmamışlar (DM)",
+  pvp: "🗡️ PvP'ciler — savaşa girenler (DM)",
+};
 
 interface SiteRole {
   id: number;
@@ -57,7 +67,9 @@ export default function AdminPage() {
   const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar">("wars");
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
+  const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
   const [annSaving, setAnnSaving] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ sent?: number; failed?: number; target?: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   // Role form state
@@ -100,18 +112,25 @@ export default function AdminPage() {
 
   async function publishToDiscord(type: "war" | "announcement", id: number) {
     setPublishing(id);
+    setPublishResult(null);
     const res = await fetch("/api/discord/publish", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, id }),
     });
+    const data = res.ok ? await res.json() : null;
     if (res.ok) {
-      setMessage("Discord'a gönderildi!");
+      if (data?.sent !== undefined) {
+        setPublishResult({ sent: data.sent, failed: data.failed, target: data.target });
+        setMessage(`DM gönderildi: ${data.sent} başarılı${data.failed > 0 ? `, ${data.failed} başarısız` : ""}`);
+      } else {
+        setMessage("Discord'a gönderildi!");
+      }
     } else {
       setMessage("Discord'a gönderilemedi.");
     }
     setPublishing(null);
-    setTimeout(() => setMessage(null), 3000);
+    setTimeout(() => { setMessage(null); setPublishResult(null); }, 5000);
   }
 
   useEffect(() => {
@@ -275,11 +294,12 @@ export default function AdminPage() {
     const res = await fetch("/api/announcements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: annTitle, content: annContent }),
+      body: JSON.stringify({ title: annTitle, content: annContent, target: annTarget }),
     });
     if (res.ok) {
       setAnnTitle("");
       setAnnContent("");
+      setAnnTarget("all");
       fetchAnnouncements();
       setMessage("Duyuru başarıyla yayınlandı!");
       setTimeout(() => setMessage(null), 3000);
@@ -489,6 +509,24 @@ export default function AdminPage() {
                   className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none resize-none"
                 />
               </div>
+              <div>
+                <label className="block text-sm text-bdo-text-muted mb-2">Hedef Kitle</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(Object.entries(TARGET_LABELS) as [AnnouncementTarget, string][]).map(([val, label]) => (
+                    <label key={val} className={`flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 border transition-colors ${annTarget === val ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold" : "border-bdo-border bg-bdo-bg text-bdo-text-muted hover:border-bdo-gold/40"}`}>
+                      <input
+                        type="radio"
+                        name="annTarget"
+                        value={val}
+                        checked={annTarget === val}
+                        onChange={() => setAnnTarget(val)}
+                        className="accent-bdo-gold"
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <button
                 type="submit"
                 disabled={annSaving}
@@ -501,21 +539,31 @@ export default function AdminPage() {
 
           <div className="space-y-2">
             {announcements.map((a) => (
-              <div key={a.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-bdo-gold font-semibold">{a.title}</span>
+              <div key={a.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-bdo-gold font-semibold">{a.title}</span>
+                    <span className="text-[10px] bg-bdo-bg border border-bdo-border text-bdo-text-muted px-2 py-0.5 rounded-full">
+                      {TARGET_LABELS[a.target] ?? a.target}
+                    </span>
+                  </div>
                   <p className="text-sm text-bdo-text-secondary mt-1">{a.content}</p>
                   <div className="text-xs text-bdo-text-muted mt-1">
                     {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} — {a.creator.familyName}
                   </div>
+                  {publishResult && publishing === null && (
+                    <div className="text-xs text-green-400 mt-1">
+                      DM: {publishResult.sent} gönderildi{publishResult.failed ? `, ${publishResult.failed} başarısız` : ""}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 items-center flex-shrink-0">
                   <button
                     onClick={() => publishToDiscord("announcement", a.id)}
                     disabled={publishing === a.id}
-                    className="text-xs bg-[#5865F2]/10 text-[#5865F2] px-2 py-1 rounded hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50"
+                    className="text-xs bg-[#5865F2]/10 text-[#5865F2] px-2 py-1 rounded hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
-                    {publishing === a.id ? "..." : "Discord'a Gönder"}
+                    {publishing === a.id ? "Gönderiliyor..." : "Discord'a Gönder"}
                   </button>
                   <button
                     onClick={() => deleteAnnouncement(a.id)}

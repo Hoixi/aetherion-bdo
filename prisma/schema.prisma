@@ -143,6 +143,7 @@ model Announcement {
   content          String   @db.Text
   createdBy        Int
   discordMessageId String?
+  target           String   @default("all")
   createdAt        DateTime @default(now())
 
   creator User @relation(fields: [createdBy], references: [id])

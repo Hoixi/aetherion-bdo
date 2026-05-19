@@ -21,10 +21,13 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { title, content } = await req.json();
+  const { title, content, target } = await req.json();
+
+  const validTargets = ["all", "no_login", "no_gear", "pvp"];
+  const resolvedTarget = validTargets.includes(target) ? target : "all";
 
   const announcement = await prisma.announcement.create({
-    data: { title, content, createdBy: session.user.id },
+    data: { title, content, target: resolvedTarget, createdBy: session.user.id },
     include: { creator: { select: { familyName: true, avatarUrl: true } } },
   });
 

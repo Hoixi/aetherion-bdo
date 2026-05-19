@@ -1,9 +1,12 @@
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendWarToDiscord, sendAnnouncementToDiscord, sendPartiesToDiscord } from "@/lib/discord-bot";
+import { sendWarToDiscord, sendAnnouncementToDiscord, sendPartiesToDiscord, sendAnnouncementDm } from "@/lib/discord-bot";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = prisma as any;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -29,35 +32,92 @@ export async function POST(req: Request) {
   }
 
   if (type === "announcement") {
-    const ann = await prisma.announcement.findUnique({
+    const ann = await db.announcement.findUnique({
       where: { id: Number(id) },
       include: { creator: { select: { familyName: true } } },
     });
     if (!ann) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Get previous announcement to delete its Discord message
-    const prevAnnouncement = await prisma.announcement.findFirst({
-      where: { id: { not: ann.id } },
-      orderBy: { createdAt: "desc" },
-      select: { discordMessageId: true },
-    });
-
-    const messageId = await sendAnnouncementToDiscord({
+    const target: string = ann.target ?? "all";
+    const announcementPayload = {
       title: ann.title,
       content: ann.content,
       creator: ann.creator.familyName,
-      oldMessageId: prevAnnouncement?.discordMessageId || undefined,
-    });
+    };
 
-    // Save Discord message ID
-    if (messageId) {
-      await prisma.announcement.update({
-        where: { id: ann.id },
-        data: { discordMessageId: messageId },
+    // "all" → send to the clan channel (existing behaviour)
+    if (target === "all") {
+      const prevAnnouncement = await prisma.announcement.findFirst({
+        where: { id: { not: ann.id } },
+        orderBy: { createdAt: "desc" },
+        select: { discordMessageId: true },
+      });
+
+      const messageId = await sendAnnouncementToDiscord({
+        ...announcementPayload,
+        oldMessageId: prevAnnouncement?.discordMessageId || undefined,
+      });
+
+      if (messageId) {
+        await db.announcement.update({
+          where: { id: ann.id },
+          data: { discordMessageId: messageId },
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // DM targets — fetch matching users with a discordId
+    let users: { id: number; discordId: string }[] = [];
+
+    if (target === "no_login") {
+      // Users in the DB who haven't filled in their family name (haven't completed login/setup)
+      users = await db.user.findMany({
+        where: {
+          deletedAt: null,
+          discordId: { not: null },
+          OR: [{ familyName: null }, { familyName: "" }],
+        },
+        select: { id: true, discordId: true },
+      });
+    } else if (target === "no_gear") {
+      // Users who haven't set their gear (AP and DP both 0)
+      users = await db.user.findMany({
+        where: {
+          deletedAt: null,
+          discordId: { not: null },
+          ap: 0,
+          dp: 0,
+        },
+        select: { id: true, discordId: true },
+      });
+    } else if (target === "pvp") {
+      // Users who participated in at least one war
+      const pvpUserIds: { userId: number }[] = await db.warParticipant.findMany({
+        distinct: ["userId"],
+        select: { userId: true },
+      });
+      const ids = pvpUserIds.map((r: { userId: number }) => r.userId);
+      users = await db.user.findMany({
+        where: {
+          id: { in: ids },
+          deletedAt: null,
+          discordId: { not: null },
+        },
+        select: { id: true, discordId: true },
       });
     }
 
-    return NextResponse.json({ ok: true });
+    // Send DMs
+    let sent = 0;
+    let failed = 0;
+    for (const user of users) {
+      const ok = await sendAnnouncementDm(user.discordId, announcementPayload);
+      if (ok) sent++; else failed++;
+    }
+
+    return NextResponse.json({ ok: true, sent, failed, target });
   }
 
   if (type === "parties") {

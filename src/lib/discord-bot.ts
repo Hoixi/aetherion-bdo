@@ -232,6 +232,50 @@ export async function sendAnnouncementToDiscord(announcement: {
   return messageId;
 }
 
+// Open a DM channel with a user and return the channel ID
+async function openDmChannel(discordId: string): Promise<string | null> {
+  if (!BOT_TOKEN) return null;
+  const res = await fetch("https://discord.com/api/v10/users/@me/channels", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${BOT_TOKEN}`,
+    },
+    body: JSON.stringify({ recipient_id: discordId }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.id as string;
+}
+
+// Send a DM embed to a single user — returns true on success
+export async function sendAnnouncementDm(
+  discordId: string,
+  announcement: { title: string; content: string; creator: string }
+): Promise<boolean> {
+  const channelId = await openDmChannel(discordId);
+  if (!channelId) return false;
+  const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${BOT_TOKEN}`,
+    },
+    body: JSON.stringify({
+      embeds: [
+        {
+          title: `📢 ${announcement.title}`,
+          description: announcement.content,
+          color: GOLD,
+          footer: { text: `Aetherion • ${announcement.creator}` },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    }),
+  });
+  return res.ok;
+}
+
 // Update war embed with current participation counts
 export async function updateWarEmbed(
   messageId: string,

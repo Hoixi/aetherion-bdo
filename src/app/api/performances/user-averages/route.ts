@@ -59,7 +59,7 @@ export async function GET() {
 
     // Skor: öldürmeler + hasar etkisi + CC katkısı - ölümler
     const scoreDamage = avgDamage / 1_000_000; // milyon bazında
-    const score = Math.round(avgKills * 3 + scoreDamage * 1.5 + avgCc * 0.5 - avgDeaths * 1.5);
+    const score = Math.round(avgKills * 3 + scoreDamage * 1.5 + avgCc * 0.5 - avgDeaths * 0.25);
 
     result[row.userId] = {
       wars,
