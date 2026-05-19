@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PartyBuilder } from "@/components/party-builder";
 import { UserPerfStats } from "@/components/member-chip";
+import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { getTypeName } from "@/lib/classes";
 
 interface WarPerf {
@@ -91,6 +92,7 @@ export default function WarDetailPage() {
   const [performances, setPerformances] = useState<WarPerf[]>([]);
   const [absentMembers, setAbsentMembers] = useState<{ id: number; familyName: string; avatarUrl: string }[]>([]);
   const [memberStats, setMemberStats] = useState<Record<number, UserPerfStats>>({});
+  const [attendanceHistory, setAttendanceHistory] = useState<WarAttendanceSummary[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -101,11 +103,12 @@ export default function WarDetailPage() {
 
     async function fetchWar() {
       setLoading(true);
-      const [warRes, membersRes, perfRes, statsRes] = await Promise.all([
+      const [warRes, membersRes, perfRes, statsRes, historyRes] = await Promise.all([
         fetch(`/api/wars/${warId}`),
         fetch("/api/members"),
         fetch(`/api/wars/${warId}/performance`),
         fetch("/api/performances/user-averages"),
+        fetch("/api/wars/attendance-history"),
       ]);
       if (warRes.ok) {
         const data = await warRes.json();
@@ -124,6 +127,7 @@ export default function WarDetailPage() {
         setAbsentMembers(perfData.absent ?? []);
       }
       if (statsRes.ok) setMemberStats(await statsRes.json());
+      if (historyRes.ok) setAttendanceHistory(await historyRes.json());
       setLoading(false);
     }
 
@@ -289,12 +293,25 @@ export default function WarDetailPage() {
               </div>
             )}
           </div>
+          {/* Legend */}
+          {attendanceHistory.length > 0 && (
+            <div className="flex flex-wrap gap-3 mb-4 text-[10px] text-bdo-text-muted bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2">
+              <span className="font-semibold text-bdo-text-primary mr-1">Son {attendanceHistory.length} savaş:</span>
+              <span><span className="text-green-400 font-bold">✓</span> Katıldı + seçildi + geldi</span>
+              <span><span className="text-red-500 font-bold">✕</span> Katıldı + seçildi + <em>gelmedi</em></span>
+              <span><span className="text-orange-400 font-bold">✕</span> Katıldı + seçilmedi</span>
+              <span><span className="text-orange-400/60 font-bold">○</span> Katılmadı / cevap yok</span>
+              <span><span className="text-orange-400 font-bold">✓</span> Katılmadı ama geldi</span>
+              <span><span className="text-bdo-border font-bold">·</span> Veri yok</span>
+            </div>
+          )}
           <PartyBuilder
             warId={war.id}
             attendees={attending}
             initialParties={war.parties}
             maxParticipants={war.maxParticipants}
             memberStats={memberStats}
+            attendanceHistory={attendanceHistory}
           />
         </div>
       )}

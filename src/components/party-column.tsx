@@ -4,6 +4,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
+import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 
 interface PartyColumnProps {
   party: {
@@ -16,9 +17,10 @@ interface PartyColumnProps {
   onDelete: (partyId: number) => void;
   onToggleDefense: (partyId: number, isDefense: boolean) => Promise<{ error?: string }>;
   memberStats?: Record<number, UserPerfStats>;
+  attendanceHistory?: WarAttendanceSummary[];
 }
 
-export function PartyColumn({ party, onRename, onDelete, onToggleDefense, memberStats }: PartyColumnProps) {
+export function PartyColumn({ party, onRename, onDelete, onToggleDefense, memberStats, attendanceHistory }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
   const [defenseErr, setDefenseErr] = useState<string | null>(null);
@@ -107,7 +109,7 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
             </div>
           )}
           {party.members.map((m) => (
-            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} />
+            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory} />
           ))}
         </div>
       </SortableContext>

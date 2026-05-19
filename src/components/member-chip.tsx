@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BDO_CLASSES } from "@/lib/classes";
 import { useState, useRef, useEffect } from "react";
+import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 
 export interface UserPerfStats {
   wars: number;
@@ -22,11 +23,47 @@ export interface UserPerfStats {
   score: number;
 }
 
+// ─── Attendance dot ───────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<AttendanceStatus, { icon: string; color: string; label: string }> = {
+  attending_not_selected:    { icon: "✕", color: "text-orange-400", label: "Katıldı — seçilmedi" },
+  attending_selected_absent: { icon: "✕", color: "text-red-500",    label: "Seçildi — gelmedi" },
+  attending_selected_came:   { icon: "✓", color: "text-green-400",  label: "Seçildi — geldi" },
+  not_attending:             { icon: "○", color: "text-orange-400/60", label: "Katılmadı / cevap yok" },
+  not_attending_came:        { icon: "✓", color: "text-orange-400", label: "Katılmadı — yine de geldi" },
+};
+
+function AttendanceDots({ userId, history }: { userId: number; history: WarAttendanceSummary[] }) {
+  if (history.length === 0) return null;
+  return (
+    <div className="flex gap-0.5 mt-1 justify-center">
+      {history.map((war) => {
+        const status = war.statuses[userId];
+        if (!status) {
+          return (
+            <span key={war.warId} title={`${war.title} — Veri yok`}
+              className="text-[9px] leading-none text-bdo-border">·</span>
+          );
+        }
+        const cfg = STATUS_CONFIG[status];
+        return (
+          <span key={war.warId}
+            title={`${new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} — ${cfg.label}`}
+            className={`text-[9px] leading-none font-bold ${cfg.color}`}>
+            {cfg.icon}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 interface MemberChipProps {
   id: string;
   user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string };
   isDragOverlay?: boolean;
   perf?: UserPerfStats;
+  attendanceHistory?: WarAttendanceSummary[];
 }
 
 function fmtDmg(n: number): string {
@@ -54,7 +91,7 @@ function ScoreDot({ score }: { score: number }) {
   );
 }
 
-export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
+export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
@@ -84,7 +121,7 @@ export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
     <div
       ref={setNodeRef}
       style={isDragOverlay ? undefined : style}
-      className="relative"
+      className="relative flex flex-col items-center"
     >
       {/* Tooltip — fixed pozisyon, overflow sorununu çözer */}
       {perf && showTooltip && !isDragging && (
@@ -163,6 +200,9 @@ export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
         <span className="text-xs text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
         {perf && <span className="text-xs font-mono font-semibold" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>Skor: {perf.score}</span>}
       </div>
+      {!isDragOverlay && attendanceHistory && (
+        <AttendanceDots userId={user.id} history={attendanceHistory} />
+      )}
     </div>
   );
 }

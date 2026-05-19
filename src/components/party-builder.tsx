@@ -27,6 +27,7 @@ const customCollision: CollisionDetection = (args) => {
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { MemberChip, UserPerfStats } from "./member-chip";
 import { PartyColumn } from "./party-column";
+import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 
 interface User {
   id: number;
@@ -50,6 +51,7 @@ interface PartyBuilderProps {
   initialParties: PartyData[];
   maxParticipants?: number | null;
   memberStats?: Record<number, UserPerfStats>;
+  attendanceHistory?: WarAttendanceSummary[];
 }
 
 function DroppablePool({ children }: { children: React.ReactNode }) {
@@ -66,7 +68,7 @@ function DroppablePool({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PartyBuilder({ warId, attendees, initialParties, maxParticipants, memberStats }: PartyBuilderProps) {
+export function PartyBuilder({ warId, attendees, initialParties, maxParticipants, memberStats, attendanceHistory }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -210,7 +212,7 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
             <DroppablePool>
               {unassigned.length === 0 && <span className="text-xs text-bdo-text-muted">Tüm üyeler atandı</span>}
               {unassigned.map((user) => (
-                <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user} perf={memberStats?.[user.id]} />
+                <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user} perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory} />
               ))}
             </DroppablePool>
           </SortableContext>
@@ -233,7 +235,7 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {parties.map((party) => (
-              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onToggleDefense={toggleDefense} memberStats={memberStats} />
+              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onToggleDefense={toggleDefense} memberStats={memberStats} attendanceHistory={attendanceHistory} />
             ))}
           </div>
         </div>
