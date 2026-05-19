@@ -160,10 +160,8 @@ export function MemberChip({ id, user, isDragOverlay, perf }: MemberChipProps) {
         {user.avatarUrl && <img src={user.avatarUrl} alt="" className="w-6 h-6 rounded-full" />}
         <span className="text-sm text-bdo-text-primary whitespace-nowrap">{user.familyName}</span>
         <span className="text-xs text-bdo-text-muted">({className})</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          {perf && <ScoreDot score={perf.score} />}
-          <span className="text-xs text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
-        </div>
+        <span className="text-xs text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
+        {perf && <span className="text-xs font-mono font-semibold" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>Skor: {perf.score}</span>}
       </div>
     </div>
   );

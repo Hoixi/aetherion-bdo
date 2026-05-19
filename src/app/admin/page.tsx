@@ -411,15 +411,15 @@ export default function AdminPage() {
           <div className="space-y-2">
             {wars.map((war) => (
               <div key={war.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-bdo-text-primary font-semibold">{war.title}</span>
+                <Link href={`/wars/${war.id}`} className="flex-1 hover:opacity-80 transition-opacity">
+                  <span className="text-bdo-text-primary font-semibold cursor-pointer hover:text-bdo-gold transition-colors">{war.title}</span>
                   <span className="ml-2 text-xs bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded">
                     {getTypeName(war.type)}
                   </span>
                   <div className="text-sm text-bdo-text-muted mt-1">
                     {new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </div>
-                </div>
+                </Link>
                 <div className="flex gap-2 items-center flex-wrap justify-end">
                   <select
                     value={war.result || ""}
