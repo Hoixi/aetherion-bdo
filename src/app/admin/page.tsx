@@ -72,7 +72,15 @@ export default function AdminPage() {
   const [publishResult, setPublishResult] = useState<{ sent?: number; failed?: number; target?: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Preview state: which announcement ID is being previewed, and the fetched user list
+  // Form preview state (shown before saving)
+  const [formPreviewLoading, setFormPreviewLoading] = useState(false);
+  const [formPreviewData, setFormPreviewData] = useState<{
+    mode: "channel" | "dm";
+    count: number | null;
+    users: { id: number; discordId: string; familyName: string | null; class: string | null; ap: number; dp: number }[];
+  } | null>(null);
+
+  // List preview state: which announcement ID is being previewed, and the fetched user list
   const [previewAnnId, setPreviewAnnId] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewData, setPreviewData] = useState<{
@@ -314,23 +322,49 @@ export default function AdminPage() {
     setTimeout(() => setMessage(null), 3000);
   }
 
-  async function createAnnouncement(e: React.FormEvent) {
+  // Step 1: fetch preview, show panel
+  async function previewNewAnnouncement(e: React.FormEvent) {
     e.preventDefault();
+    setFormPreviewLoading(true);
+    setFormPreviewData(null);
+    const res = await fetch(`/api/announcements/preview-target?target=${annTarget}`);
+    if (res.ok) setFormPreviewData(await res.json());
+    setFormPreviewLoading(false);
+  }
+
+  // Step 2: actually save + send
+  async function createAndSendAnnouncement() {
     setAnnSaving(true);
+    // Create in DB
     const res = await fetch("/api/announcements", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: annTitle, content: annContent, target: annTarget }),
     });
-    if (res.ok) {
-      setAnnTitle("");
-      setAnnContent("");
-      setAnnTarget("all");
-      fetchAnnouncements();
-      setMessage("Duyuru başarıyla yayınlandı!");
-      setTimeout(() => setMessage(null), 3000);
-    }
+    if (!res.ok) { setAnnSaving(false); setMessage("Kaydedilemedi."); setTimeout(() => setMessage(null), 3000); return; }
+    const ann = await res.json();
+
+    // Send to Discord
+    const pubRes = await fetch("/api/discord/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "announcement", id: ann.id }),
+    });
+    const pubData = pubRes.ok ? await pubRes.json() : null;
+
+    setAnnTitle("");
+    setAnnContent("");
+    setAnnTarget("all");
+    setFormPreviewData(null);
+    fetchAnnouncements();
     setAnnSaving(false);
+
+    if (pubData?.sent !== undefined) {
+      setMessage(`Duyuru kaydedildi ve ${pubData.sent} kişiye DM gönderildi${pubData.failed > 0 ? ` (${pubData.failed} başarısız)` : ""}!`);
+    } else {
+      setMessage("Duyuru kaydedildi ve Discord'a gönderildi!");
+    }
+    setTimeout(() => setMessage(null), 5000);
   }
 
   async function deleteAnnouncement(id: number) {
@@ -514,13 +548,13 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
             <h3 className="text-sm font-semibold text-bdo-text-primary mb-3">Yeni Duyuru</h3>
-            <form onSubmit={createAnnouncement} className="space-y-3">
+            <form onSubmit={previewNewAnnouncement} className="space-y-3">
               <div>
                 <label className="block text-sm text-bdo-text-muted mb-1">Başlık</label>
                 <input
                   type="text"
                   value={annTitle}
-                  onChange={(e) => setAnnTitle(e.target.value)}
+                  onChange={(e) => { setAnnTitle(e.target.value); setFormPreviewData(null); }}
                   required
                   className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none"
                 />
@@ -529,7 +563,7 @@ export default function AdminPage() {
                 <label className="block text-sm text-bdo-text-muted mb-1">İçerik</label>
                 <textarea
                   value={annContent}
-                  onChange={(e) => setAnnContent(e.target.value)}
+                  onChange={(e) => { setAnnContent(e.target.value); setFormPreviewData(null); }}
                   required
                   rows={3}
                   className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none resize-none"
@@ -539,7 +573,7 @@ export default function AdminPage() {
                 <label className="block text-sm text-bdo-text-muted mb-2">Hedef Kitle</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(Object.entries(TARGET_LABELS) as [AnnouncementTarget, string][]).map(([val, label]) => (
-                    <label key={val} className={`flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 border transition-colors ${annTarget === val ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold" : "border-bdo-border bg-bdo-bg text-bdo-text-muted hover:border-bdo-gold/40"}`}>
+                    <label key={val} onClick={() => setFormPreviewData(null)} className={`flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 border transition-colors ${annTarget === val ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold" : "border-bdo-border bg-bdo-bg text-bdo-text-muted hover:border-bdo-gold/40"}`}>
                       <input
                         type="radio"
                         name="annTarget"
@@ -553,13 +587,66 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={annSaving}
-                className="bg-bdo-gold text-bdo-bg font-semibold px-6 py-2 rounded-lg hover:bg-bdo-gold-dim transition-colors disabled:opacity-50"
-              >
-                {annSaving ? "Kaydediliyor..." : "Yayınla"}
-              </button>
+
+              {/* Preview result */}
+              {formPreviewLoading && (
+                <p className="text-xs text-bdo-text-muted animate-pulse">Alıcılar kontrol ediliyor...</p>
+              )}
+              {formPreviewData && !formPreviewLoading && (
+                <div className="rounded-lg border border-bdo-border bg-bdo-bg p-3 space-y-2">
+                  {formPreviewData.mode === "channel" ? (
+                    <p className="text-sm text-bdo-text-secondary">
+                      📢 <span className="text-bdo-gold font-semibold">#klan kanalına</span> <code className="text-xs">@everyone</code> ile gönderilecek.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-bdo-text-secondary">
+                        DM ile <span className="text-bdo-gold font-semibold">{formPreviewData.count} kişiye</span> gönderilecek:
+                      </p>
+                      {formPreviewData.count === 0 ? (
+                        <p className="text-xs text-bdo-text-muted">Bu kritere uyan kimse yok.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                          {formPreviewData.users.map((u) => (
+                            <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs">
+                              <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="italic text-bdo-text-muted">İsimsiz</span>}</div>
+                              <div className="text-bdo-text-muted truncate">{u.class || "—"}</div>
+                              {(u.ap > 0 || u.dp > 0) && <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={createAndSendAnnouncement}
+                      disabled={annSaving || formPreviewData.count === 0 && formPreviewData.mode === "dm"}
+                      className="bg-bdo-gold text-bdo-bg font-semibold px-5 py-1.5 rounded-lg hover:bg-bdo-gold-dim transition-colors disabled:opacity-50 text-sm"
+                    >
+                      {annSaving ? "Gönderiliyor..." : formPreviewData.mode === "channel" ? "Onayla ve Gönder" : `Onayla — ${formPreviewData.count} kişiye DM`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormPreviewData(null)}
+                      className="px-4 py-1.5 rounded-lg text-sm text-bdo-text-muted hover:text-bdo-text-primary transition-colors"
+                    >
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!formPreviewData && (
+                <button
+                  type="submit"
+                  disabled={formPreviewLoading}
+                  className="bg-bdo-gold text-bdo-bg font-semibold px-6 py-2 rounded-lg hover:bg-bdo-gold-dim transition-colors disabled:opacity-50"
+                >
+                  {formPreviewLoading ? "Kontrol ediliyor..." : "Önizle →"}
+                </button>
+              )}
             </form>
           </div>
 
