@@ -11,7 +11,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const target = searchParams.get("target") ?? "all";
 
-  type UserRow = { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number };
+  type UserRow = { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string };
+  const select = { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true, avatarUrl: true };
 
   let users: UserRow[] = [];
 
@@ -20,24 +21,15 @@ export async function GET(req: Request) {
   }
 
   if (target === "no_login") {
-    // familyName is String @default("") — non-nullable, so just check for empty string
     users = await prisma.user.findMany({
-      where: {
-        deletedAt: null,
-        familyName: "",
-      },
-      select: { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true },
+      where: { deletedAt: null, familyName: "" },
+      select,
       orderBy: { discordId: "asc" },
     });
   } else if (target === "no_gear") {
     users = await prisma.user.findMany({
-      where: {
-        deletedAt: null,
-        familyName: { not: "" },
-        ap: 0,
-        dp: 0,
-      },
-      select: { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true },
+      where: { deletedAt: null, familyName: { not: "" }, ap: 0, dp: 0 },
+      select,
       orderBy: { familyName: "asc" },
     });
   } else if (target === "pvp") {
@@ -47,11 +39,8 @@ export async function GET(req: Request) {
     });
     const ids = pvpRows.map((r) => r.userId);
     users = await prisma.user.findMany({
-      where: {
-        id: { in: ids },
-        deletedAt: null,
-      },
-      select: { id: true, discordId: true, familyName: true, class: true, ap: true, dp: true },
+      where: { id: { in: ids }, deletedAt: null },
+      select,
       orderBy: { familyName: "asc" },
     });
   }

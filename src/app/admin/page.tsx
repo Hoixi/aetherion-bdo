@@ -77,7 +77,7 @@ export default function AdminPage() {
   const [formPreviewData, setFormPreviewData] = useState<{
     mode: "channel" | "dm";
     count: number | null;
-    users: { id: number; discordId: string; familyName: string | null; class: string | null; ap: number; dp: number }[];
+    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string }[];
   } | null>(null);
 
   // List preview state: which announcement ID is being previewed, and the fetched user list
@@ -86,7 +86,7 @@ export default function AdminPage() {
   const [previewData, setPreviewData] = useState<{
     mode: "channel" | "dm";
     count: number | null;
-    users: { id: number; discordId: string; familyName: string | null; class: string | null; ap: number; dp: number }[];
+    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string }[];
   } | null>(null);
 
   // Role form state
@@ -608,10 +608,16 @@ export default function AdminPage() {
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-40 overflow-y-auto pr-1">
                           {formPreviewData.users.map((u) => (
-                            <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs">
-                              <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="italic text-bdo-text-muted">İsimsiz</span>}</div>
-                              <div className="text-bdo-text-muted truncate">{u.class || "—"}</div>
-                              {(u.ap > 0 || u.dp > 0) && <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>}
+                            <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs flex items-center gap-2">
+                              {u.avatarUrl
+                                ? <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                                : <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-bdo-text-muted shrink-0">?</div>
+                              }
+                              <div className="min-w-0">
+                                <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="italic text-bdo-text-muted">İsimsiz</span>}</div>
+                                <div className="text-bdo-text-muted truncate">{u.class || <span className="font-mono text-[10px]">{u.discordId}</span>}</div>
+                                {(u.ap > 0 || u.dp > 0) && <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -730,12 +736,16 @@ export default function AdminPage() {
                             ) : (
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-1">
                                 {previewData.users.map((u) => (
-                                  <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs">
-                                    <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="text-bdo-text-muted italic">İsimsiz</span>}</div>
-                                    <div className="text-bdo-text-muted truncate">{u.class || "—"}</div>
-                                    {(u.ap > 0 || u.dp > 0) && (
-                                      <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>
-                                    )}
+                                  <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs flex items-center gap-2">
+                                    {u.avatarUrl
+                                      ? <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full shrink-0" />
+                                      : <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-bdo-text-muted shrink-0">?</div>
+                                    }
+                                    <div className="min-w-0">
+                                      <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="italic text-bdo-text-muted">İsimsiz</span>}</div>
+                                      <div className="text-bdo-text-muted truncate">{u.class || <span className="font-mono text-[10px]">{u.discordId}</span>}</div>
+                                      {(u.ap > 0 || u.dp > 0) && <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
