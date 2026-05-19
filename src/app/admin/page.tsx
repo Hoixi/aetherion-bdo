@@ -72,6 +72,15 @@ export default function AdminPage() {
   const [publishResult, setPublishResult] = useState<{ sent?: number; failed?: number; target?: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Preview state: which announcement ID is being previewed, and the fetched user list
+  const [previewAnnId, setPreviewAnnId] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    mode: "channel" | "dm";
+    count: number | null;
+    users: { id: number; discordId: string; familyName: string | null; class: string | null; ap: number; dp: number }[];
+  } | null>(null);
+
   // Role form state
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleIsAdmin, setNewRoleIsAdmin] = useState(false);
@@ -130,7 +139,24 @@ export default function AdminPage() {
       setMessage("Discord'a gönderilemedi.");
     }
     setPublishing(null);
+    setPreviewAnnId(null);
+    setPreviewData(null);
     setTimeout(() => { setMessage(null); setPublishResult(null); }, 5000);
+  }
+
+  async function previewAnnouncement(ann: Announcement) {
+    // If already previewing this one, collapse
+    if (previewAnnId === ann.id) {
+      setPreviewAnnId(null);
+      setPreviewData(null);
+      return;
+    }
+    setPreviewAnnId(ann.id);
+    setPreviewData(null);
+    setPreviewLoading(true);
+    const res = await fetch(`/api/announcements/preview-target?target=${ann.target}`);
+    if (res.ok) setPreviewData(await res.json());
+    setPreviewLoading(false);
   }
 
   useEffect(() => {
@@ -539,39 +565,106 @@ export default function AdminPage() {
 
           <div className="space-y-2">
             {announcements.map((a) => (
-              <div key={a.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-bdo-gold font-semibold">{a.title}</span>
-                    <span className="text-[10px] bg-bdo-bg border border-bdo-border text-bdo-text-muted px-2 py-0.5 rounded-full">
-                      {TARGET_LABELS[a.target] ?? a.target}
-                    </span>
-                  </div>
-                  <p className="text-sm text-bdo-text-secondary mt-1">{a.content}</p>
-                  <div className="text-xs text-bdo-text-muted mt-1">
-                    {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} — {a.creator.familyName}
-                  </div>
-                  {publishResult && publishing === null && (
-                    <div className="text-xs text-green-400 mt-1">
-                      DM: {publishResult.sent} gönderildi{publishResult.failed ? `, ${publishResult.failed} başarısız` : ""}
+              <div key={a.id} className="bg-bdo-surface border border-bdo-border rounded-lg overflow-hidden">
+                {/* Main row */}
+                <div className="p-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-bdo-gold font-semibold">{a.title}</span>
+                      <span className="text-[10px] bg-bdo-bg border border-bdo-border text-bdo-text-muted px-2 py-0.5 rounded-full">
+                        {TARGET_LABELS[a.target] ?? a.target}
+                      </span>
                     </div>
-                  )}
+                    <p className="text-sm text-bdo-text-secondary mt-1">{a.content}</p>
+                    <div className="text-xs text-bdo-text-muted mt-1">
+                      {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} — {a.creator.familyName}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 items-center flex-shrink-0">
+                    <button
+                      onClick={() => previewAnnouncement(a)}
+                      disabled={publishing === a.id}
+                      className={`text-xs px-2 py-1 rounded transition-colors disabled:opacity-50 whitespace-nowrap ${
+                        previewAnnId === a.id
+                          ? "bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/40"
+                          : "bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2]/20"
+                      }`}
+                    >
+                      {publishing === a.id ? "Gönderiliyor..." : previewAnnId === a.id ? "Kapat ✕" : "Discord'a Gönder"}
+                    </button>
+                    <button
+                      onClick={() => deleteAnnouncement(a.id)}
+                      className="text-xs text-red-400 hover:underline"
+                    >
+                      Sil
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2 items-center flex-shrink-0">
-                  <button
-                    onClick={() => publishToDiscord("announcement", a.id)}
-                    disabled={publishing === a.id}
-                    className="text-xs bg-[#5865F2]/10 text-[#5865F2] px-2 py-1 rounded hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {publishing === a.id ? "Gönderiliyor..." : "Discord'a Gönder"}
-                  </button>
-                  <button
-                    onClick={() => deleteAnnouncement(a.id)}
-                    className="text-xs text-red-400 hover:underline"
-                  >
-                    Sil
-                  </button>
-                </div>
+
+                {/* Preview panel */}
+                {previewAnnId === a.id && (
+                  <div className="border-t border-bdo-border bg-bdo-bg p-4 space-y-3">
+                    {previewLoading && (
+                      <p className="text-xs text-bdo-text-muted animate-pulse">Yükleniyor...</p>
+                    )}
+
+                    {!previewLoading && previewData && (
+                      <>
+                        {previewData.mode === "channel" ? (
+                          <div className="flex items-center gap-3">
+                            <p className="text-sm text-bdo-text-secondary">
+                              📢 Bu duyuru <span className="text-bdo-gold font-semibold">#klan kanalına</span> gönderilecek (<code className="text-xs">@everyone</code> ile).
+                            </p>
+                            <button
+                              onClick={() => publishToDiscord("announcement", a.id)}
+                              disabled={publishing === a.id}
+                              className="ml-auto flex-shrink-0 text-xs bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
+                            >
+                              ✓ Gönder
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-bdo-text-secondary">
+                                DM ile <span className="text-bdo-gold font-semibold">{previewData.count} kişiye</span> gönderilecek:
+                              </p>
+                              <button
+                                onClick={() => publishToDiscord("announcement", a.id)}
+                                disabled={publishing === a.id || previewData.count === 0}
+                                className="text-xs bg-green-500/10 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap"
+                              >
+                                {publishing === a.id ? "Gönderiliyor..." : `✓ ${previewData.count} Kişiye Gönder`}
+                              </button>
+                            </div>
+
+                            {previewData.count === 0 ? (
+                              <p className="text-xs text-bdo-text-muted">Bu kritere uyan kimse yok.</p>
+                            ) : (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                                {previewData.users.map((u) => (
+                                  <div key={u.id} className="bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 text-xs">
+                                    <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="text-bdo-text-muted italic">İsimsiz</span>}</div>
+                                    <div className="text-bdo-text-muted truncate">{u.class || "—"}</div>
+                                    {(u.ap > 0 || u.dp > 0) && (
+                                      <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {publishResult && publishing === null && (
+                              <p className="text-xs text-green-400">
+                                ✓ {publishResult.sent} DM gönderildi{publishResult.failed ? ` · ${publishResult.failed} başarısız` : ""}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
