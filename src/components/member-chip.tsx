@@ -121,7 +121,7 @@ export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }:
     <div
       ref={setNodeRef}
       style={isDragOverlay ? undefined : style}
-      className="relative flex flex-col items-center"
+      className="relative"
     >
       {/* Tooltip — fixed pozisyon, overflow sorununu çözer */}
       {perf && showTooltip && !isDragging && (
@@ -190,19 +190,30 @@ export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }:
         {...listeners}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setShowTooltip(false)}
-        className={`flex items-center gap-2 bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none ${
+        className={`bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 cursor-grab active:cursor-grabbing select-none ${
           isDragOverlay ? "shadow-lg border-bdo-gold/50" : "hover:border-bdo-gold/30"
         }`}
       >
-        {user.avatarUrl && <img src={user.avatarUrl} alt="" className="w-6 h-6 rounded-full" />}
-        <span className="text-sm text-bdo-text-primary whitespace-nowrap">{user.familyName}</span>
-        <span className="text-xs text-bdo-text-muted">({className})</span>
-        <span className="text-xs text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
-        {perf && <span className="text-xs font-mono font-semibold" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>Skor: {perf.score}</span>}
+        {/* Row 1: avatar + name + class */}
+        <div className="flex items-center gap-1.5">
+          {user.avatarUrl && <img src={user.avatarUrl} alt="" className="w-5 h-5 rounded-full shrink-0" />}
+          <span className="text-xs font-semibold text-bdo-text-primary truncate">{user.familyName}</span>
+          <span className="text-[10px] text-bdo-text-muted shrink-0">({className})</span>
+        </div>
+        {/* Row 2: AP/DP + score */}
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
+          {perf && (
+            <span className="text-[10px] font-mono font-semibold ml-auto" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>
+              {perf.score}p
+            </span>
+          )}
+        </div>
+        {/* Row 3: attendance dots */}
+        {!isDragOverlay && attendanceHistory && (
+          <AttendanceDots userId={user.id} history={attendanceHistory} />
+        )}
       </div>
-      {!isDragOverlay && attendanceHistory && (
-        <AttendanceDots userId={user.id} history={attendanceHistory} />
-      )}
     </div>
   );
 }

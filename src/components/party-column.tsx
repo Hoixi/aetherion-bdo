@@ -102,14 +102,16 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
       )}
 
       <SortableContext items={memberIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 min-h-[60px]">
+        <div className="space-y-1.5 min-h-[60px]">
           {party.members.length === 0 && (
             <div className="border border-dashed border-bdo-border rounded-lg p-4 text-center text-xs text-bdo-text-muted">
               Buraya sürükle
             </div>
           )}
           {party.members.map((m) => (
-            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory} />
+            <div key={`member-${m.userId}`} className="w-full">
+              <MemberChip id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory} />
+            </div>
           ))}
         </div>
       </SortableContext>
