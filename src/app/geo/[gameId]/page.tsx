@@ -105,7 +105,7 @@ export default function GeoGamePage() {
 
   if (loading || !game) {
     return (
-      <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center text-gray-400">
+      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] flex items-center justify-center text-gray-400">
         Yükleniyor…
       </div>
     );
@@ -118,7 +118,7 @@ export default function GeoGamePage() {
     const maxScore = game.rounds.length * 5000;
     const pct = Math.round((game.totalScore / maxScore) * 100);
     return (
-      <div className="min-h-screen bg-[#0d0d0d] text-white flex items-center justify-center px-4">
+      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] text-white flex items-center justify-center px-4">
         <div className="max-w-lg w-full text-center">
           <div className="text-6xl mb-4">
             {pct >= 80 ? "🏆" : pct >= 50 ? "🎯" : "💀"}
@@ -169,7 +169,7 @@ export default function GeoGamePage() {
 
   if (!round) {
     return (
-      <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center text-gray-400">
+      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] flex items-center justify-center text-gray-400">
         Tur bulunamadı
       </div>
     );
@@ -187,7 +187,7 @@ export default function GeoGamePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-white flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-[#0d0d0d] text-white flex flex-col">
       {/* Top bar */}
       <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
@@ -215,60 +215,64 @@ export default function GeoGamePage() {
         />
       </div>
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col lg:flex-row" style={{ minHeight: 0 }}>
-        {/* Screenshot */}
-        <div className="lg:w-1/2 bg-black flex items-center justify-center p-2 relative" style={{ minHeight: "40vh" }}>
+      {/* Main area — two equal columns side by side */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ minHeight: 0 }}>
+        {/* Screenshot — left half */}
+        <div className="lg:w-1/2 bg-black flex items-center justify-center relative overflow-hidden" style={{ minHeight: "45vh" }}>
           <img
             src={round.image.imageUrl}
             alt="BDO Konum"
-            className="max-w-full max-h-full object-contain rounded"
-            style={{ maxHeight: "calc(100vh - 160px)" }}
+            className="w-full h-full object-contain"
           />
           {result && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 rounded-lg px-4 py-2 text-center pointer-events-none">
-              <div className="text-2xl font-bold text-[#d4a853]">+{result.score.toLocaleString()}</div>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 rounded-xl px-5 py-3 text-center pointer-events-none backdrop-blur-sm">
+              <div className="text-3xl font-bold text-[#d4a853]">+{result.score.toLocaleString()}</div>
               {result.hint && <div className="text-gray-300 text-sm mt-1">📍 {result.hint}</div>}
             </div>
           )}
         </div>
 
-        {/* Leaflet Map */}
-        <div className="lg:w-1/2 flex flex-col bg-[#111]" style={{ minHeight: "40vh" }}>
-          <div className="px-4 py-2 text-xs text-gray-500 border-b border-[#2a2a2a] flex-shrink-0">
-            {result ? "Sonuç — yeşil doğru konum, mavi tahminin" : "Haritada konuma tıkla"}
+        {/* Map — right half */}
+        <div className="lg:w-1/2 flex flex-col" style={{ minHeight: "45vh" }}>
+          {/* Map hint bar */}
+          <div className="px-4 py-1.5 text-xs text-gray-500 bg-[#111] border-b border-[#2a2a2a] flex-shrink-0 flex items-center justify-between">
+            <span>{result ? "Yeşil = doğru konum · Mavi = tahminin" : "Haritada konuma tıkla"}</span>
+            {pendingGuess && !result && (
+              <span className="text-[#d4a853]">📍 Konum seçildi</span>
+            )}
           </div>
 
+          {/* Leaflet map — fills remaining space */}
           <BdoLeafletMap
             className="flex-1 w-full"
             onPick={result ? undefined : (x, y) => setPendingGuess({ x, y })}
             markers={mapMarkers}
           />
 
-          {/* Bottom action bar */}
-          <div className="p-3 border-t border-[#2a2a2a] flex items-center justify-between gap-3 flex-shrink-0">
+          {/* Action bar */}
+          <div className="px-4 py-3 bg-[#111] border-t border-[#2a2a2a] flex items-center justify-between gap-3 flex-shrink-0">
             {!result ? (
               <>
                 <span className="text-xs text-gray-500">
-                  {pendingGuess ? "Konumu seçtin — onayla veya başka yere tıkla" : "Haritaya tıkla"}
+                  {pendingGuess ? "Onayla veya başka yere tıkla" : "Konumu bulmaya çalış"}
                 </span>
                 <button
                   onClick={submitGuess}
                   disabled={!pendingGuess || submitting}
-                  className="px-5 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                  className="px-6 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                 >
                   {submitting ? "Gönderiliyor…" : "✅ Tahmin Et"}
                 </button>
               </>
             ) : (
               <>
-                <div className="text-sm">
-                  <span className="text-[#d4a853] font-bold text-lg">+{result.score.toLocaleString()}</span>
+                <div>
+                  <span className="text-[#d4a853] font-bold text-xl">+{result.score.toLocaleString()}</span>
                   <span className="text-gray-500 text-xs ml-2">puan</span>
                 </div>
                 <button
                   onClick={nextRound}
-                  className="px-5 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition text-sm"
+                  className="px-6 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition text-sm"
                 >
                   {result.gameCompleted ? "🏆 Sonuçlar" : "Sonraki Tur →"}
                 </button>
