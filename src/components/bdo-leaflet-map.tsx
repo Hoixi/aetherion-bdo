@@ -1,30 +1,38 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import type { Map as LeafletMap, Marker as LeafletMarker, Polyline } from "leaflet";
 
-// ── BDO World coordinate constants ──────────────────────────────────────────
+// ── BDO World tile constants ─────────────────────────────────────────────────
 // Tile URL: https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp
+// Available zoom levels: 1–9
 // At zoom 3 (scale = 2^3 = 8, tileSize = 256):
-//   tile_x = floor(lng * 8 / 256)   → tiles x=1..5 → lng ∈ [32, 192)
-//   tile_y = floor(-lat * 8 / 256)  → tiles y=3..6 → lat ∈ (-224, -96]
-const SW_LAT = -(7 * 256) / 8;  // -224   (south / bottom)
-const NE_LAT = -(3 * 256) / 8;  // -96    (north / top)
-const SW_LNG =  (1 * 256) / 8;  //  32    (west  / left)
-const NE_LNG =  (6 * 256) / 8;  //  192   (east  / right)
+//   tile_x = ⌊lng × 8 / 256⌋  →  x=1..5  →  lng ∈ [32, 192)
+//   tile_y = ⌊−lat × 8 / 256⌋ →  y=3..6  →  lat ∈ (−224, −96]
+export const TILE_URL = "https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp";
+
+// Main BDO world bounds in Leaflet CRS.Simple coordinates
+const Z3 = Math.pow(2, 3); // 8
+const T  = 256;             // tile size
+
+export const SW_LAT = -(7 * T) / Z3; // −224  south edge of tile y=6
+export const NE_LAT = -(3 * T) / Z3; // −96   north edge of tile y=3
+export const SW_LNG =  (1 * T) / Z3; //  32   west  edge of tile x=1
+export const NE_LNG =  (6 * T) / Z3; //  192  east  edge of tile x=5 (exclusive)
+
 const LAT_RANGE = NE_LAT - SW_LAT; //  128
 const LNG_RANGE = NE_LNG - SW_LNG; //  160
 
-export const TILE_URL = "https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp";
-export const BDO_CENTER: [number, number] = [-160, 112];
-export const BDO_SW: [number, number] = [SW_LAT, SW_LNG];
-export const BDO_NE: [number, number] = [NE_LAT, NE_LNG];
+export const BDO_CENTER: [number, number] = [
+  (SW_LAT + NE_LAT) / 2,  // −160
+  (SW_LNG + NE_LNG) / 2,  //  112
+];
 
 /** Our [0,1] space → Leaflet LatLng (CRS.Simple) */
 export function normToLatLng(x: number, y: number): [number, number] {
   return [
-    NE_LAT - y * LAT_RANGE,   // y=0 → north, y=1 → south
-    SW_LNG + x * LNG_RANGE,   // x=0 → west,  x=1 → east
+    NE_LAT - y * LAT_RANGE,  // y=0 → north (−96),  y=1 → south (−224)
+    SW_LNG + x * LNG_RANGE,  // x=0 → west  (32),   x=1 → east  (192)
   ];
 }
 
@@ -46,12 +54,8 @@ export interface MapMarker {
 }
 
 interface Props {
-  /** Called with normalized [0,1] coords when user clicks the map */
   onPick?: (x: number, y: number) => void;
-  /** Markers to display (e.g. guess + correct location) */
   markers?: MapMarker[];
-  /** When true, clicks register as guesses/picks */
-  interactive?: boolean;
   className?: string;
   initialZoom?: number;
 }
@@ -59,20 +63,19 @@ interface Props {
 export function BdoLeafletMap({
   onPick,
   markers = [],
-  interactive = true,
   className = "",
   initialZoom = 3,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<LeafletMap | null>(null);
-  const markerRefs = useRef<LeafletMarker[]>([]);
+  const mapRef       = useRef<LeafletMap | null>(null);
+  const overlayRefs  = useRef<(LeafletMarker | Polyline)[]>([]);
 
+  // ── Init map (once) ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    // Dynamic import to avoid SSR issues
     import("leaflet").then((L) => {
-      // Inject leaflet CSS once
+      // Inject Leaflet CSS once
       if (!document.getElementById("leaflet-css")) {
         const link = document.createElement("link");
         link.id = "leaflet-css";
@@ -81,35 +84,42 @@ export function BdoLeafletMap({
         document.head.appendChild(link);
       }
 
-      const bounds = L.latLngBounds([SW_LAT, SW_LNG], [NE_LAT, NE_LNG]);
+      const worldBounds = L.latLngBounds(
+        [SW_LAT, SW_LNG],
+        [NE_LAT, NE_LNG],
+      );
 
       const map = L.map(containerRef.current!, {
         crs: L.CRS.Simple,
         minZoom: 1,
-        maxZoom: 5,
+        maxZoom: 9,
         zoomControl: true,
         attributionControl: false,
-        maxBounds: bounds.pad(0.1),
-        maxBoundsViscosity: 1.0,
+        // Soft boundary — lets the user pan/zoom freely so edge tiles render
+        // but snaps back when they release.
+        maxBounds: worldBounds.pad(0.5),
+        maxBoundsViscosity: 0.3,
       });
 
+      // ── Tile layer — NO bounds param so all zoom levels load freely ────────
       L.tileLayer(TILE_URL, {
         tileSize: 256,
         noWrap: true,
-        bounds,
+        minZoom: 1,
+        maxZoom: 9,
+        // errorTileUrl: "" keeps failed tiles transparent instead of broken-img
       }).addTo(map);
 
-      map.fitBounds(bounds);
+      map.fitBounds(worldBounds);
       map.setZoom(initialZoom);
 
-      // Click handler
+      // Click → pick
       if (onPick) {
         map.on("click", (e: L.LeafletMouseEvent) => {
-          const { lat, lng } = e.latlng;
-          const norm = latLngToNorm(lat, lng);
+          const norm = latLngToNorm(e.latlng.lat, e.latlng.lng);
           onPick(
             Math.max(0, Math.min(1, norm.x)),
-            Math.max(0, Math.min(1, norm.y))
+            Math.max(0, Math.min(1, norm.y)),
           );
         });
       }
@@ -124,49 +134,50 @@ export function BdoLeafletMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update markers whenever they change
+  // ── Sync markers whenever they change ─────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     import("leaflet").then((L) => {
-      // Remove old markers
-      markerRefs.current.forEach((m) => m.remove());
-      markerRefs.current = [];
+      // Remove previous overlays
+      overlayRefs.current.forEach((o) => o.remove());
+      overlayRefs.current = [];
+
+      const COLORS: Record<string, string> = {
+        blue:  "#3b82f6",
+        green: "#22c55e",
+        red:   "#ef4444",
+      };
 
       markers.forEach(({ x, y, color, label }) => {
         const [lat, lng] = normToLatLng(x, y);
-
-        const COLORS: Record<string, string> = {
-          blue: "#3b82f6",
-          green: "#22c55e",
-          red: "#ef4444",
-        };
 
         const icon = L.divIcon({
           className: "",
           html: `
             <div style="
+              position:relative;
               width:16px; height:16px; border-radius:50%;
               background:${COLORS[color] ?? "#fff"};
-              border:2px solid white;
-              box-shadow:0 0 4px rgba(0,0,0,0.6);
+              border:2.5px solid white;
+              box-shadow:0 0 6px rgba(0,0,0,.7);
             "></div>
             ${label ? `<div style="
               position:absolute; top:18px; left:50%; transform:translateX(-50%);
-              background:rgba(0,0,0,0.7); color:white; font-size:10px;
-              padding:1px 4px; border-radius:3px; white-space:nowrap;
+              background:rgba(0,0,0,.75); color:#fff; font-size:10px; font-weight:600;
+              padding:1px 5px; border-radius:3px; white-space:nowrap;
             ">${label}</div>` : ""}
           `,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          iconSize:   [16, 16],
+          iconAnchor: [8,  8],
         });
 
         const marker = L.marker([lat, lng], { icon }).addTo(map);
-        markerRefs.current.push(marker);
+        overlayRefs.current.push(marker);
       });
 
-      // Draw a line between the first two markers if both exist
+      // Dashed line between first two markers
       if (markers.length >= 2) {
         const [lat1, lng1] = normToLatLng(markers[0].x, markers[0].y);
         const [lat2, lng2] = normToLatLng(markers[1].x, markers[1].y);
@@ -174,9 +185,9 @@ export function BdoLeafletMap({
           color: "white",
           dashArray: "5 4",
           weight: 2,
-          opacity: 0.7,
+          opacity: 0.75,
         }).addTo(map);
-        markerRefs.current.push(line as unknown as LeafletMarker);
+        overlayRefs.current.push(line as unknown as LeafletMarker);
       }
     });
   }, [markers]);

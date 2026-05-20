@@ -243,7 +243,6 @@ export default function GeoGamePage() {
             className="flex-1 w-full"
             onPick={result ? undefined : (x, y) => setPendingGuess({ x, y })}
             markers={mapMarkers}
-            interactive={!result}
           />
 
           {/* Bottom action bar */}
