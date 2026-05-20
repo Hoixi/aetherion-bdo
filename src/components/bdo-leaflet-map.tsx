@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker, Polyline } from "leaflet";
+// Static import → CSS bundled with the component, no async CDN load
+import "leaflet/dist/leaflet.css";
 
 // ── BDO World tile constants ─────────────────────────────────────────────────
 // Tile URL: https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp
@@ -76,15 +78,6 @@ export function BdoLeafletMap({
     if (!containerRef.current || mapRef.current) return;
 
     import("leaflet").then((L) => {
-      // Inject Leaflet CSS once
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
-
       const worldBounds = L.latLngBounds(
         [SW_LAT, SW_LNG],
         [NE_LAT, NE_LNG],
@@ -127,18 +120,15 @@ export function BdoLeafletMap({
 
       mapRef.current = map;
 
-      // Leaflet reads container size at init time — in flex layouts the
-      // computed height may not have settled yet, so force a recalc after
-      // the browser has painted the first frame.
-      requestAnimationFrame(() => {
-        map.invalidateSize();
-      });
+      // Leaflet reads container dimensions at init time. In a flex / fixed
+      // layout the browser may not have finished painting, so we invalidate
+      // the size at several points to guarantee correct click coordinates.
+      requestAnimationFrame(() => map.invalidateSize());
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 400);
 
-      // Keep invalidating whenever the container is resized (e.g. window
-      // resize, panel transitions) so click coordinates stay accurate.
-      resizeRef.current = new ResizeObserver(() => {
-        map.invalidateSize();
-      });
+      // Also re-invalidate on any container resize (window resize, etc.)
+      resizeRef.current = new ResizeObserver(() => map.invalidateSize());
       if (containerRef.current) {
         resizeRef.current.observe(containerRef.current);
       }
