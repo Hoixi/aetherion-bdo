@@ -201,11 +201,16 @@ export function BdoLeafletMap({
     });
   }, [markers]);
 
+  // The outer div establishes the flex / grid cell size (className controls this).
+  // The inner div is absolute-filled so Leaflet always gets an exact, unambiguous
+  // bounding rect — this prevents the offsetHeight vs. getBoundingClientRect
+  // mismatch that causes click coordinates to be offset in the upper half.
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ background: "#1a1a2e", height: "100%", minHeight: 0 }}
-    />
+    <div className={className} style={{ position: "relative", minHeight: 0 }}>
+      <div
+        ref={containerRef}
+        style={{ position: "absolute", inset: 0, background: "#1a1a2e" }}
+      />
+    </div>
   );
 }
