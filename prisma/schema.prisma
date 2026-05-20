@@ -39,8 +39,57 @@ model User {
   forumPosts        ForumPost[]
   forumComments     ForumComment[]
   forumReactions    ForumReaction[]
+  geoGames          GeoGame[]
+  geoImages         GeoImage[]
 
   @@map("users")
+}
+
+// ── GeoGuessr mini-game ─────────────────────────────────────────────────────
+
+model GeoImage {
+  id        Int      @id @default(autoincrement())
+  imageUrl  String   @db.Text       // screenshot URL
+  mapX      Float                   // correct position X (0–1, left→right)
+  mapY      Float                   // correct position Y (0–1, top→bottom)
+  hint      String?                 // optional region label shown after round
+  createdBy Int
+  createdAt DateTime @default(now())
+
+  creator User       @relation(fields: [createdBy], references: [id])
+  rounds  GeoRound[]
+
+  @@map("geo_images")
+}
+
+model GeoGame {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  totalScore Int      @default(0)
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user   User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rounds GeoRound[]
+
+  @@map("geo_games")
+}
+
+model GeoRound {
+  id        Int     @id @default(autoincrement())
+  gameId    Int
+  imageId   Int
+  roundNum  Int     // 1–5
+  guessX    Float?
+  guessY    Float?
+  score     Int     @default(0)
+  distance  Float   @default(0)
+  completed Boolean @default(false)
+
+  game  GeoGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  image GeoImage @relation(fields: [imageId], references: [id])
+
+  @@map("geo_rounds")
 }
 
 model SiteRole {

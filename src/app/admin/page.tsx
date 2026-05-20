@@ -73,6 +73,16 @@ interface SiteRole {
   _count: { users: number };
 }
 
+interface GeoImage {
+  id: number;
+  imageUrl: string;
+  mapX: number;
+  mapY: number;
+  hint: string | null;
+  createdAt: string;
+  creator: { familyName: string };
+}
+
 export default function AdminPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -81,6 +91,13 @@ export default function AdminPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [roles, setRoles] = useState<SiteRole[]>([]);
   const [warSchedules, setWarSchedules] = useState<WarSchedule[]>([]);
+  const [geoImages, setGeoImages] = useState<GeoImage[]>([]);
+  const [geoImgUrl, setGeoImgUrl] = useState("");
+  const [geoImgHint, setGeoImgHint] = useState("");
+  const [geoPickMode, setGeoPickMode] = useState(false);
+  const [geoPickX, setGeoPickX] = useState<number | null>(null);
+  const [geoPickY, setGeoPickY] = useState<number | null>(null);
+  const [geoSaving, setGeoSaving] = useState(false);
 
   // War schedule form
   const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -97,7 +114,7 @@ export default function AdminPage() {
   const [schedSaving, setSchedSaving] = useState(false);
   const [showWarForm, setShowWarForm] = useState(false);
   const [editingWar, setEditingWar] = useState<War | null>(null);
-  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar">("wars");
+  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar" | "geo">("wars");
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
@@ -211,6 +228,7 @@ export default function AdminPage() {
     fetchAnnouncements();
     fetchRoles();
     fetchWarSchedules();
+    fetchGeoImages();
   }, []);
 
   async function fetchWars() {
@@ -236,6 +254,37 @@ export default function AdminPage() {
   async function fetchWarSchedules() {
     const res = await fetch("/api/war-schedules");
     if (res.ok) setWarSchedules(await res.json());
+  }
+
+  async function fetchGeoImages() {
+    const res = await fetch("/api/geo/images");
+    if (res.ok) setGeoImages(await res.json());
+  }
+
+  async function addGeoImage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!geoImgUrl || geoPickX == null || geoPickY == null) return;
+    setGeoSaving(true);
+    const res = await fetch("/api/geo/images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: geoImgUrl, mapX: geoPickX, mapY: geoPickY, hint: geoImgHint || null }),
+    });
+    if (res.ok) {
+      setGeoImgUrl(""); setGeoImgHint(""); setGeoPickX(null); setGeoPickY(null); setGeoPickMode(false);
+      fetchGeoImages();
+      setMessage("Resim eklendi!");
+      setTimeout(() => setMessage(null), 3000);
+    }
+    setGeoSaving(false);
+  }
+
+  async function deleteGeoImage(id: number) {
+    if (!confirm("Bu resmi silmek istediğinizden emin misiniz?")) return;
+    await fetch(`/api/geo/images/${id}`, { method: "DELETE" });
+    setGeoImages(geoImages.filter((img) => img.id !== id));
+    setMessage("Resim silindi.");
+    setTimeout(() => setMessage(null), 3000);
   }
 
   async function createSchedule(e: React.FormEvent) {
@@ -539,7 +588,7 @@ export default function AdminPage() {
       )}
 
       <div className="flex gap-2 flex-wrap">
-        {(["wars", "announcements", "members", "roles", "hasar", "araçlar"] as const).map((t) => (
+        {(["wars", "announcements", "members", "roles", "hasar", "araçlar", "geo"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -552,6 +601,7 @@ export default function AdminPage() {
               : t === "members" ? "Üyeler"
               : t === "roles" ? "Roller"
               : t === "hasar" ? "Hasar Raporu"
+              : t === "geo" ? "🗺️ GeoGuessr"
               : "🛠 Araçlar"}
           </button>
         ))}
@@ -1293,6 +1343,131 @@ export default function AdminPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── GeoGuessr Images ───────────────────────────────────── */}
+      {tab === "geo" && (
+        <div className="space-y-6">
+          <h2 className="text-lg font-bold text-bdo-gold">🗺️ GeoGuessr Resimleri</h2>
+
+          {/* Add image form */}
+          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5">
+            <h3 className="font-semibold text-bdo-text-primary mb-4">Yeni Resim Ekle</h3>
+            <form onSubmit={addGeoImage} className="space-y-4">
+              <div>
+                <label className="block text-xs text-bdo-text-muted mb-1">Resim URL</label>
+                <input
+                  type="url"
+                  value={geoImgUrl}
+                  onChange={(e) => setGeoImgUrl(e.target.value)}
+                  placeholder="https://..."
+                  required
+                  className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-bdo-text-muted mb-1">İpucu (opsiyonel — bölge adı)</label>
+                <input
+                  type="text"
+                  value={geoImgHint}
+                  onChange={(e) => setGeoImgHint(e.target.value)}
+                  placeholder="örn. Velia Hills"
+                  className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary"
+                />
+              </div>
+
+              {/* Map coordinate picker */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-bdo-text-muted">
+                    Haritada Konum {geoPickX != null ? `(${(geoPickX * 100).toFixed(1)}%, ${(geoPickY! * 100).toFixed(1)}%)` : "— henüz seçilmedi"}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setGeoPickMode((v) => !v)}
+                    className="text-xs text-bdo-gold hover:underline"
+                  >
+                    {geoPickMode ? "Kapat" : "Haritadan Seç"}
+                  </button>
+                </div>
+                {geoPickMode && (
+                  <div
+                    className="relative w-full border border-bdo-border rounded-lg overflow-hidden cursor-crosshair"
+                    style={{ paddingBottom: "56.25%" }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = (e.clientX - rect.left) / rect.width;
+                      const y = (e.clientY - rect.top) / rect.height;
+                      setGeoPickX(Math.max(0, Math.min(1, x)));
+                      setGeoPickY(Math.max(0, Math.min(1, y)));
+                    }}
+                  >
+                    <img
+                      src={process.env.NEXT_PUBLIC_BDO_MAP_URL || "https://bdocodex.com/maps/bdo_map_bg.jpg"}
+                      alt="BDO Harita"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      draggable={false}
+                    />
+                    {geoPickX != null && geoPickY != null && (
+                      <div
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${geoPickX * 100}%`,
+                          top: `${geoPickY * 100}%`,
+                          transform: "translate(-50%, -50%)",
+                        }}
+                      >
+                        <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-lg" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-2 text-[10px] text-white bg-black/60 px-2 py-1 rounded pointer-events-none">
+                      Tıklayarak konumu seç
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={geoSaving || !geoImgUrl || geoPickX == null}
+                className="px-4 py-2 bg-bdo-gold text-bdo-bg font-semibold rounded-lg text-sm hover:bg-bdo-gold/80 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {geoSaving ? "Kaydediliyor…" : "Resim Ekle"}
+              </button>
+            </form>
+          </div>
+
+          {/* Image list */}
+          <div className="space-y-3">
+            <p className="text-sm text-bdo-text-muted">{geoImages.length} resim mevcut</p>
+            {geoImages.map((img) => (
+              <div key={img.id} className="bg-bdo-surface border border-bdo-border rounded-xl p-4 flex gap-4 items-start">
+                <img
+                  src={img.imageUrl}
+                  alt=""
+                  className="w-32 h-20 object-cover rounded flex-shrink-0 bg-bdo-bg"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-bdo-text-muted truncate">{img.imageUrl}</p>
+                  {img.hint && <p className="text-sm text-bdo-gold mt-1">📍 {img.hint}</p>}
+                  <p className="text-xs text-bdo-text-muted mt-1">
+                    X: {(img.mapX * 100).toFixed(1)}% · Y: {(img.mapY * 100).toFixed(1)}%
+                    &nbsp;· {img.creator.familyName} · {new Date(img.createdAt).toLocaleDateString("tr-TR")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => deleteGeoImage(img.id)}
+                  className="text-xs text-red-400 hover:underline flex-shrink-0"
+                >
+                  Sil
+                </button>
+              </div>
+            ))}
+            {geoImages.length === 0 && (
+              <p className="text-bdo-text-muted text-sm">Henüz resim eklenmemiş.</p>
+            )}
           </div>
         </div>
       )}

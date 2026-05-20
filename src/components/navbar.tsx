@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/calendar", label: "Takvim" },
   { href: "/hasar-raporu", label: "Hasar Raporu" },
   { href: "/patch-notes", label: "Yama Notları" },
+  { href: "/geo", label: "🗺️ GeoGuessr" },
   { href: "/profile", label: "Profil" },
 ];
 
