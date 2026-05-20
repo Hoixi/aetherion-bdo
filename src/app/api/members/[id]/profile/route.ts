@@ -28,7 +28,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const totalWars = await prisma.war.count();
+  // Sadece üyenin kayıt tarihinden sonraki savaşları say
+  const totalWars = await prisma.war.count({
+    where: { date: { gte: user.createdAt } },
+  });
   const attended = user.participations.filter((p) => p.status === "ATTENDING").length;
   const attendanceRate = totalWars > 0 ? Math.round((attended / totalWars) * 100) : 0;
 
