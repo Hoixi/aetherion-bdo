@@ -98,6 +98,24 @@ model War {
   @@map("wars")
 }
 
+model WarSchedule {
+  id               Int      @id @default(autoincrement())
+  name             String                        // Savaş başlık şablonu
+  type             String   @default("NODE_WAR")
+  dayOfWeek        Int                           // 0=Pazar … 6=Cumartesi (savaşın yapıldığı gün)
+  hour             Int                           // Savaş saati (Türkiye saatiyle)
+  minute           Int      @default(0)
+  createDaysBefore Int      @default(1)          // Kaç gün önce oluşturulsun
+  deadlineHours    Int?                          // Savaştan X saat önce deadline (null = yok)
+  maxParticipants  Int?
+  notes            String?  @db.Text
+  sendToDiscord    Boolean  @default(true)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@map("war_schedules")
+}
+
 model WarParticipant {
   id          Int               @id @default(autoincrement())
   warId       Int

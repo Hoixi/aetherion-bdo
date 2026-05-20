@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/war-reminder",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/create-wars",
+      "schedule": "0 7 * * *"
     }
   ]
 }

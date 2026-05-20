@@ -46,6 +46,23 @@ const TARGET_LABELS: Record<AnnouncementTarget, string> = {
   pvp: "🗡️ PvP'ciler — savaşa girenler (DM)",
 };
 
+interface WarSchedule {
+  id: number;
+  name: string;
+  type: string;
+  dayOfWeek: number;
+  hour: number;
+  minute: number;
+  createDaysBefore: number;
+  deadlineHours: number | null;
+  maxParticipants: number | null;
+  notes: string | null;
+  sendToDiscord: boolean;
+  isActive: boolean;
+}
+
+const DAY_NAMES = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+
 interface SiteRole {
   id: number;
   name: string;
@@ -63,6 +80,21 @@ export default function AdminPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [roles, setRoles] = useState<SiteRole[]>([]);
+  const [warSchedules, setWarSchedules] = useState<WarSchedule[]>([]);
+
+  // War schedule form
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [schedName, setSchedName] = useState("");
+  const [schedType, setSchedType] = useState("NODE_WAR");
+  const [schedDay, setSchedDay] = useState(2); // Salı default
+  const [schedHour, setSchedHour] = useState(21);
+  const [schedMinute, setSchedMinute] = useState(0);
+  const [schedCreateBefore, setSchedCreateBefore] = useState(1);
+  const [schedDeadlineH, setSchedDeadlineH] = useState<string>("");
+  const [schedMaxP, setSchedMaxP] = useState<string>("");
+  const [schedNotes, setSchedNotes] = useState("");
+  const [schedDiscord, setSchedDiscord] = useState(true);
+  const [schedSaving, setSchedSaving] = useState(false);
   const [showWarForm, setShowWarForm] = useState(false);
   const [editingWar, setEditingWar] = useState<War | null>(null);
   const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar">("wars");
@@ -178,6 +210,7 @@ export default function AdminPage() {
     fetchMembers();
     fetchAnnouncements();
     fetchRoles();
+    fetchWarSchedules();
   }, []);
 
   async function fetchWars() {
@@ -198,6 +231,54 @@ export default function AdminPage() {
   async function fetchRoles() {
     const res = await fetch("/api/roles");
     if (res.ok) setRoles(await res.json());
+  }
+
+  async function fetchWarSchedules() {
+    const res = await fetch("/api/war-schedules");
+    if (res.ok) setWarSchedules(await res.json());
+  }
+
+  async function createSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    setSchedSaving(true);
+    const res = await fetch("/api/war-schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: schedName, type: schedType, dayOfWeek: schedDay,
+        hour: schedHour, minute: schedMinute, createDaysBefore: schedCreateBefore,
+        deadlineHours: schedDeadlineH ? Number(schedDeadlineH) : null,
+        maxParticipants: schedMaxP ? Number(schedMaxP) : null,
+        notes: schedNotes || null, sendToDiscord: schedDiscord,
+      }),
+    });
+    if (res.ok) {
+      setShowScheduleForm(false);
+      setSchedName(""); setSchedType("NODE_WAR"); setSchedDay(2);
+      setSchedHour(21); setSchedMinute(0); setSchedCreateBefore(1);
+      setSchedDeadlineH(""); setSchedMaxP(""); setSchedNotes(""); setSchedDiscord(true);
+      fetchWarSchedules();
+      setMessage("Program oluşturuldu!");
+      setTimeout(() => setMessage(null), 3000);
+    }
+    setSchedSaving(false);
+  }
+
+  async function toggleSchedule(id: number, isActive: boolean) {
+    await fetch(`/api/war-schedules/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive }),
+    });
+    setWarSchedules(warSchedules.map((s) => s.id === id ? { ...s, isActive } : s));
+  }
+
+  async function deleteSchedule(id: number) {
+    if (!confirm("Bu programı silmek istediğinizden emin misiniz?")) return;
+    await fetch(`/api/war-schedules/${id}`, { method: "DELETE" });
+    setWarSchedules(warSchedules.filter((s) => s.id !== id));
+    setMessage("Program silindi.");
+    setTimeout(() => setMessage(null), 3000);
   }
 
   async function deleteWar(id: number) {
@@ -546,6 +627,107 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* ── Otomatik Savaş Programı ── */}
+          <div className="mt-6 border-t border-bdo-border pt-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-bdo-text-primary">📅 Otomatik Savaş Programı</h3>
+                <p className="text-xs text-bdo-text-muted mt-0.5">Belirtilen günlerde savaşlar otomatik oluşturulur ve Discord&apos;a gönderilir.</p>
+              </div>
+              <button onClick={() => setShowScheduleForm(!showScheduleForm)} className="text-xs bg-bdo-gold/10 text-bdo-gold px-3 py-1.5 rounded hover:bg-bdo-gold/20 transition-colors font-semibold">
+                {showScheduleForm ? "İptal" : "+ Program Ekle"}
+              </button>
+            </div>
+
+            {showScheduleForm && (
+              <form onSubmit={createSchedule} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Başlık</label>
+                    <input value={schedName} onChange={(e) => setSchedName(e.target.value)} required placeholder="Örn: Haftalık Node Savaşı" className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Tür</label>
+                    <select value={schedType} onChange={(e) => setSchedType(e.target.value)} className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none">
+                      <option value="NODE_WAR">Node Savaşı</option>
+                      <option value="SIEGE">Kuşatma</option>
+                      <option value="KARA_TAPINAK">Kara Tapınak</option>
+                      <option value="OTHER">Diğer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Savaş Günü</label>
+                    <select value={schedDay} onChange={(e) => setSchedDay(Number(e.target.value))} className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none">
+                      {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Saat (TR saatiyle)</label>
+                    <div className="flex gap-2">
+                      <input type="number" min={0} max={23} value={schedHour} onChange={(e) => setSchedHour(Number(e.target.value))} className="w-20 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none font-mono" />
+                      <span className="text-bdo-text-muted self-center">:</span>
+                      <input type="number" min={0} max={59} step={5} value={schedMinute} onChange={(e) => setSchedMinute(Number(e.target.value))} className="w-20 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none font-mono" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Kaç gün önce oluşturulsun</label>
+                    <input type="number" min={1} max={7} value={schedCreateBefore} onChange={(e) => setSchedCreateBefore(Number(e.target.value))} className="w-24 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Kayıt deadline (saatten önce, boş = yok)</label>
+                    <input type="number" min={1} value={schedDeadlineH} onChange={(e) => setSchedDeadlineH(e.target.value)} placeholder="örn: 2" className="w-24 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Maks. katılımcı (boş = sınırsız)</label>
+                    <input type="number" min={1} value={schedMaxP} onChange={(e) => setSchedMaxP(e.target.value)} placeholder="örn: 100" className="w-28 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none font-mono" />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <input type="checkbox" id="schedDiscord" checked={schedDiscord} onChange={(e) => setSchedDiscord(e.target.checked)} className="accent-bdo-gold" />
+                    <label htmlFor="schedDiscord" className="text-sm text-bdo-text-secondary cursor-pointer">Otomatik Discord&apos;a gönder</label>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-bdo-text-muted mb-1">Not (opsiyonel)</label>
+                  <textarea value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} rows={2} className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none resize-none" />
+                </div>
+                <button type="submit" disabled={schedSaving} className="bg-bdo-gold text-bdo-bg font-semibold px-5 py-2 rounded-lg hover:bg-bdo-gold-dim transition-colors disabled:opacity-50 text-sm">
+                  {schedSaving ? "Kaydediliyor..." : "Program Oluştur"}
+                </button>
+              </form>
+            )}
+
+            {warSchedules.length === 0 && !showScheduleForm && (
+              <p className="text-xs text-bdo-text-muted">Henüz otomatik program eklenmemiş.</p>
+            )}
+
+            <div className="space-y-2">
+              {warSchedules.map((s) => (
+                <div key={s.id} className={`border rounded-lg px-4 py-3 flex items-center justify-between gap-3 transition-colors ${s.isActive ? "bg-bdo-surface border-bdo-border" : "bg-bdo-bg border-bdo-border opacity-50"}`}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-bdo-text-primary">{s.name}</span>
+                      <span className="text-[10px] bg-bdo-gold/10 text-bdo-gold px-1.5 py-0.5 rounded">{s.type.replace("_", " ")}</span>
+                      {!s.isActive && <span className="text-[10px] text-bdo-text-muted bg-bdo-border px-1.5 py-0.5 rounded">Pasif</span>}
+                    </div>
+                    <div className="text-xs text-bdo-text-muted mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>📅 Her {DAY_NAMES[s.dayOfWeek]} {String(s.hour).padStart(2,"0")}:{String(s.minute).padStart(2,"0")}</span>
+                      <span>⏱ {s.createDaysBefore} gün önce oluştur</span>
+                      {s.deadlineHours && <span>🔒 {s.deadlineHours}s önce deadline</span>}
+                      {s.maxParticipants && <span>👥 Maks. {s.maxParticipants}</span>}
+                      {s.sendToDiscord && <span>💬 Discord otomatik</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => toggleSchedule(s.id, !s.isActive)} className={`text-xs px-2 py-1 rounded transition-colors ${s.isActive ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20" : "bg-green-500/10 text-green-400 hover:bg-green-500/20"}`}>
+                      {s.isActive ? "Durdur" : "Aktifleştir"}
+                    </button>
+                    <button onClick={() => deleteSchedule(s.id)} className="text-xs text-red-400 hover:underline">Sil</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
