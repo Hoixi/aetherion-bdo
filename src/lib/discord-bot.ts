@@ -232,6 +232,16 @@ export async function sendAnnouncementToDiscord(announcement: {
   return messageId;
 }
 
+// Send a plain-text message to the configured channel (no embed)
+export async function sendChannelText(content: string): Promise<void> {
+  if (!BOT_TOKEN || !CHANNEL_ID) return;
+  await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+    body: JSON.stringify({ content }),
+  });
+}
+
 // Open a DM channel with a user and return the channel ID
 async function openDmChannel(discordId: string): Promise<string | null> {
   if (!BOT_TOKEN) return null;

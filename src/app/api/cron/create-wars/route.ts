@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWarToDiscord } from "@/lib/discord-bot";
+import { sendWarToDiscord, sendChannelText } from "@/lib/discord-bot";
 
 const CRON_SECRET = process.env.CRON_SECRET;
-// Bot user ID used as createdBy for auto-created wars (fallback: first admin)
 const TR_OFFSET_HOURS = 3; // UTC+3
+const DAY_NAMES_TR = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
 function addHours(date: Date, h: number) {
   return new Date(date.getTime() + h * 3_600_000);
@@ -103,6 +103,11 @@ export async function GET(req: NextRequest) {
       if (msgId) {
         await prisma.war.update({ where: { id: war.id }, data: { discordMessageId: msgId } });
       }
+
+      // Extra plain-text follow-up message
+      const dayName = DAY_NAMES_TR[schedule.dayOfWeek];
+      const timeStr = `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`;
+      await sendChannelText(`@everyone ${dayName} ${timeStr} savaşı için katılım bildirmeyi unutmayın! ⚔️`);
     }
 
     results.push({ id: schedule.id, name: schedule.name, action: `created war #${war.id}` });
