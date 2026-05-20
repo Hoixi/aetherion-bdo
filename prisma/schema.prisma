@@ -87,7 +87,7 @@ model GeoRound {
   completed Boolean @default(false)
 
   game  GeoGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  image GeoImage @relation(fields: [imageId], references: [id])
+  image GeoImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
 
   @@map("geo_rounds")
 }

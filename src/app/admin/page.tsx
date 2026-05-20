@@ -127,6 +127,8 @@ export default function AdminPage() {
   const [geoPickX, setGeoPickX] = useState<number | null>(null);
   const [geoPickY, setGeoPickY] = useState<number | null>(null);
   const [geoSaving, setGeoSaving] = useState(false);
+  const [geoUploading, setGeoUploading] = useState(false);
+  const [geoUploadMode, setGeoUploadMode] = useState<"url" | "file">("file");
 
   // War schedule form
   const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -300,10 +302,15 @@ export default function AdminPage() {
       body: JSON.stringify({ imageUrl: geoImgUrl, mapX: geoPickX, mapY: geoPickY, hint: geoImgHint || null }),
     });
     if (res.ok) {
-      setGeoImgUrl(""); setGeoImgHint(""); setGeoPickX(null); setGeoPickY(null); setGeoPickMode(false);
+      setGeoImgUrl(""); setGeoImgHint(""); setGeoPickX(null); setGeoPickY(null);
+      setGeoPickMode(false);
       fetchGeoImages();
       setMessage("Resim eklendi!");
       setTimeout(() => setMessage(null), 3000);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setMessage(d.error || "Resim eklenemedi");
+      setTimeout(() => setMessage(null), 4000);
     }
     setGeoSaving(false);
   }
@@ -1385,17 +1392,82 @@ export default function AdminPage() {
           <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5">
             <h3 className="font-semibold text-bdo-text-primary mb-4">Yeni Resim Ekle</h3>
             <form onSubmit={addGeoImage} className="space-y-4">
-              <div>
-                <label className="block text-xs text-bdo-text-muted mb-1">Resim URL</label>
-                <input
-                  type="url"
-                  value={geoImgUrl}
-                  onChange={(e) => setGeoImgUrl(e.target.value)}
-                  placeholder="https://..."
-                  required
-                  className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary"
-                />
+              {/* Upload mode toggle */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGeoUploadMode("file")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${geoUploadMode === "file" ? "bg-bdo-gold text-bdo-bg" : "bg-bdo-bg border border-bdo-border text-bdo-text-muted hover:text-bdo-gold"}`}
+                >
+                  📁 Dosya Yükle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeoUploadMode("url")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${geoUploadMode === "url" ? "bg-bdo-gold text-bdo-bg" : "bg-bdo-bg border border-bdo-border text-bdo-text-muted hover:text-bdo-gold"}`}
+                >
+                  🔗 URL ile
+                </button>
               </div>
+
+              {geoUploadMode === "file" ? (
+                <div>
+                  <label className="block text-xs text-bdo-text-muted mb-1">
+                    Resim Seç {geoImgUrl && <span className="text-green-400 ml-1">✓ Yüklendi</span>}
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={geoUploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setGeoUploading(true);
+                          try {
+                            const fd = new FormData();
+                            fd.append("image", file);
+                            const res = await fetch("/api/geo/upload", { method: "POST", body: fd });
+                            const data = await res.json();
+                            if (res.ok) {
+                              setGeoImgUrl(data.url);
+                            } else {
+                              setMessage(data.error || "Yükleme başarısız");
+                              setTimeout(() => setMessage(null), 4000);
+                            }
+                          } finally {
+                            setGeoUploading(false);
+                          }
+                        }}
+                      />
+                      <div className={`border-2 border-dashed rounded-lg px-4 py-5 text-center text-sm transition ${geoUploading ? "border-bdo-gold text-bdo-gold animate-pulse" : geoImgUrl ? "border-green-500/50 text-green-400" : "border-bdo-border text-bdo-text-muted hover:border-bdo-gold hover:text-bdo-gold"}`}>
+                        {geoUploading
+                          ? "ImgBB'ye yükleniyor…"
+                          : geoImgUrl
+                          ? "✓ Yüklendi — başka resim seçmek için tıkla"
+                          : "Tıkla veya sürükle → ImgBB'ye otomatik yüklenir"}
+                      </div>
+                    </label>
+                  </div>
+                  {geoImgUrl && (
+                    <img src={geoImgUrl} alt="" className="mt-2 h-24 rounded object-cover border border-bdo-border" />
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs text-bdo-text-muted mb-1">Resim URL</label>
+                  <input
+                    type="url"
+                    value={geoImgUrl}
+                    onChange={(e) => setGeoImgUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs text-bdo-text-muted mb-1">İpucu (opsiyonel — bölge adı)</label>
                 <input
@@ -1437,10 +1509,10 @@ export default function AdminPage() {
 
               <button
                 type="submit"
-                disabled={geoSaving || !geoImgUrl || geoPickX == null}
+                disabled={geoSaving || geoUploading || !geoImgUrl || geoPickX == null}
                 className="px-4 py-2 bg-bdo-gold text-bdo-bg font-semibold rounded-lg text-sm hover:bg-bdo-gold/80 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {geoSaving ? "Kaydediliyor…" : "Resim Ekle"}
+                {geoSaving ? "Kaydediliyor…" : geoUploading ? "Yükleniyor…" : "Resim Ekle"}
               </button>
             </form>
           </div>
