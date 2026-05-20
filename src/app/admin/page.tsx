@@ -4,9 +4,38 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { WarForm } from "@/components/war-form";
 import { WarPerformanceTab } from "@/components/war-performance-tab";
 import { getTypeName } from "@/lib/classes";
+import type { MapMarker } from "@/components/bdo-leaflet-map";
+
+const BdoLeafletMap = dynamic(
+  () => import("@/components/bdo-leaflet-map").then((m) => ({ default: m.BdoLeafletMap })),
+  { ssr: false, loading: () => <div className="w-full h-full bg-[#1a1a2e]" /> }
+);
+
+// Small wrapper so we can pass props cleanly inside the admin JSX
+function GeoAdminPicker({
+  pickedX,
+  pickedY,
+  onPick,
+}: {
+  pickedX: number | null;
+  pickedY: number | null;
+  onPick: (x: number, y: number) => void;
+}) {
+  const markers: MapMarker[] = pickedX != null && pickedY != null
+    ? [{ x: pickedX, y: pickedY, color: "red", label: "Konum" }]
+    : [];
+  return (
+    <BdoLeafletMap
+      className="w-full h-full"
+      onPick={onPick}
+      markers={markers}
+    />
+  );
+}
 
 interface War {
   id: number;
@@ -1378,53 +1407,30 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Map coordinate picker */}
+              {/* Map coordinate picker — Leaflet tile map */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs text-bdo-text-muted">
-                    Haritada Konum {geoPickX != null ? `(${(geoPickX * 100).toFixed(1)}%, ${(geoPickY! * 100).toFixed(1)}%)` : "— henüz seçilmedi"}
+                    Haritada Konum{" "}
+                    {geoPickX != null
+                      ? `✅ seçildi (${(geoPickX * 100).toFixed(1)}%, ${(geoPickY! * 100).toFixed(1)}%)`
+                      : "— henüz seçilmedi"}
                   </label>
                   <button
                     type="button"
                     onClick={() => setGeoPickMode((v) => !v)}
                     className="text-xs text-bdo-gold hover:underline"
                   >
-                    {geoPickMode ? "Kapat" : "Haritadan Seç"}
+                    {geoPickMode ? "Haritayı Kapat" : "Haritadan Seç"}
                   </button>
                 </div>
                 {geoPickMode && (
-                  <div
-                    className="relative w-full border border-bdo-border rounded-lg overflow-hidden cursor-crosshair"
-                    style={{ paddingBottom: "56.25%" }}
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = (e.clientX - rect.left) / rect.width;
-                      const y = (e.clientY - rect.top) / rect.height;
-                      setGeoPickX(Math.max(0, Math.min(1, x)));
-                      setGeoPickY(Math.max(0, Math.min(1, y)));
-                    }}
-                  >
-                    <img
-                      src={process.env.NEXT_PUBLIC_BDO_MAP_URL || "https://bdocodex.com/maps/bdo_map_bg.jpg"}
-                      alt="BDO Harita"
-                      className="absolute inset-0 w-full h-full object-cover"
-                      draggable={false}
+                  <div className="border border-bdo-border rounded-lg overflow-hidden" style={{ height: 380 }}>
+                    <GeoAdminPicker
+                      pickedX={geoPickX}
+                      pickedY={geoPickY}
+                      onPick={(x, y) => { setGeoPickX(x); setGeoPickY(y); }}
                     />
-                    {geoPickX != null && geoPickY != null && (
-                      <div
-                        className="absolute pointer-events-none"
-                        style={{
-                          left: `${geoPickX * 100}%`,
-                          top: `${geoPickY * 100}%`,
-                          transform: "translate(-50%, -50%)",
-                        }}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-lg" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 text-[10px] text-white bg-black/60 px-2 py-1 rounded pointer-events-none">
-                      Tıklayarak konumu seç
-                    </div>
                   </div>
                 )}
               </div>

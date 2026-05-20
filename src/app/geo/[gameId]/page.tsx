@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import type { MapMarker } from "@/components/bdo-leaflet-map";
 
-const BDO_MAP_URL =
-  process.env.NEXT_PUBLIC_BDO_MAP_URL ||
-  "https://bdocodex.com/maps/bdo_map_bg.jpg";
+// Leaflet cannot run on the server — dynamic import with SSR off
+const BdoLeafletMap = dynamic(
+  () => import("@/components/bdo-leaflet-map").then((m) => ({ default: m.BdoLeafletMap })),
+  { ssr: false, loading: () => <div className="w-full h-full bg-[#1a1a2e] animate-pulse" /> }
+);
 
 interface RoundImage {
   id: number;
@@ -53,29 +57,18 @@ export default function GeoGamePage() {
   const [result, setResult] = useState<GuessResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const mapRef = useRef<HTMLDivElement>(null);
 
   const loadGame = useCallback(async () => {
     const res = await fetch(`/api/geo/game/${gameId}`);
     if (!res.ok) { router.push("/geo"); return; }
     const data: Game = await res.json();
     setGame(data);
-
-    // Find first incomplete round
     const firstIncomplete = data.rounds.find((r) => !r.completed);
     if (firstIncomplete) setCurrentRound(firstIncomplete.roundNum);
     setLoading(false);
   }, [gameId, router]);
 
   useEffect(() => { loadGame(); }, [loadGame]);
-
-  function handleMapClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (result) return; // already guessed this round
-    const rect = mapRef.current!.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setPendingGuess({ x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) });
-  }
 
   async function submitGuess() {
     if (!pendingGuess || submitting) return;
@@ -92,10 +85,7 @@ export default function GeoGamePage() {
       });
       const data: GuessResult = await res.json();
       setResult(data);
-      // Update game total score
-      setGame((g) =>
-        g ? { ...g, totalScore: data.totalScore, completed: data.gameCompleted } : g
-      );
+      setGame((g) => g ? { ...g, totalScore: data.totalScore, completed: data.gameCompleted } : g);
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +94,6 @@ export default function GeoGamePage() {
   function nextRound() {
     if (!result) return;
     if (result.gameCompleted) {
-      // Show final screen — reload to get completed state
       loadGame();
       setResult(null);
       return;
@@ -124,7 +113,7 @@ export default function GeoGamePage() {
 
   const round = game.rounds.find((r) => r.roundNum === currentRound);
 
-  // Game completed — final screen
+  // ── Final screen ─────────────────────────────────────────────────────────
   if (game.completed && !result) {
     const maxScore = game.rounds.length * 5000;
     const pct = Math.round((game.totalScore / maxScore) * 100);
@@ -186,10 +175,21 @@ export default function GeoGamePage() {
     );
   }
 
+  // Markers to show on the map
+  const mapMarkers: MapMarker[] = [];
+  if (result) {
+    if (pendingGuess) {
+      mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue", label: "Sen" });
+    }
+    mapMarkers.push({ x: result.correctX, y: result.correctY, color: "green", label: "Doğru" });
+  } else if (pendingGuess) {
+    mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue" });
+  }
+
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white flex flex-col">
       {/* Top bar */}
-      <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3 flex items-center justify-between">
+      <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/geo")}
@@ -207,123 +207,51 @@ export default function GeoGamePage() {
         </div>
       </div>
 
-      {/* Round progress */}
-      <div className="h-1 bg-[#2a2a2a]">
+      {/* Progress bar */}
+      <div className="h-1 bg-[#2a2a2a] flex-shrink-0">
         <div
           className="h-full bg-[#d4a853] transition-all"
           style={{ width: `${((currentRound - 1) / game.rounds.length) * 100}%` }}
         />
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Screenshot panel */}
+      {/* Main area */}
+      <div className="flex-1 flex flex-col lg:flex-row" style={{ minHeight: 0 }}>
+        {/* Screenshot */}
         <div className="lg:w-1/2 bg-black flex items-center justify-center p-2 relative" style={{ minHeight: "40vh" }}>
           <img
             src={round.image.imageUrl}
             alt="BDO Konum"
             className="max-w-full max-h-full object-contain rounded"
-            style={{ maxHeight: "calc(100vh - 200px)" }}
+            style={{ maxHeight: "calc(100vh - 160px)" }}
           />
           {result && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 rounded-lg px-4 py-2 text-center">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 rounded-lg px-4 py-2 text-center pointer-events-none">
               <div className="text-2xl font-bold text-[#d4a853]">+{result.score.toLocaleString()}</div>
               {result.hint && <div className="text-gray-300 text-sm mt-1">📍 {result.hint}</div>}
             </div>
           )}
         </div>
 
-        {/* Map panel */}
+        {/* Leaflet Map */}
         <div className="lg:w-1/2 flex flex-col bg-[#111]" style={{ minHeight: "40vh" }}>
-          <div className="px-4 py-2 text-xs text-gray-500 border-b border-[#2a2a2a]">
-            {result ? "Sonuç" : "Haritaya tıkla → konumu seç"}
+          <div className="px-4 py-2 text-xs text-gray-500 border-b border-[#2a2a2a] flex-shrink-0">
+            {result ? "Sonuç — yeşil doğru konum, mavi tahminin" : "Haritada konuma tıkla"}
           </div>
 
-          {/* The map */}
-          <div
-            ref={mapRef}
-            className="relative flex-1 cursor-crosshair overflow-hidden"
-            onClick={handleMapClick}
-          >
-            <img
-              src={BDO_MAP_URL}
-              alt="BDO Dünya Haritası"
-              className="w-full h-full object-cover"
-              draggable={false}
-            />
+          <BdoLeafletMap
+            className="flex-1 w-full"
+            onPick={result ? undefined : (x, y) => setPendingGuess({ x, y })}
+            markers={mapMarkers}
+            interactive={!result}
+          />
 
-            {/* Pending guess marker */}
-            {pendingGuess && !result && (
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  left: `${pendingGuess.x * 100}%`,
-                  top: `${pendingGuess.y * 100}%`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              >
-                <div className="w-5 h-5 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
-              </div>
-            )}
-
-            {/* After guess: guess pin + correct pin + line */}
-            {result && (
-              <>
-                {/* Guess marker */}
-                {pendingGuess && (
-                  <div
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: `${pendingGuess.x * 100}%`,
-                      top: `${pendingGuess.y * 100}%`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    <div className="w-5 h-5 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
-                    <div className="text-[10px] text-white text-center mt-1 bg-blue-600/80 px-1 rounded">Sen</div>
-                  </div>
-                )}
-
-                {/* Correct marker */}
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: `${result.correctX * 100}%`,
-                    top: `${result.correctY * 100}%`,
-                    transform: "translate(-50%, -50%)",
-                  }}
-                >
-                  <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow-lg" />
-                  <div className="text-[10px] text-white text-center mt-1 bg-green-600/80 px-1 rounded">Doğru</div>
-                </div>
-
-                {/* SVG line between the two */}
-                {pendingGuess && (
-                  <svg
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ overflow: "visible" }}
-                  >
-                    <line
-                      x1={`${pendingGuess.x * 100}%`}
-                      y1={`${pendingGuess.y * 100}%`}
-                      x2={`${result.correctX * 100}%`}
-                      y2={`${result.correctY * 100}%`}
-                      stroke="white"
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                      strokeOpacity="0.7"
-                    />
-                  </svg>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Bottom action */}
-          <div className="p-3 border-t border-[#2a2a2a] flex items-center justify-between gap-3">
+          {/* Bottom action bar */}
+          <div className="p-3 border-t border-[#2a2a2a] flex items-center justify-between gap-3 flex-shrink-0">
             {!result ? (
               <>
                 <span className="text-xs text-gray-500">
-                  {pendingGuess ? "Tahminini onayla" : "Konuma tıkla"}
+                  {pendingGuess ? "Konumu seçtin — onayla veya başka yere tıkla" : "Haritaya tıkla"}
                 </span>
                 <button
                   onClick={submitGuess}
@@ -336,13 +264,8 @@ export default function GeoGamePage() {
             ) : (
               <>
                 <div className="text-sm">
-                  <span className="text-gray-400">Mesafe: </span>
-                  <span className="text-white font-semibold">
-                    {(result.distance * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-gray-600 text-xs ml-3">
-                    +{result.score.toLocaleString()} puan
-                  </span>
+                  <span className="text-[#d4a853] font-bold text-lg">+{result.score.toLocaleString()}</span>
+                  <span className="text-gray-500 text-xs ml-2">puan</span>
                 </div>
                 <button
                   onClick={nextRound}
