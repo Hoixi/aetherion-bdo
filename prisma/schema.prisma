@@ -49,6 +49,7 @@ model SiteRole {
   isAdmin        Boolean  @default(false)
   color          String   @default("#d4a853")
   discordRoleIds String   @db.Text
+  priority       Int      @default(0)
   createdAt      DateTime @default(now())
 
   users User[]

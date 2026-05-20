@@ -52,6 +52,7 @@ interface SiteRole {
   isAdmin: boolean;
   color: string;
   discordRoleIds: string;
+  priority: number;
   _count: { users: number };
 }
 
@@ -94,6 +95,7 @@ export default function AdminPage() {
   const [newRoleIsAdmin, setNewRoleIsAdmin] = useState(false);
   const [newRoleColor, setNewRoleColor] = useState("#d4a853");
   const [newRoleDiscordIds, setNewRoleDiscordIds] = useState("");
+  const [newRolePriority, setNewRolePriority] = useState(0);
   const [editingRole, setEditingRole] = useState<SiteRole | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [publishing, setPublishing] = useState<number | null>(null);
@@ -392,6 +394,7 @@ export default function AdminPage() {
           isAdmin: newRoleIsAdmin,
           color: newRoleColor,
           discordRoleIds: discordIds,
+          priority: newRolePriority,
         }),
       });
       setMessage("Rol güncellendi.");
@@ -404,6 +407,7 @@ export default function AdminPage() {
           isAdmin: newRoleIsAdmin,
           color: newRoleColor,
           discordRoleIds: discordIds,
+          priority: newRolePriority,
         }),
       });
       setMessage("Rol oluşturuldu.");
@@ -427,6 +431,7 @@ export default function AdminPage() {
     setNewRoleName(role.name);
     setNewRoleIsAdmin(role.isAdmin);
     setNewRoleColor(role.color);
+    setNewRolePriority(role.priority ?? 0);
     const ids: string[] = JSON.parse(role.discordRoleIds || "[]");
     setNewRoleDiscordIds(ids.join(", "));
   }
@@ -437,6 +442,7 @@ export default function AdminPage() {
     setNewRoleIsAdmin(false);
     setNewRoleColor("#d4a853");
     setNewRoleDiscordIds("");
+    setNewRolePriority(0);
   }
 
   if (!session?.user.isAdmin) return null;
@@ -1004,6 +1010,20 @@ export default function AdminPage() {
                   Bu Discord rollerine sahip kişiler otomatik olarak bu site rolünü alır. Discord&apos;da Geliştirici Modu açıp roldeki sağ tık &gt; ID Kopyala.
                 </p>
               </div>
+              <div>
+                <label className="block text-sm text-bdo-text-muted mb-1">
+                  Öncelik <span className="text-bdo-text-muted/60">(yüksek = daha önce kontrol edilir)</span>
+                </label>
+                <input
+                  type="number"
+                  value={newRolePriority}
+                  onChange={(e) => setNewRolePriority(Number(e.target.value))}
+                  className="w-32 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary font-mono text-sm focus:border-bdo-gold focus:outline-none"
+                />
+                <p className="text-[11px] text-bdo-text-muted mt-1">
+                  Üye gibi herkeste olan roller için 0, Subay/Kurmay gibi özel roller için 10, 20, 30… verin.
+                </p>
+              </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1058,6 +1078,11 @@ export default function AdminPage() {
                       <span className="text-xs text-bdo-text-muted">
                         {role._count.users} üye
                       </span>
+                      {role.priority > 0 && (
+                        <span className="text-[10px] bg-bdo-bg border border-bdo-border text-bdo-text-muted px-1.5 py-0.5 rounded font-mono">
+                          öncelik {role.priority}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button

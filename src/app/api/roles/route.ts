@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { name, isAdmin, color, discordRoleIds } = body;
+  const { name, isAdmin, color, discordRoleIds, priority } = body;
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       isAdmin: isAdmin ?? false,
       color: color || "#d4a853",
       discordRoleIds: JSON.stringify(discordRoleIds || []),
+      priority: priority ?? 0,
     },
   });
 

@@ -64,13 +64,13 @@ export const authOptions: NextAuthOptions = {
       if (!hasRole) return "/denied";
 
       // Find matching site role based on Discord role IDs
-      const siteRoles = await prisma.siteRole.findMany();
+      // Sort: admin first, then by priority descending (higher = more specific role wins)
+      const siteRoles = await prisma.siteRole.findMany({
+        orderBy: [{ isAdmin: "desc" }, { priority: "desc" }],
+      });
       let matchedRole: typeof siteRoles[0] | null = null;
 
-      // Priority: admin roles first, then non-admin
-      const sortedRoles = [...siteRoles].sort((a, b) => (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0));
-
-      for (const siteRole of sortedRoles) {
+      for (const siteRole of siteRoles) {
         const discordIds: string[] = JSON.parse(siteRole.discordRoleIds || "[]");
         if (discordIds.length === 0) continue;
         if (discordIds.some((id) => roles.includes(id))) {
