@@ -69,6 +69,7 @@ export function BdoLeafletMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef       = useRef<LeafletMap | null>(null);
   const overlayRefs  = useRef<(LeafletMarker | Polyline)[]>([]);
+  const resizeRef    = useRef<ResizeObserver | null>(null);
 
   // ── Init map (once) ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -125,9 +126,27 @@ export function BdoLeafletMap({
       }
 
       mapRef.current = map;
+
+      // Leaflet reads container size at init time — in flex layouts the
+      // computed height may not have settled yet, so force a recalc after
+      // the browser has painted the first frame.
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+
+      // Keep invalidating whenever the container is resized (e.g. window
+      // resize, panel transitions) so click coordinates stay accurate.
+      resizeRef.current = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      if (containerRef.current) {
+        resizeRef.current.observe(containerRef.current);
+      }
     });
 
     return () => {
+      resizeRef.current?.disconnect();
+      resizeRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -196,7 +215,7 @@ export function BdoLeafletMap({
     <div
       ref={containerRef}
       className={className}
-      style={{ background: "#1a1a2e" }}
+      style={{ background: "#1a1a2e", height: "100%", minHeight: 0 }}
     />
   );
 }
