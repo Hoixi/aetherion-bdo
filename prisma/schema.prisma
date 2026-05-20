@@ -84,9 +84,11 @@ model War {
   deadline         DateTime?
   result           WarResult?
   maxParticipants  Int?
-  discordMessageId String?
-  reminder10hSent  Boolean    @default(false)
-  reminder4hSent   Boolean    @default(false)
+  discordMessageId    String?
+  reminder10hSent     Boolean  @default(false)
+  reminder4hSent      Boolean  @default(false)
+  reminder10hMsgId    String?
+  reminder4hMsgId     String?
   createdBy        Int
   createdAt        DateTime   @default(now())
 
