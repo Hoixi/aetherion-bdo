@@ -5,15 +5,23 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+// Mükemmel isabet yarıçapı — bu mesafe dahilinde tam 5000 puan verilir
 const PERFECT_RADIUS = 0.005;
-const ZERO_SCORE_DISTANCE = 0.3;
+
+// Üstel düşüş formülü: score = 5000 × e^(−k × dist)
+// dist, normalize [0,1] koordinat uzayında Öklid mesafesidir.
+// k=15 ile referans değerler:
+//   dist=0.01  → 4303 puan   (çok yakın, ~%1 sapma)
+//   dist=0.03  → 3175 puan   (yakın,    ~%3 sapma)
+//   dist=0.06  → 2019 puan   (orta,     ~%6 sapma)
+//   dist=0.10  → 1116 puan   (uzak,    ~%10 sapma)
+//   dist=0.15  →  527 puan   (çok uzak, ~%15 sapma)
+//   dist=0.20  →  249 puan   (fena,    ~%20 sapma)
+const DECAY_K = 15;
 
 function calcScore(dist: number): number {
   if (dist <= PERFECT_RADIUS) return 5000;
-
-  const scoreRange = ZERO_SCORE_DISTANCE - PERFECT_RADIUS;
-  const adjustedDist = dist - PERFECT_RADIUS;
-  return Math.max(0, Math.round(5000 - (adjustedDist / scoreRange) * 5000));
+  return Math.max(0, Math.round(5000 * Math.exp(-DECAY_K * dist)));
 }
 
 // POST /api/geo/game/[id]/guess
