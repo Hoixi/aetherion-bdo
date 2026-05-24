@@ -300,10 +300,7 @@ export function BdoLeafletMap({
         const lat    = center.lat - (py - rect.height / 2) / scale;
 
         const norm = latLngToNorm(lat, lng);
-        onPickRef.current(
-          Math.max(0, Math.min(1, norm.x)),
-          Math.max(0, Math.min(1, norm.y)),
-        );
+        onPickRef.current(norm.x, norm.y);
       }}
     >
       <div
