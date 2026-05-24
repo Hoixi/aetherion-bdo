@@ -10,6 +10,7 @@ import nacl from "tweetnacl";
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const CHANNEL_ID = process.env.DISCORD_CHANNEL_ID!;
+const APPLICATION_ID = process.env.DISCORD_APPLICATION_ID!;
 const SITE_URL = process.env.NEXTAUTH_URL || "https://aetherion-bdo.vercel.app";
 const GOLD = 0xd4a853;
 const PARTY_SIZE = 5;
@@ -399,7 +400,7 @@ async function handleCommand(
   discordUserId: string,
   channelId: string,
   _interactionId: string,
-  _interactionToken: string,
+  interactionToken: string,
   member: DiscordInteractionMember | null
 ) {
   // ─── /gs-güncelle ───
@@ -443,29 +444,61 @@ async function handleCommand(
       return ephemeral("Bu komut sadece Aetherion Discord sunucusunda kullanilabilir.");
     }
 
-    const user = await syncUserFromDiscordInteraction(discordUserId, member);
-    const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
+    // Discord requires a response within 3 seconds. Cold start + 5 DB queries
+    // (siteRole sync + token create) can exceed that, so we ACK immediately with
+    // a deferred ephemeral response (type 5) and then PATCH the original message
+    // with the actual content via the interaction webhook.
+    //
+    // The follow-up runs as fire-and-forget — on Vercel's Node runtime, pending
+    // promises continue executing after the response is sent (within the function
+    // max-duration). This is safe because the webhook call has its own timeout
+    // and the user just sees a "Bot is thinking..." message until it lands.
+    (async () => {
+      try {
+        const user = await syncUserFromDiscordInteraction(discordUserId, member);
+        const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
 
-    return NextResponse.json({
-      type: 4,
-      data: {
-        flags: 64,
-        content: `Siteye girmek icin **Yetkilendir** butonuna bas. Link ${expiresAt.toLocaleTimeString("tr-TR", {
-          timeZone: "Europe/Istanbul",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}'a kadar gecerlidir ve tek kullanimliktir.`,
-        components: [{
-          type: 1,
-          components: [{
-            type: 2,
-            style: 5,
-            label: "Yetkilendir",
-            url: loginUrl,
-          }],
-        }],
-      },
-    });
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${APPLICATION_ID}/${interactionToken}/messages/@original`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: `Siteye girmek icin **Yetkilendir** butonuna bas. Link ${expiresAt.toLocaleTimeString("tr-TR", {
+                timeZone: "Europe/Istanbul",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}'a kadar gecerlidir ve tek kullanimliktir.`,
+              components: [{
+                type: 1,
+                components: [{
+                  type: 2,
+                  style: 5,
+                  label: "Yetkilendir",
+                  url: loginUrl,
+                }],
+              }],
+            }),
+          },
+        );
+      } catch (err) {
+        console.error("/login follow-up failed:", err);
+        // Best-effort error message to the user
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${APPLICATION_ID}/${interactionToken}/messages/@original`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: "Login linki olusturulurken bir hata olustu. Lutfen tekrar dene.",
+            }),
+          },
+        ).catch(() => {});
+      }
+    })();
+
+    // Type 5 = deferred channel message (ephemeral via flags 64)
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
 
   // ─── /profil ───
