@@ -24,6 +24,7 @@ export const NE_LNG =  (6 * T) / Z3; //  192  east  edge of tile x=5 (exclusive)
 
 const LAT_RANGE = NE_LAT - SW_LAT; //  128
 const LNG_RANGE = NE_LNG - SW_LNG; //  160
+const PAN_PADDING = 0.5;
 
 export const BDO_CENTER: [number, number] = [
   (SW_LAT + NE_LAT) / 2,  // −160
@@ -88,6 +89,7 @@ export function BdoLeafletMap({
         [SW_LAT, SW_LNG],
         [NE_LAT, NE_LNG],
       );
+      const panBounds = worldBounds.pad(PAN_PADDING);
 
       const map = L.map(containerRef.current!, {
         crs: L.CRS.Simple,
@@ -99,8 +101,8 @@ export function BdoLeafletMap({
         attributionControl: false,
         // Soft boundary — lets the user pan/zoom freely so edge tiles render
         // but snaps back when they release.
-        maxBounds: worldBounds,
-        maxBoundsViscosity: 1.0,
+        maxBounds: panBounds,
+        maxBoundsViscosity: 0.8,
       });
 
       // ── Tile layer — NO bounds param so all zoom levels load freely ────────
@@ -116,11 +118,13 @@ export function BdoLeafletMap({
         const el = containerRef.current;
         if (!el) return;
 
+        const panLatRange = LAT_RANGE * (1 + PAN_PADDING * 2);
+        const panLngRange = LNG_RANGE * (1 + PAN_PADDING * 2);
         const minCoverZoom = Math.max(
           1,
           Math.min(
             9,
-            Math.ceil(Math.log2(Math.max(el.clientWidth / LNG_RANGE, el.clientHeight / LAT_RANGE)) * 4) / 4,
+            Math.ceil(Math.log2(Math.max(el.clientWidth / panLngRange, el.clientHeight / panLatRange)) * 4) / 4,
           ),
         );
 
@@ -128,7 +132,7 @@ export function BdoLeafletMap({
         if (map.getZoom() < minCoverZoom) {
           map.setZoom(Math.max(initialZoom, minCoverZoom), { animate: false });
         }
-        map.panInsideBounds(worldBounds, { animate: false });
+        map.panInsideBounds(panBounds, { animate: false });
       };
 
       map.fitBounds(worldBounds);
