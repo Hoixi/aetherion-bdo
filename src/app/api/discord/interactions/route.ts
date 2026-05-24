@@ -421,7 +421,7 @@ async function handleCommand(
     });
 
     const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
-    const sent = await sendDirectMessage(discordUserId, {
+    void sendDirectMessage(discordUserId, {
       embeds: [{
         title: "Aetherion Site Girisi",
         description: [
@@ -440,13 +440,9 @@ async function handleCommand(
           })} - Aetherion`,
         },
       }],
-    });
+    }).catch(() => {});
 
-    if (!sent) {
-      return ephemeral("DM gonderemedim. Discord gizlilik ayarlarinda sunucu uyelerinden DM almaya izin verip tekrar `/login` dene.");
-    }
-
-    return ephemeral("Giris linkini DM olarak gonderdim. Link 5 dakika gecerli.");
+    return ephemeral("Giris linkini DM olarak gonderiyorum. Link 5 dakika gecerli olacak.");
   }
 
   // ─── /profil ───
