@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const PERFECT_RADIUS = 0.03;
+const PERFECT_RADIUS = 0.01;
 const ZERO_SCORE_DISTANCE = 0.625;
 
 function calcScore(dist: number): number {
