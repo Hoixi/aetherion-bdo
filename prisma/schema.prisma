@@ -335,6 +335,9 @@ model Activity {
   id               Int          @id @default(autoincrement())
   type             ActivityType
   maxSize          Int
+  partySlot        String?      @db.VarChar(120)
+  altarLevel       Int?
+  note             String?      @db.Text
   creatorId        Int
   expiresAt        DateTime
   discordMessageId String?

@@ -18,6 +18,9 @@ export type ActivityEmbedInput = {
   id: number;
   type: string;
   maxSize: number;
+  partySlot?: string | null;
+  altarLevel?: number | null;
+  note?: string | null;
   expiresAt: Date;
   creator: { familyName: string };
   members: { user: { familyName: string; ap: number; dp: number } }[];
@@ -43,6 +46,17 @@ export function buildActivityEmbed(activity: ActivityEmbedInput, active = true) 
   const diffMs = expires.getTime() - Date.now();
   const diffMin = Math.max(0, Math.floor(diffMs / 60000));
   const expiresText = diffMin > 60 ? `${Math.floor(diffMin / 60)}sa ${diffMin % 60}dk` : `${diffMin}dk`;
+  const detailFields = [
+    activity.type === "PARTI_SLOTLARI" && activity.partySlot
+      ? { name: "Slot", value: activity.partySlot, inline: true }
+      : null,
+    activity.type === "KAN_ALTARI" && activity.altarLevel
+      ? { name: "Seviye", value: String(activity.altarLevel), inline: true }
+      : null,
+    activity.type === "KAN_ALTARI" && activity.note
+      ? { name: "Not", value: activity.note.slice(0, 1024), inline: false }
+      : null,
+  ].filter(Boolean);
 
   return {
     embed: {
@@ -50,6 +64,7 @@ export function buildActivityEmbed(activity: ActivityEmbedInput, active = true) 
       description: desc,
       color,
       fields: [
+        ...detailFields,
         {
           name: `👥 Katılımcılar (${activity.members.length}/${activity.maxSize})`,
           value: slots.join("\n"),

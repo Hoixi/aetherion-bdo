@@ -41,10 +41,22 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { type, maxSize } = await req.json();
+  const { type, maxSize, partySlot, altarLevel, note } = await req.json();
 
   const validTypes = ["KARA_TAPINAK", "KAN_ALTARI", "PARTI_SLOTLARI"];
   if (!validTypes.includes(type)) return NextResponse.json({ error: "Geçersiz tip" }, { status: 400 });
+
+  const cleanedPartySlot = typeof partySlot === "string" ? partySlot.trim().slice(0, 120) : null;
+  const cleanedNote = typeof note === "string" ? note.trim().slice(0, 500) : null;
+  const parsedAltarLevel = Number(altarLevel);
+
+  if (type === "PARTI_SLOTLARI" && !cleanedPartySlot) {
+    return NextResponse.json({ error: "Slot bilgisini girin" }, { status: 400 });
+  }
+
+  if (type === "KAN_ALTARI" && (!Number.isInteger(parsedAltarLevel) || parsedAltarLevel < 1)) {
+    return NextResponse.json({ error: "Kan Altari seviyesi girin" }, { status: 400 });
+  }
 
   const size =
     type === "KARA_TAPINAK" ? 5 :
@@ -57,6 +69,9 @@ export async function POST(req: Request) {
     data: {
       type,
       maxSize: size,
+      partySlot: type === "PARTI_SLOTLARI" ? cleanedPartySlot : null,
+      altarLevel: type === "KAN_ALTARI" ? parsedAltarLevel : null,
+      note: type === "KAN_ALTARI" ? cleanedNote : null,
       creatorId: session.user.id,
       expiresAt,
       members: { create: { userId: session.user.id } },

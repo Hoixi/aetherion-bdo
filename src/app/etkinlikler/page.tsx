@@ -19,6 +19,9 @@ interface Activity {
   id: number;
   type: "KARA_TAPINAK" | "KAN_ALTARI" | "PARTI_SLOTLARI";
   maxSize: number;
+  partySlot: string | null;
+  altarLevel: number | null;
+  note: string | null;
   expiresAt: string;
   createdAt: string;
   creator: ActivityUser;
@@ -59,6 +62,9 @@ export default function EtkinliklerPage() {
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<"KARA_TAPINAK" | "KAN_ALTARI" | "PARTI_SLOTLARI">("PARTI_SLOTLARI");
   const [formSize, setFormSize] = useState(5);
+  const [partySlot, setPartySlot] = useState("");
+  const [altarLevel, setAltarLevel] = useState("");
+  const [activityNote, setActivityNote] = useState("");
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -80,11 +86,24 @@ export default function EtkinliklerPage() {
     const res = await fetch("/api/activities", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: formType, maxSize: formSize }),
+      body: JSON.stringify({
+        type: formType,
+        maxSize: formSize,
+        partySlot: formType === "PARTI_SLOTLARI" ? partySlot : undefined,
+        altarLevel: formType === "KAN_ALTARI" ? altarLevel : undefined,
+        note: formType === "KAN_ALTARI" ? activityNote : undefined,
+      }),
     });
     if (res.ok) {
       setShowForm(false);
+      setPartySlot("");
+      setAltarLevel("");
+      setActivityNote("");
       fetchActivities();
+    } else {
+      const data = await res.json().catch(() => null);
+      setMessage(data?.error ?? "Etkinlik olusturulamadi");
+      setTimeout(() => setMessage(null), 3000);
     }
     setCreating(false);
   }
@@ -173,6 +192,45 @@ export default function EtkinliklerPage() {
             </div>
           )}
 
+          {formType === "PARTI_SLOTLARI" && (
+            <div>
+              <label className="block text-sm text-bdo-text-muted mb-2">Hangi slot?</label>
+              <input
+                value={partySlot}
+                onChange={(e) => setPartySlot(e.target.value)}
+                maxLength={120}
+                placeholder="Orn: Gyfin alt, Dehkia Ash, Tungrad..."
+                className="w-full rounded-lg border border-bdo-border bg-bdo-bg px-3 py-2 text-sm text-bdo-text-primary outline-none transition-colors placeholder:text-bdo-text-secondary focus:border-bdo-gold/60"
+              />
+            </div>
+          )}
+
+          {formType === "KAN_ALTARI" && (
+            <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+              <div>
+                <label className="block text-sm text-bdo-text-muted mb-2">Seviye</label>
+                <input
+                  value={altarLevel}
+                  onChange={(e) => setAltarLevel(e.target.value)}
+                  type="number"
+                  min={1}
+                  placeholder="Orn: 5"
+                  className="w-full rounded-lg border border-bdo-border bg-bdo-bg px-3 py-2 text-sm text-bdo-text-primary outline-none transition-colors placeholder:text-bdo-text-secondary focus:border-bdo-gold/60"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-bdo-text-muted mb-2">Not</label>
+                <input
+                  value={activityNote}
+                  onChange={(e) => setActivityNote(e.target.value)}
+                  maxLength={500}
+                  placeholder="Orn: Elixir alin, boss odak..."
+                  className="w-full rounded-lg border border-bdo-border bg-bdo-bg px-3 py-2 text-sm text-bdo-text-primary outline-none transition-colors placeholder:text-bdo-text-secondary focus:border-bdo-gold/60"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="text-xs text-bdo-text-muted">
             ⏱ Etkinlik 2 saat sonra otomatik silinir. Oluşturan kişi otomatik katılmış sayılır.
           </div>
@@ -213,6 +271,15 @@ export default function EtkinliklerPage() {
                       {TYPE_ICONS[a.type]} {TYPE_LABELS[a.type]}
                     </span>
                     <div className="text-xs text-bdo-text-muted mt-1.5">⏱ {timeLeft(a.expiresAt)} kaldı</div>
+                    {a.type === "PARTI_SLOTLARI" && a.partySlot && (
+                      <div className="text-xs text-bdo-gold mt-1.5">Slot: {a.partySlot}</div>
+                    )}
+                    {a.type === "KAN_ALTARI" && (
+                      <div className="text-xs text-bdo-gold mt-1.5">
+                        Seviye: {a.altarLevel ?? "-"}
+                        {a.note ? <span className="text-bdo-text-muted"> - {a.note}</span> : null}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className={`text-lg font-bold font-mono ${isFull ? "text-red-400" : "text-bdo-gold"}`}>
