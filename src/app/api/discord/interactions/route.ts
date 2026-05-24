@@ -14,6 +14,14 @@ const SITE_URL = process.env.NEXTAUTH_URL || "https://aetherion-bdo.vercel.app";
 const GOLD = 0xd4a853;
 const PARTY_SIZE = 5;
 
+type DiscordInteractionMember = {
+  roles?: string[];
+  user?: {
+    id?: string;
+    avatar?: string | null;
+  };
+};
+
 function verifySignature(body: string, signature: string, timestamp: string): boolean {
   try {
     return nacl.sign.detached.verify(
@@ -40,6 +48,46 @@ function publicEmbed(embeds: unknown[], components?: unknown[]) {
 
 function getOption(options: { name: string; value: unknown }[] | undefined, name: string) {
   return options?.find((o) => o.name === name)?.value;
+}
+
+function getDiscordAvatarUrl(discordUserId: string, member?: DiscordInteractionMember | null) {
+  const avatar = member?.user?.avatar;
+  return avatar ? `https://cdn.discordapp.com/avatars/${discordUserId}/${avatar}.webp?size=128` : "";
+}
+
+async function syncUserFromDiscordInteraction(discordUserId: string, member?: DiscordInteractionMember | null) {
+  const roles = member?.roles ?? [];
+  const existingUser = await prisma.user.findUnique({ where: { discordId: discordUserId } });
+  const siteRoles = await prisma.siteRole.findMany({
+    orderBy: [{ isAdmin: "desc" }, { priority: "desc" }],
+  });
+
+  let matchedRole: typeof siteRoles[0] | null = null;
+  for (const siteRole of siteRoles) {
+    const discordRoleIds: string[] = JSON.parse(siteRole.discordRoleIds || "[]");
+    if (discordRoleIds.some((roleId) => roles.includes(roleId))) {
+      matchedRole = siteRole;
+      break;
+    }
+  }
+
+  const avatarUrl = getDiscordAvatarUrl(discordUserId, member);
+  const isAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
+
+  return prisma.user.upsert({
+    where: { discordId: discordUserId },
+    update: {
+      avatarUrl: avatarUrl || existingUser?.avatarUrl || "",
+      isAdmin,
+      siteRoleId: matchedRole?.id ?? existingUser?.siteRoleId ?? null,
+    },
+    create: {
+      discordId: discordUserId,
+      avatarUrl,
+      isAdmin,
+      siteRoleId: matchedRole?.id ?? null,
+    },
+  });
 }
 
 // ─── BUTTON HANDLERS ────────────────────────────────────────
@@ -342,25 +390,6 @@ async function sendChannelMessage(channelId: string, content: string | null, emb
   });
 }
 
-async function sendDirectMessage(discordUserId: string, payload: { content?: string; embeds?: unknown[] }) {
-  const dmRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
-    body: JSON.stringify({ recipient_id: discordUserId }),
-  });
-
-  if (!dmRes.ok) return false;
-  const dmChannel = await dmRes.json();
-
-  const msgRes = await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
-    body: JSON.stringify(payload),
-  });
-
-  return msgRes.ok;
-}
-
 // ─── SLASH COMMAND HANDLERS ─────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -371,7 +400,7 @@ async function handleCommand(
   channelId: string,
   _interactionId: string,
   _interactionToken: string,
-  fromGuild: boolean
+  member: DiscordInteractionMember | null
 ) {
   // ─── /gs-güncelle ───
   if (name === "gs-güncelle") {
@@ -410,39 +439,33 @@ async function handleCommand(
 
   // --- /login ---
   if (name === "login") {
-    if (!fromGuild) {
+    if (!member) {
       return ephemeral("Bu komut sadece Aetherion Discord sunucusunda kullanilabilir.");
     }
 
-    const user = await prisma.user.upsert({
-      where: { discordId: discordUserId },
-      update: {},
-      create: { discordId: discordUserId },
-    });
-
+    const user = await syncUserFromDiscordInteraction(discordUserId, member);
     const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
-    void sendDirectMessage(discordUserId, {
-      embeds: [{
-        title: "Aetherion Site Girisi",
-        description: [
-          "Siteye giris yapmak icin asagidaki tek kullanimlik linki ac.",
-          "",
-          loginUrl,
-          "",
-          "Bu link 5 dakika gecerlidir ve sadece bir kez kullanilabilir.",
-        ].join("\n"),
-        color: GOLD,
-        footer: {
-          text: `Sure sonu: ${expiresAt.toLocaleTimeString("tr-TR", {
-            timeZone: "Europe/Istanbul",
-            hour: "2-digit",
-            minute: "2-digit",
-          })} - Aetherion`,
-        },
-      }],
-    }).catch(() => {});
 
-    return ephemeral("Giris linkini DM olarak gonderiyorum. Link 5 dakika gecerli olacak.");
+    return NextResponse.json({
+      type: 4,
+      data: {
+        flags: 64,
+        content: `Siteye girmek icin **Yetkilendir** butonuna bas. Link ${expiresAt.toLocaleTimeString("tr-TR", {
+          timeZone: "Europe/Istanbul",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}'a kadar gecerlidir ve tek kullanimliktir.`,
+        components: [{
+          type: 1,
+          components: [{
+            type: 2,
+            style: 5,
+            label: "Yetkilendir",
+            url: loginUrl,
+          }],
+        }],
+      },
+    });
   }
 
   // ─── /profil ───
@@ -1064,7 +1087,7 @@ export async function POST(req: NextRequest) {
       channelId,
       interaction.id,
       interaction.token,
-      Boolean(interaction.member)
+      interaction.member ?? null
     );
   }
 
