@@ -74,6 +74,10 @@ const COMMANDS = [
     ],
   },
   {
+    name: "login",
+    description: "Siteye giris icin tek kullanimlik linki DM olarak gonder",
+  },
+  {
     name: "partiboss",
     description: "Boss partisi oluştur",
     options: [

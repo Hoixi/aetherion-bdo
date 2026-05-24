@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { updateWarEmbed, sendWarToDiscord } from "@/lib/discord-bot";
 import { getClassByID } from "@/lib/classes";
 import { buildActivityEmbed, updateActivityMessage } from "@/lib/activity-discord";
+import { createMobileLoginLink } from "@/lib/mobile-login-token";
 import nacl from "tweetnacl";
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
@@ -341,6 +342,25 @@ async function sendChannelMessage(channelId: string, content: string | null, emb
   });
 }
 
+async function sendDirectMessage(discordUserId: string, payload: { content?: string; embeds?: unknown[] }) {
+  const dmRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+    body: JSON.stringify({ recipient_id: discordUserId }),
+  });
+
+  if (!dmRes.ok) return false;
+  const dmChannel = await dmRes.json();
+
+  const msgRes = await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+    body: JSON.stringify(payload),
+  });
+
+  return msgRes.ok;
+}
+
 // ─── SLASH COMMAND HANDLERS ─────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -349,8 +369,9 @@ async function handleCommand(
   options: { name: string; value: unknown }[] | undefined,
   discordUserId: string,
   channelId: string,
-  interactionId: string,
-  interactionToken: string
+  _interactionId: string,
+  _interactionToken: string,
+  fromGuild: boolean
 ) {
   // ─── /gs-güncelle ───
   if (name === "gs-güncelle") {
@@ -385,6 +406,47 @@ async function handleCommand(
       url: `${SITE_URL}/members/${user.id}`,
       footer: { text: "Aetherion" },
     }]);
+  }
+
+  // --- /login ---
+  if (name === "login") {
+    if (!fromGuild) {
+      return ephemeral("Bu komut sadece Aetherion Discord sunucusunda kullanilabilir.");
+    }
+
+    const user = await prisma.user.upsert({
+      where: { discordId: discordUserId },
+      update: {},
+      create: { discordId: discordUserId },
+    });
+
+    const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
+    const sent = await sendDirectMessage(discordUserId, {
+      embeds: [{
+        title: "Aetherion Site Girisi",
+        description: [
+          "Siteye giris yapmak icin asagidaki tek kullanimlik linki ac.",
+          "",
+          loginUrl,
+          "",
+          "Bu link 5 dakika gecerlidir ve sadece bir kez kullanilabilir.",
+        ].join("\n"),
+        color: GOLD,
+        footer: {
+          text: `Sure sonu: ${expiresAt.toLocaleTimeString("tr-TR", {
+            timeZone: "Europe/Istanbul",
+            hour: "2-digit",
+            minute: "2-digit",
+          })} - Aetherion`,
+        },
+      }],
+    });
+
+    if (!sent) {
+      return ephemeral("DM gonderemedim. Discord gizlilik ayarlarinda sunucu uyelerinden DM almaya izin verip tekrar `/login` dene.");
+    }
+
+    return ephemeral("Giris linkini DM olarak gonderdim. Link 5 dakika gecerli.");
   }
 
   // ─── /profil ───
@@ -935,6 +997,7 @@ async function handleCommand(
               "`/gs-güncelle` — GS bilgilerini kaydet/güncelle",
               "`/gs` — Kendi veya birinin GS'ini göster",
               "`/profil` — Detaylı profil görüntüle",
+              "`/login` — Site giris linkini DM olarak al",
               "`/sıralama` — GS sıralaması (Top 20)",
               "`/klan` — Klan genel istatistikleri",
             ].join("\n"),
@@ -1004,7 +1067,8 @@ export async function POST(req: NextRequest) {
       discordUserId,
       channelId,
       interaction.id,
-      interaction.token
+      interaction.token,
+      Boolean(interaction.member)
     );
   }
 
