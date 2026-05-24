@@ -5,10 +5,15 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const PERFECT_RADIUS = 0.03;
+const ZERO_SCORE_DISTANCE = 0.625;
+
 function calcScore(dist: number): number {
-  // dist is Euclidean distance in [0,1] space (max ~1.414)
-  // 5000 points at dist=0, 0 points at dist>=0.625
-  return Math.max(0, Math.round(5000 - dist * 8000));
+  if (dist <= PERFECT_RADIUS) return 5000;
+
+  const scoreRange = ZERO_SCORE_DISTANCE - PERFECT_RADIUS;
+  const adjustedDist = dist - PERFECT_RADIUS;
+  return Math.max(0, Math.round(5000 - (adjustedDist / scoreRange) * 5000));
 }
 
 // POST /api/geo/game/[id]/guess
@@ -80,9 +85,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   return NextResponse.json({
     score,
     distance,
-    correctX: round.image.mapX,
-    correctY: round.image.mapY,
-    hint: round.image.hint,
     totalScore,
     gameCompleted: allCompleted,
   });

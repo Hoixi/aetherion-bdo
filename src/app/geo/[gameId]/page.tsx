@@ -40,9 +40,6 @@ interface Game {
 interface GuessResult {
   score: number;
   distance: number;
-  correctX: number;
-  correctY: number;
-  hint: string | null;
   totalScore: number;
   gameCompleted: boolean;
 }
@@ -181,7 +178,6 @@ export default function GeoGamePage() {
     if (pendingGuess) {
       mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue", label: "Sen" });
     }
-    mapMarkers.push({ x: result.correctX, y: result.correctY, color: "green", label: "Doğru" });
   } else if (pendingGuess) {
     mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue" });
   }
@@ -227,7 +223,6 @@ export default function GeoGamePage() {
           {result && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 rounded-xl px-5 py-3 text-center pointer-events-none backdrop-blur-sm">
               <div className="text-3xl font-bold text-[#d4a853]">+{result.score.toLocaleString()}</div>
-              {result.hint && <div className="text-gray-300 text-sm mt-1">📍 {result.hint}</div>}
             </div>
           )}
         </div>
@@ -236,7 +231,7 @@ export default function GeoGamePage() {
         <div className="lg:w-1/2 flex flex-col" style={{ minHeight: "45vh" }}>
           {/* Map hint bar */}
           <div className="px-4 py-1.5 text-xs text-gray-500 bg-[#111] border-b border-[#2a2a2a] flex-shrink-0 flex items-center justify-between">
-            <span>{result ? "Yeşil = doğru konum · Mavi = tahminin" : "Haritada konuma tıkla"}</span>
+            <span>{result ? "Mavi = tahminin" : "Haritada konuma tıkla"}</span>
             {pendingGuess && !result && (
               <span className="text-[#d4a853]">📍 Konum seçildi</span>
             )}
