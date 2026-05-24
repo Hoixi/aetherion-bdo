@@ -68,10 +68,16 @@ export function BdoLeafletMap({
   className = "",
   initialZoom = 3,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef       = useRef<LeafletMap | null>(null);
-  const overlayRefs  = useRef<(LeafletMarker | Polyline)[]>([]);
-  const resizeRef    = useRef<ResizeObserver | null>(null);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const mapRef        = useRef<LeafletMap | null>(null);
+  const overlayRefs   = useRef<(LeafletMarker | Polyline)[]>([]);
+  const resizeRef     = useRef<ResizeObserver | null>(null);
+  // Keep a stable ref to onPick so the React onClick handler always sees the
+  // latest value without needing the map to be re-created.
+  const onPickRef     = useRef(onPick);
+  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => { onPickRef.current = onPick; }, [onPick]);
 
   // ── Init map (once) ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -87,12 +93,14 @@ export function BdoLeafletMap({
         crs: L.CRS.Simple,
         minZoom: 1,
         maxZoom: 9,
+        zoomSnap: 0.25,
+        zoomDelta: 0.5,
         zoomControl: true,
         attributionControl: false,
         // Soft boundary — lets the user pan/zoom freely so edge tiles render
         // but snaps back when they release.
-        maxBounds: worldBounds.pad(0.5),
-        maxBoundsViscosity: 0.3,
+        maxBounds: worldBounds,
+        maxBoundsViscosity: 1.0,
       });
 
       // ── Tile layer — NO bounds param so all zoom levels load freely ────────
@@ -104,33 +112,68 @@ export function BdoLeafletMap({
         // errorTileUrl: "" keeps failed tiles transparent instead of broken-img
       }).addTo(map);
 
+      const syncViewport = () => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const minCoverZoom = Math.max(
+          1,
+          Math.min(
+            9,
+            Math.ceil(Math.log2(Math.max(el.clientWidth / LNG_RANGE, el.clientHeight / LAT_RANGE)) * 4) / 4,
+          ),
+        );
+
+        map.setMinZoom(minCoverZoom);
+        if (map.getZoom() < minCoverZoom) {
+          map.setZoom(Math.max(initialZoom, minCoverZoom), { animate: false });
+        }
+        map.panInsideBounds(worldBounds, { animate: false });
+      };
+
       map.fitBounds(worldBounds);
       map.setZoom(initialZoom);
+      syncViewport();
 
-      // Click → pick
-      if (onPick) {
-        map.on("click", (e: L.LeafletMouseEvent) => {
-          const norm = latLngToNorm(e.latlng.lat, e.latlng.lng);
-          onPick(
-            Math.max(0, Math.min(1, norm.x)),
-            Math.max(0, Math.min(1, norm.y)),
-          );
-        });
-      }
+      // NOTE: We intentionally do NOT attach map.on('click', ...) here.
+      // Leaflet's click handler relies on getBoundingClientRect() for coordinate
+      // conversion which mismatches offsetHeight in flex/fixed layouts, producing
+      // a dead zone in the upper portion of the map. Instead we intercept clicks
+      // at the React layer (see onClick below) and use containerPointToLatLng()
+      // which only needs the map's internal pan/zoom state — no DOM measurement.
 
       mapRef.current = map;
 
       // Leaflet reads container dimensions at init time. In a flex / fixed
       // layout the browser may not have finished painting, so we invalidate
-      // the size at several points to guarantee correct click coordinates.
-      requestAnimationFrame(() => map.invalidateSize());
-      setTimeout(() => map.invalidateSize(), 100);
-      setTimeout(() => map.invalidateSize(), 400);
+      // the size at several points to guarantee correct tile rendering.
+      requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false });
+        syncViewport();
+        // Second rAF — runs after the browser has committed the first paint
+        requestAnimationFrame(() => {
+          map.invalidateSize({ animate: false });
+          syncViewport();
+        });
+      });
+      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 150);
+      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 500);
+      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 1000);
 
-      // Also re-invalidate on any container resize (window resize, etc.)
-      resizeRef.current = new ResizeObserver(() => map.invalidateSize());
+      // Re-invalidate on any container resize (window resize, panel open/close, etc.)
+      // Watch the OUTER wrapper (className div) — that's what flex resizes.
+      // The inner absolute div tracks it silently, but ResizeObserver on it may
+      // not fire if only the outer div changed without a reflow of the inner.
+      resizeRef.current = new ResizeObserver(() => {
+        map.invalidateSize({ animate: false });
+        syncViewport();
+      });
+      // Observe both the Leaflet container AND its positioned parent
       if (containerRef.current) {
         resizeRef.current.observe(containerRef.current);
+        if (containerRef.current.parentElement) {
+          resizeRef.current.observe(containerRef.current.parentElement);
+        }
       }
     });
 
@@ -202,11 +245,63 @@ export function BdoLeafletMap({
   }, [markers]);
 
   // The outer div establishes the flex / grid cell size (className controls this).
-  // The inner div is absolute-filled so Leaflet always gets an exact, unambiguous
-  // bounding rect — this prevents the offsetHeight vs. getBoundingClientRect
-  // mismatch that causes click coordinates to be offset in the upper half.
+  // The inner div is absolute-filled so Leaflet always gets a stable, exact rect.
+  //
+  // Click handling bypasses Leaflet's map.on('click') entirely — that API reads
+  // getBoundingClientRect() which produces wrong values in flex/fixed layouts and
+  // creates dead zones. Instead we intercept the React synthetic onClick, compute
+  // the cursor offset relative to the wrapper's own bounding rect, and feed that
+  // pixel point to containerPointToLatLng() which only uses the map's internal
+  // pan/zoom matrices, completely avoiding the DOM-measurement problem.
   return (
-    <div className={className} style={{ position: "relative", minHeight: 0 }}>
+    <div
+      className={className}
+      style={{ position: "relative", minHeight: 0 }}
+      onPointerDownCapture={(e) => {
+        pointerDownPos.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerUpCapture={(e) => {
+        if (!onPickRef.current || !mapRef.current || !containerRef.current) return;
+        if ((e.target as HTMLElement).closest(".leaflet-control")) return;
+        // Ignore drag: if the pointer moved more than 5 px it was a pan, not a pick
+        const down = pointerDownPos.current;
+        if (
+          down &&
+          (Math.abs(e.clientX - down.x) > 5 || Math.abs(e.clientY - down.y) > 5)
+        ) return;
+
+        // ── Direct CRS.Simple math — no dependency on Leaflet's cached _size ──
+        //
+        // Leaflet's containerPointToLatLng internally uses map._pixelOrigin which
+        // is computed from map._size (the container dimensions cached at init time).
+        // In a flex / fixed layout _size is often captured before the browser
+        // finishes painting, so it may be smaller than the actual rendered container,
+        // creating dead zones at the edges.
+        //
+        // For CRS.Simple the projection is purely linear, so we can derive lat/lng
+        // from first principles using only the map's current center + zoom plus the
+        // actual rendered rect — no Leaflet internal caches involved:
+        //
+        //   lat = center.lat − (py − h/2) / scale
+        //   lng = center.lng + (px − w/2) / scale
+        //
+        // where px/py are pixel offsets from the container top-left,
+        // and scale = 2^zoom (pixels per CRS unit at the current zoom level).
+        const rect   = containerRef.current.getBoundingClientRect();
+        const px     = e.clientX - rect.left;
+        const py     = e.clientY - rect.top;
+        const scale  = Math.pow(2, mapRef.current.getZoom());
+        const center = mapRef.current.getCenter();
+        const lng    = center.lng + (px - rect.width  / 2) / scale;
+        const lat    = center.lat - (py - rect.height / 2) / scale;
+
+        const norm = latLngToNorm(lat, lng);
+        onPickRef.current(
+          Math.max(0, Math.min(1, norm.x)),
+          Math.max(0, Math.min(1, norm.y)),
+        );
+      }}
+    >
       <div
         ref={containerRef}
         style={{ position: "absolute", inset: 0, background: "#1a1a2e" }}
