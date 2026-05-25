@@ -5,6 +5,7 @@ import { updateWarEmbed, sendWarToDiscord } from "@/lib/discord-bot";
 import { getClassByID } from "@/lib/classes";
 import { buildActivityEmbed, updateActivityMessage } from "@/lib/activity-discord";
 import { createMobileLoginLink } from "@/lib/mobile-login-token";
+import { withDbRetry } from "@/lib/db-retry";
 import nacl from "tweetnacl";
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY!;
@@ -58,14 +59,24 @@ function getDiscordAvatarUrl(discordUserId: string, member?: DiscordInteractionM
 
 async function syncUserFromDiscordInteraction(discordUserId: string, member?: DiscordInteractionMember | null) {
   const roles = member?.roles ?? [];
-  const existingUser = await prisma.user.findUnique({ where: { discordId: discordUserId } });
-  const siteRoles = await prisma.siteRole.findMany({
-    orderBy: [{ isAdmin: "desc" }, { priority: "desc" }],
-  });
+
+  // Paralel çek — siteRoles user'a bağlı değil, beraber gelsin
+  const [existingUser, siteRoles] = await Promise.all([
+    withDbRetry(() => prisma.user.findUnique({ where: { discordId: discordUserId } })),
+    withDbRetry(() => prisma.siteRole.findMany({
+      orderBy: [{ isAdmin: "desc" }, { priority: "desc" }],
+    })),
+  ]);
 
   let matchedRole: typeof siteRoles[0] | null = null;
   for (const siteRole of siteRoles) {
-    const discordRoleIds: string[] = JSON.parse(siteRole.discordRoleIds || "[]");
+    let discordRoleIds: string[] = [];
+    try {
+      discordRoleIds = JSON.parse(siteRole.discordRoleIds || "[]");
+    } catch {
+      // Bozuk JSON varsa atla, crash etme
+      continue;
+    }
     if (discordRoleIds.some((roleId) => roles.includes(roleId))) {
       matchedRole = siteRole;
       break;
@@ -75,7 +86,7 @@ async function syncUserFromDiscordInteraction(discordUserId: string, member?: Di
   const avatarUrl = getDiscordAvatarUrl(discordUserId, member);
   const isAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
 
-  return prisma.user.upsert({
+  return withDbRetry(() => prisma.user.upsert({
     where: { discordId: discordUserId },
     update: {
       avatarUrl: avatarUrl || existingUser?.avatarUrl || "",
@@ -88,7 +99,7 @@ async function syncUserFromDiscordInteraction(discordUserId: string, member?: Di
       isAdmin,
       siteRoleId: matchedRole?.id ?? null,
     },
-  });
+  }));
 }
 
 // ─── BUTTON HANDLERS ────────────────────────────────────────
@@ -483,15 +494,19 @@ async function handleCommand(
         );
       } catch (err) {
         console.error("/login follow-up failed:", err);
-        // Best-effort error message to the user
+        // Hata mesajını kullanıcıya da göster — debug için faydalı
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const errCode = (err as { code?: string })?.code;
+        const shortMsg = errCode === "P1001"
+          ? "Veritabanina ulasilamadi (sunucu mesgul olabilir). Birkac saniye sonra tekrar dene."
+          : `Bir hata olustu: ${errMsg.slice(0, 180)}`;
+
         await fetch(
           `https://discord.com/api/v10/webhooks/${APPLICATION_ID}/${interactionToken}/messages/@original`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: "Login linki olusturulurken bir hata olustu. Lutfen tekrar dene.",
-            }),
+            body: JSON.stringify({ content: shortMsg }),
           },
         ).catch(() => {});
       }
