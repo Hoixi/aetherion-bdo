@@ -38,22 +38,17 @@ interface TierListData {
 
 interface NoteModalState { classId: string; spec: string; tierId: number; existing: string; }
 
-export default function TierListDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function TierListDetailPage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
   const router = useRouter();
-  const [listId, setListId] = useState<string>("");
+  const listId = params.id;
   const [data, setData] = useState<TierListData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"list" | "my">("list"); // "list" = yaratıcının/aggregate, "my" = benim oyum
+  const [viewMode, setViewMode] = useState<"list" | "my">("list");
   const [selected, setSelected] = useState<{ classId: string; spec: string } | null>(null);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [editingTiers, setEditingTiers] = useState(false);
-
-  useEffect(() => {
-    params.then(({ id }) => { setListId(id); });
-  }, [params]);
 
   const loadData = useCallback(async () => {
     if (!listId) return;
