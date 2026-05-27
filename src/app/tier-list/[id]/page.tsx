@@ -91,9 +91,9 @@ export default function TierListDetailPage({ params }: { params: Promise<{ id: s
         const tierCounts = counts.get(key)!;
         tierCounts.set(v.tierId, (tierCounts.get(v.tierId) ?? 0) + 1);
       }
-      for (const [key, tierCounts] of counts) {
+      for (const [key, tierCounts] of Array.from(counts)) {
         let maxCount = 0; let maxTier = 0;
-        for (const [tierId, count] of tierCounts) {
+        for (const [tierId, count] of Array.from(tierCounts)) {
           if (count > maxCount) { maxCount = count; maxTier = tierId; }
         }
         map.set(key, { tierId: maxTier, note: null });
