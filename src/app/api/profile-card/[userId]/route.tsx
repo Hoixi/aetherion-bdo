@@ -53,8 +53,6 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
   const gs = user.ap + user.dp;
   const rateColor = attendanceRate >= 70 ? "#4ade80" : attendanceRate >= 40 ? "#facc15" : "#f87171";
   const roleColor = user.siteRole?.color ?? "#a78bfa";
-
-  // ── Renk: spec badge ──
   const specBadge = specKey === "succession" ? "SUCC" : "AWK";
 
   return new ImageResponse(
@@ -62,7 +60,6 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
           width: "400px",
           height: "500px",
           background: "#080810",
@@ -70,247 +67,248 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
           overflow: "hidden",
           fontFamily: "sans-serif",
           border: "1.5px solid rgba(212,168,83,0.55)",
+          position: "relative",
         }}
       >
-        {/* ── Portrait area ── */}
-        <div style={{ position: "relative", height: "295px", display: "flex", flexShrink: 0 }}>
-          {/* Portrait image */}
-          {portraitUrl && (
-            <img
-              src={portraitUrl}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                objectPosition: "top center",
-              }}
-            />
-          )}
-
-          {/* Bottom gradient */}
-          <div
+        {/* ── Portre: kartın tamamını doldurur ── */}
+        {portraitUrl && (
+          <img
+            src={portraitUrl}
             style={{
               position: "absolute",
-              bottom: 0,
+              top: 0,
               left: 0,
-              right: 0,
-              height: "160px",
-              background: "linear-gradient(to bottom, transparent, #080810)",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "top center",
             }}
           />
+        )}
 
-          {/* Spec badge — top left */}
+        {/* ── Alt gradient: portre soluklaşarak istatistiklere geçer ── */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "320px",
+            background:
+              "linear-gradient(to top, #080810 0%, #080810 38%, rgba(8,8,16,0.92) 58%, rgba(8,8,16,0.55) 78%, transparent 100%)",
+          }}
+        />
+
+        {/* ── Spec badge — sol üst ── */}
+        <div
+          style={{
+            position: "absolute",
+            top: "12px",
+            left: "12px",
+            background: "rgba(0,0,0,0.65)",
+            border: "1px solid rgba(212,168,83,0.5)",
+            borderRadius: "6px",
+            padding: "3px 10px",
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "#d4a853",
+            letterSpacing: "1px",
+            display: "flex",
+          }}
+        >
+          {specBadge}
+        </div>
+
+        {/* ── Class icon — sağ üst ── */}
+        {iconUrl && (
           <div
             style={{
               position: "absolute",
-              top: "12px",
-              left: "12px",
+              top: "10px",
+              right: "12px",
+              width: "42px",
+              height: "42px",
               background: "rgba(0,0,0,0.65)",
-              border: "1px solid rgba(212,168,83,0.5)",
-              borderRadius: "6px",
-              padding: "3px 10px",
-              fontSize: "10px",
-              fontWeight: 700,
-              color: "#d4a853",
-              letterSpacing: "1px",
+              border: "1px solid rgba(212,168,83,0.35)",
+              borderRadius: "10px",
               display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "7px",
             }}
           >
-            {specBadge}
+            <img src={iconUrl} style={{ width: "100%", height: "100%" }} />
           </div>
+        )}
 
-          {/* Class icon — top right */}
-          {iconUrl && (
-            <div
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "12px",
-                width: "42px",
-                height: "42px",
-                background: "rgba(0,0,0,0.65)",
-                border: "1px solid rgba(212,168,83,0.35)",
-                borderRadius: "10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "7px",
-              }}
-            >
-              <img src={iconUrl} style={{ width: "100%", height: "100%" }} />
-            </div>
-          )}
-
-          {/* Name overlay */}
+        {/* ── Alt içerik: isim + istatistikler ── */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* İsim + class */}
           <div
             style={{
-              position: "absolute",
-              bottom: "8px",
-              left: "16px",
               display: "flex",
               flexDirection: "column",
               gap: "2px",
+              padding: "0 16px 10px",
             }}
           >
-            {/* Guild label */}
             <div style={{ fontSize: "10px", fontWeight: 700, color: "#d4a853", letterSpacing: "2px", display: "flex" }}>
               AETHERION GUILD
             </div>
-            {/* Family name */}
             <div style={{ fontSize: "28px", fontWeight: 900, color: "#ffffff", lineHeight: 1, display: "flex" }}>
               {user.familyName}
             </div>
-            {/* Class · Spec */}
             <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", display: "flex" }}>
               {className} · {specLabel}
             </div>
           </div>
-        </div>
 
-        {/* ── AP / DP / GS row ── */}
-        <div style={{ display: "flex", gap: "8px", padding: "12px 16px 10px", flexShrink: 0 }}>
-          {/* AP */}
-          <div
-            style={{
-              flex: 1,
-              textAlign: "center",
-              background: "rgba(248,113,113,0.08)",
-              border: "1px solid rgba(248,113,113,0.25)",
-              borderRadius: "10px",
-              padding: "10px 6px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            <div style={{ fontSize: "9px", color: "#f87171", letterSpacing: "1px", display: "flex" }}>AP</div>
-            <div style={{ fontSize: "24px", fontWeight: 900, color: "#fff", display: "flex" }}>{user.ap}</div>
-          </div>
-          {/* DP */}
-          <div
-            style={{
-              flex: 1,
-              textAlign: "center",
-              background: "rgba(96,165,250,0.08)",
-              border: "1px solid rgba(96,165,250,0.25)",
-              borderRadius: "10px",
-              padding: "10px 6px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            <div style={{ fontSize: "9px", color: "#60a5fa", letterSpacing: "1px", display: "flex" }}>DP</div>
-            <div style={{ fontSize: "24px", fontWeight: 900, color: "#fff", display: "flex" }}>{user.dp}</div>
-          </div>
-          {/* GS */}
-          <div
-            style={{
-              flex: 1,
-              textAlign: "center",
-              background: "rgba(212,168,83,0.08)",
-              border: "1px solid rgba(212,168,83,0.3)",
-              borderRadius: "10px",
-              padding: "10px 6px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            <div style={{ fontSize: "9px", color: "#d4a853", letterSpacing: "1px", display: "flex" }}>GS</div>
-            <div style={{ fontSize: "24px", fontWeight: 900, color: "#d4a853", display: "flex" }}>{gs}</div>
-          </div>
-        </div>
-
-        {/* ── Attendance row ── */}
-        <div style={{ display: "flex", gap: "8px", padding: "0 16px", flexShrink: 0 }}>
-          {/* Rate */}
-          <div
-            style={{
-              flex: 1,
-              background: "rgba(74,222,128,0.06)",
-              border: "1px solid rgba(74,222,128,0.2)",
-              borderRadius: "10px",
-              padding: "9px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-            }}
-          >
-            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", display: "flex" }}>
-              KATILIM ORANI
-            </div>
-            <div style={{ fontSize: "22px", fontWeight: 900, color: rateColor, display: "flex" }}>
-              %{attendanceRate}
-            </div>
-            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", display: "flex" }}>
-              İlk savaştan beri
-            </div>
-          </div>
-          {/* Wars */}
-          <div
-            style={{
-              flex: 1,
-              background: "rgba(212,168,83,0.05)",
-              border: "1px solid rgba(212,168,83,0.15)",
-              borderRadius: "10px",
-              padding: "9px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-            }}
-          >
-            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", display: "flex" }}>
-              SAVAŞ
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
-              <div style={{ fontSize: "22px", fontWeight: 900, color: "#d4a853", display: "flex" }}>
-                {effectiveAttended}
-              </div>
-              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)", display: "flex" }}>
-                /{totalWars}
-              </div>
-            </div>
-            <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", display: "flex" }}>katılım</div>
-          </div>
-        </div>
-
-        {/* ── Footer ── */}
-        <div
-          style={{
-            marginTop: "auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "9px 16px",
-            background: "rgba(212,168,83,0.06)",
-            borderTop: "1px solid rgba(212,168,83,0.15)",
-          }}
-        >
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#d4a853", letterSpacing: "1px", display: "flex" }}>
-            ⚔ AETHERION
-          </div>
-          {user.siteRole && (
+          {/* AP / DP / GS */}
+          <div style={{ display: "flex", gap: "8px", padding: "0 16px 8px" }}>
             <div
               style={{
-                fontSize: "10px",
-                fontWeight: 600,
-                color: roleColor,
-                border: `1px solid ${roleColor}55`,
-                background: `${roleColor}18`,
-                padding: "2px 10px",
-                borderRadius: "99px",
+                flex: 1,
+                textAlign: "center",
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                borderRadius: "10px",
+                padding: "8px 6px",
                 display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "3px",
               }}
             >
-              {user.siteRole.name}
+              <div style={{ fontSize: "9px", color: "#f87171", letterSpacing: "1px", display: "flex" }}>AP</div>
+              <div style={{ fontSize: "22px", fontWeight: 900, color: "#fff", display: "flex" }}>{user.ap}</div>
             </div>
-          )}
+            <div
+              style={{
+                flex: 1,
+                textAlign: "center",
+                background: "rgba(96,165,250,0.08)",
+                border: "1px solid rgba(96,165,250,0.25)",
+                borderRadius: "10px",
+                padding: "8px 6px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "3px",
+              }}
+            >
+              <div style={{ fontSize: "9px", color: "#60a5fa", letterSpacing: "1px", display: "flex" }}>DP</div>
+              <div style={{ fontSize: "22px", fontWeight: 900, color: "#fff", display: "flex" }}>{user.dp}</div>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                textAlign: "center",
+                background: "rgba(212,168,83,0.08)",
+                border: "1px solid rgba(212,168,83,0.3)",
+                borderRadius: "10px",
+                padding: "8px 6px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "3px",
+              }}
+            >
+              <div style={{ fontSize: "9px", color: "#d4a853", letterSpacing: "1px", display: "flex" }}>GS</div>
+              <div style={{ fontSize: "22px", fontWeight: 900, color: "#d4a853", display: "flex" }}>{gs}</div>
+            </div>
+          </div>
+
+          {/* Katılım */}
+          <div style={{ display: "flex", gap: "8px", padding: "0 16px 10px" }}>
+            <div
+              style={{
+                flex: 1,
+                background: "rgba(74,222,128,0.06)",
+                border: "1px solid rgba(74,222,128,0.2)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+              }}
+            >
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", display: "flex" }}>
+                KATILIM ORANI
+              </div>
+              <div style={{ fontSize: "20px", fontWeight: 900, color: rateColor, display: "flex" }}>
+                %{attendanceRate}
+              </div>
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", display: "flex" }}>
+                İlk savaştan beri
+              </div>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                background: "rgba(212,168,83,0.05)",
+                border: "1px solid rgba(212,168,83,0.15)",
+                borderRadius: "10px",
+                padding: "8px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+              }}
+            >
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "1px", display: "flex" }}>
+                SAVAŞ
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
+                <div style={{ fontSize: "20px", fontWeight: 900, color: "#d4a853", display: "flex" }}>
+                  {effectiveAttended}
+                </div>
+                <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", display: "flex" }}>
+                  /{totalWars}
+                </div>
+              </div>
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", display: "flex" }}>katılım</div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 16px",
+              background: "rgba(212,168,83,0.06)",
+              borderTop: "1px solid rgba(212,168,83,0.15)",
+            }}
+          >
+            <div style={{ fontSize: "12px", fontWeight: 700, color: "#d4a853", letterSpacing: "1px", display: "flex" }}>
+              AETHERION
+            </div>
+            {user.siteRole && (
+              <div
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: roleColor,
+                  border: `1px solid ${roleColor}55`,
+                  background: `${roleColor}18`,
+                  padding: "2px 10px",
+                  borderRadius: "99px",
+                  display: "flex",
+                }}
+              >
+                {user.siteRole.name}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     ),
