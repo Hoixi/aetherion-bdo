@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { WarCard } from "@/components/war-card";
-import { CharacterCard } from "@/components/character-card";
+import { DashboardHero } from "@/components/dashboard-hero";
 import { GuildStats } from "@/components/guild-stats";
 import { MiniCalendar } from "@/components/mini-calendar";
 import Link from "next/link";
@@ -83,14 +83,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-bdo-gold mb-1">Dashboard</h1>
-        <p className="text-sm text-bdo-text-muted">Hoş geldin, {user.familyName || "Kahraman"}</p>
-      </div>
-
-      <CharacterCard
+      <DashboardHero
         familyName={user.familyName}
-        className={user.class}
+        classId={user.class}
         spec={user.spec}
         ap={user.ap}
         dp={user.dp}
