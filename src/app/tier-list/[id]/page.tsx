@@ -65,7 +65,6 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...(canEdit ? { ...listeners, ...attributes } : {})}
       className={`relative group flex flex-col items-center rounded-lg overflow-hidden select-none
         ${canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
