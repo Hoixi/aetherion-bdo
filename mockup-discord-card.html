@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Discord Profil Kartı Mockup</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #1a1a2e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  padding: 40px 24px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #e2e0d8;
+}
+h2 {
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: -32px;
+}
+
+/* ═══════════════════════════════
+   KART STILI
+════════════════════════════════ */
+.card {
+  width: 400px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    0 0 0 1px rgba(212,168,83,0.5),
+    0 0 30px rgba(212,168,83,0.15),
+    0 20px 60px rgba(0,0,0,0.6);
+  background: #0d0d1a;
+}
+
+/* Holographic sheen overlay */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 30%,
+    rgba(212,168,83,0.04) 45%,
+    rgba(212,168,83,0.08) 50%,
+    rgba(212,168,83,0.04) 55%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Gold border shimmer */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  border: 1.5px solid transparent;
+  background: linear-gradient(135deg, rgba(212,168,83,0.8), rgba(212,168,83,0.2), rgba(212,168,83,0.6)) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* ── Portrait area ── */
+.portrait-area {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+}
+.portrait-area img.portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+/* Bottom fade */
+.portrait-area::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 45%,
+    rgba(13,13,26,0.7) 75%,
+    #0d0d1a 100%
+  );
+}
+
+/* Spec badge top-left */
+.spec-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(212,168,83,0.4);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #d4a853;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Class icon top-right */
+.class-icon-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(212,168,83,0.35);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+.class-icon-badge img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Name overlay at bottom of portrait */
+.portrait-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 12px 16px 0;
+}
+.portrait-name .family { font-size: 26px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+.portrait-name .class-line { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+/* ── Stats section ── */
+.stats-section {
+  padding: 14px 16px 16px;
+  position: relative;
+}
+
+/* GS bar */
+.gs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.gs-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #d4a853; width: 22px; flex-shrink: 0; }
+.gs-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.gs-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #b8860b, #d4a853, #ffd700);
+  position: relative;
+}
+.gs-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  border-radius: 99px;
+}
+.gs-value { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; color: #d4a853; width: 38px; text-align: right; flex-shrink: 0; }
+
+/* AP / DP row */
+.combat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.stat-pill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stat-pill .s-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; }
+.stat-pill .s-label.ap { color: #f87171; }
+.stat-pill .s-label.dp { color: #60a5fa; }
+.stat-pill .s-val { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212,168,83,0.2), transparent);
+  margin: 10px 0;
+}
+
+/* Attendance row */
+.attend-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.attend-pill {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.attend-pill .a-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.35); }
+.attend-pill .a-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.attend-pill .a-val.green { color: #4ade80; }
+.attend-pill .a-val.yellow { color: #facc15; }
+.attend-pill .a-val.red { color: #f87171; }
+.attend-pill .a-val.gold { color: #d4a853; }
+.attend-pill .a-sub { font-size: 9px; color: rgba(255,255,255,0.3); }
+
+/* Footer bar */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(212,168,83,0.06);
+  border-top: 1px solid rgba(212,168,83,0.15);
+}
+.footer-guild { font-size: 11px; font-weight: 700; color: #d4a853; letter-spacing: 1px; }
+.footer-role {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px solid;
+}
+
+/* ════════════════════
+   VARIATION 2 — Darker / more dramatic
+════════════════════ */
+.card.v2 { background: #080810; }
+.card.v2 .stats-section { background: #080810; }
+
+/* ════════════════════
+   VARIATION 3 — Compact horizontal
+════════════════════ */
+.card.horizontal {
+  width: 560px;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+}
+.card.horizontal .portrait-area {
+  height: auto;
+  min-height: 100%;
+  border-radius: 0;
+}
+.card.horizontal .portrait-area img.portrait {
+  height: 100%;
+  object-position: center top;
+}
+.card.horizontal .portrait-area::after {
+  background: linear-gradient(to right, transparent 60%, #0d0d1a 100%);
+}
+.card.horizontal .portrait-name {
+  bottom: 12px;
+  left: 12px;
+}
+.card.horizontal .stats-section {
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.card.horizontal .card-footer {
+  grid-column: 1/-1;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+.ctrl-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.7);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ctrl-btn:hover, .ctrl-btn.active { background: rgba(212,168,83,0.15); border-color: rgba(212,168,83,0.4); color: #d4a853; }
+
+.label-row { font-size: 11px; color: rgba(255,255,255,0.25); text-align: center; margin-top: -36px; }
+</style>
+</head>
+<body>
+
+<div style="text-align:center;max-width:640px">
+  <div style="font-size:20px;font-weight:800;color:#d4a853;margin-bottom:8px">Discord Profil Kartı Mockup</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:24px">Kart seçimi ve sınıf değiştirme interaktif</div>
+
+  <div class="controls" id="controls">
+    <button class="ctrl-btn active" onclick="setClass('berserker','awak')">Berserker Awak</button>
+    <button class="ctrl-btn" onclick="setClass('sorceress','succ')">Sorceress Succ</button>
+    <button class="ctrl-btn" onclick="setClass('ranger','awak')">Ranger Awak</button>
+    <button class="ctrl-btn" onclick="setClass('nova','succ')">Nova Succ</button>
+    <button class="ctrl-btn" onclick="setClass('ninja','awak')">Ninja Awak</button>
+  </div>
+</div>
+
+<!-- ═══ KART 1: Portrait (dikey, klasik) ═══ -->
+<h2>Versiyon A — Dikey Portre</h2>
+<div class="card" id="cardA">
+  <!-- Portrait -->
+  <div class="portrait-area">
+    <img class="portrait" id="portraitA" src="public/portrait/berserker_awak.png" alt="">
+    <div class="spec-badge" id="specA">AWK</div>
+    <div class="class-icon-badge">
+      <img id="iconA" src="public/icons/classes/berserker.svg" alt="">
+    </div>
+    <div class="portrait-name">
+      <div class="family">AetherionKing</div>
+      <div class="class-line" id="classLineA">Berserker · Awakening</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-section">
+    <!-- GS bar -->
+    <div class="gs-row">
+      <div class="gs-label">GS</div>
+      <div class="gs-bar-track">
+        <div class="gs-bar-fill" style="width:72%"></div>
+      </div>
+      <div class="gs-value">720</div>
+    </div>
+
+    <!-- AP / DP -->
+    <div class="combat-row">
+      <div class="stat-pill">
+        <span class="s-label ap">⚔ AP</span>
+        <span class="s-val">340</span>
+      </div>
+      <div class="stat-pill">
+        <span class="s-label dp">🛡 DP</span>
+        <span class="s-val">380</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Attendance -->
+    <div class="attend-row">
+      <div class="attend-pill">
+        <div class="a-label">Katılım</div>
+        <div class="a-val gold">18<span style="font-size:11px;color:rgba(255,255,255,0.3);font-weight:400"> / 24</span></div>
+        <div class="a-sub">savaş</div>
+      </div>
+      <div class="attend-pill">
+        <div class="a-label">Katılım Oranı</div>
+        <div class="a-val green">%75</div>
+        <div class="a-sub">ilk savaştan beri</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="card-footer">
+    <div class="footer-guild">⚔ AETHERION</div>
+    <div class="footer-role" style="color:#a78bfa;border-color:#a78bfa55;background:rgba(167,139,250,0.08)">Kurmay</div>
+  </div>
+</div>
+<div class="label-row">Bu boyut Discord'da tam görünür (400×~490px)</div>
+
+
+<!-- ═══ KART 2: Daha dramatik, koyu arka plan ═══ -->
+<h2>Versiyon B — Koyu / Dramatik</h2>
+<div class="card v2" id="cardB">
+  <div class="portrait-area" style="height:320px">
+    <img class="portrait" id="portraitB" src="public/portrait/berserker_awak.png" alt="">
+    <div class="spec-badge" id="specB">AWK</div>
+    <div class="class-icon-badge">
+      <img id="iconB" src="public/icons/classes/berserker.svg" alt="">
+    </div>
+    <div class="portrait-name" style="padding-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:#d4a853;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Aetherion Guild</div>
+      <div class="family" style="font-size:28px">AetherionKing</div>
+      <div class="class-line" id="classLineB">Berserker · Awakening</div>
+    </div>
+  </div>
+
+  <div class="stats-section" style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+    <div style="text-align:center;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:10px 6px">
+      <div style="font-size:9px;text-transform:uppercase;color:#f87171;letter-spacing:1px;margin-bottom:4px">AP</div>
+      <div style="font-size:22px;font-weight:900;color:#fff">340</div>
+    </div>
+    <div style="text-align:center;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:10px 6px">
+      <div style="font-size:9px;text-transform:uppercase;color:#60a5fa;letter-spacing:1px;margin-bottom:4px">DP</div>
+      <div style="font-size:22px;font-weight:900;color:#fff">380</div>
+    </div>
+    <div style="text-align:center;background:rgba(212,168,83,0.08);border:1px solid rgba(212,168,83,0.3);border-radius:10px;padding:10px 6px">
+      <div style="font-size:9px;text-transform:uppercase;color:#d4a853;letter-spacing:1px;margin-bottom:4px">GS</div>
+      <div style="font-size:22px;font-weight:900;color:#d4a853">720</div>
+    </div>
+  </div>
+
+  <div style="padding:0 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:9px 12px">
+      <div style="font-size:9px;text-transform:uppercase;color:rgba(74,222,128,0.7);letter-spacing:1px;margin-bottom:2px">Katılım Oranı</div>
+      <div style="font-size:20px;font-weight:900;color:#4ade80">%75</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.3)">İlk savaştan beri</div>
+    </div>
+    <div style="background:rgba(212,168,83,0.05);border:1px solid rgba(212,168,83,0.15);border-radius:10px;padding:9px 12px">
+      <div style="font-size:9px;text-transform:uppercase;color:rgba(212,168,83,0.6);letter-spacing:1px;margin-bottom:2px">Savaş</div>
+      <div style="font-size:20px;font-weight:900;color:#d4a853">18<span style="font-size:12px;color:rgba(255,255,255,0.3);font-weight:400">/24</span></div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.3)">katılım</div>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <div class="footer-guild">⚔ AETHERION</div>
+    <div class="footer-role" style="color:#a78bfa;border-color:#a78bfa55;background:rgba(167,139,250,0.08)">Kurmay</div>
+  </div>
+</div>
+<div class="label-row">3 sütun istatistik · daha büyük rakamlar</div>
+
+
+<!-- ═══ KART 3: Yatay (mini banner) ═══ -->
+<h2>Versiyon C — Yatay Banner</h2>
+<div class="card horizontal" id="cardC">
+  <div class="portrait-area">
+    <img class="portrait" id="portraitC" src="public/portrait/berserker_awak.png" alt="">
+    <div class="spec-badge" id="specC" style="top:auto;bottom:52px;left:8px;font-size:9px">AWK</div>
+    <div class="portrait-name" style="bottom:8px;left:8px">
+      <div class="family" style="font-size:18px">AetherionKing</div>
+      <div class="class-line" id="classLineC" style="font-size:10px">Berserker</div>
+    </div>
+  </div>
+  <div class="stats-section" style="padding:16px 16px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <img id="iconC" src="public/icons/classes/berserker.svg" style="width:24px;height:24px;opacity:0.7">
+      <div style="font-size:11px;color:rgba(255,255,255,0.5)">Berserker · <span style="color:#d4a853">Awak</span></div>
+      <div style="margin-left:auto;font-size:10px;font-weight:600;color:#a78bfa;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);padding:2px 8px;border-radius:99px">Kurmay</div>
+    </div>
+    <div class="gs-row" style="margin-bottom:10px">
+      <div class="gs-label">GS</div>
+      <div class="gs-bar-track"><div class="gs-bar-fill" style="width:72%"></div></div>
+      <div class="gs-value">720</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div style="text-center;text-align:center">
+        <div style="font-size:9px;color:rgba(248,113,113,0.7);text-transform:uppercase;letter-spacing:0.5px">AP</div>
+        <div style="font-size:16px;font-weight:800;color:#f87171">340</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(96,165,250,0.7);text-transform:uppercase;letter-spacing:0.5px">DP</div>
+        <div style="font-size:16px;font-weight:800;color:#60a5fa">380</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(74,222,128,0.7);text-transform:uppercase;letter-spacing:0.5px">Oran</div>
+        <div style="font-size:16px;font-weight:800;color:#4ade80">%75</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(212,168,83,0.7);text-transform:uppercase;letter-spacing:0.5px">Savaş</div>
+        <div style="font-size:16px;font-weight:800;color:#d4a853">18/24</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <div class="footer-guild">⚔ AETHERION</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3)">Node War Guild</div>
+  </div>
+</div>
+<div class="label-row">Daha kompakt — Discord embed stili</div>
+
+<div style="height:40px"></div>
+
+<script>
+const classMap = {
+  berserker: { icon: 'berserker', label: 'Berserker' },
+  sorceress:  { icon: 'sorceress',  label: 'Sorceress' },
+  ranger:     { icon: 'ranger',     label: 'Ranger' },
+  nova:       { icon: 'nova',       label: 'Nova' },
+  ninja:      { icon: 'ninja',      label: 'Ninja' },
+};
+
+function setClass(cls, spec) {
+  const info = classMap[cls];
+  const specLabel = spec === 'awak' ? 'Awakening' : 'Succession';
+  const specBadge = spec === 'awak' ? 'AWK' : 'SUC';
+  const portraitSrc = `public/portrait/${cls}_${spec}.png`;
+  const iconSrc = `public/icons/classes/${info.icon}.svg`;
+
+  ['A','B','C'].forEach(v => {
+    document.getElementById(`portrait${v}`).src = portraitSrc;
+    const iconEl = document.getElementById(`icon${v}`);
+    if (iconEl) iconEl.src = iconSrc;
+    const specEl = document.getElementById(`spec${v}`);
+    if (specEl) specEl.textContent = specBadge;
+    const lineEl = document.getElementById(`classLine${v}`);
+    if (lineEl) lineEl.textContent = `${info.label} · ${specLabel}`;
+  });
+
+  // Update active button
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

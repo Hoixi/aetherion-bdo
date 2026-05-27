@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profil Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0d1a; color: #e2e0d8; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px; }
+
+  .profile-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* ── LEFT PANEL ── */
+  .portrait-panel {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #12121f;
+    border: 1px solid #2a2a3d;
+    display: flex;
+    flex-direction: column;
+  }
+  .portrait-img {
+    width: 100%;
+    flex: 1;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    min-height: 340px;
+    background: #1a1a30;
+  }
+  .spec-toggle {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    gap: 4px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+    z-index: 10;
+  }
+  .spec-btn {
+    padding: 4px 12px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+  }
+  .spec-btn.active  { background: #d4a853; color: #0d0d1a; }
+  .spec-btn.inactive{ background: transparent; color: rgba(255,255,255,0.45); }
+  .portrait-info {
+    padding: 14px 16px 16px;
+  }
+  .role-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 3px 10px 3px 6px;
+    font-size: 11px; color: #a78bfa; margin-bottom: 6px;
+  }
+  .role-dot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; }
+  .portrait-class-name { font-size: 22px; font-weight: 800; color: #fff; }
+  .portrait-spec-label { font-size: 11px; color: #d4a853; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .gear-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .gear-box { background: #1a1a2e; border: 1px solid #2a2a3d; border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .gear-box.gs { border-color: #d4a853; background: rgba(212,168,83,0.08); }
+  .gear-label { font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 1px; margin-bottom: 3px; }
+  .gear-val { font-size: 18px; font-weight: 800; color: #e2e0d8; }
+  .gear-box.gs .gear-val { color: #d4a853; }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+  .profile-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .family-name { font-size: 26px; font-weight: 800; color: #fff; }
+  .family-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+  .edit-btn {
+    background: rgba(212,168,83,0.12); border: 1px solid rgba(212,168,83,0.3);
+    color: #d4a853; padding: 7px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .edit-btn:hover { background: rgba(212,168,83,0.22); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .stat-card { background: #12121f; border: 1px solid #2a2a3d; border-radius: 12px; padding: 16px 14px; text-align: center; }
+  .stat-label { font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,0.35); letter-spacing: 1.2px; margin-bottom: 6px; }
+  .stat-val { font-size: 28px; font-weight: 800; color: #d4a853; line-height: 1; }
+  .stat-val.green { color: #4ade80; }
+  .stat-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+  .chart-card { background: #12121f; border: 1px solid #2a2a3d; border-radius: 12px; padding: 16px; }
+  .section-label { font-size: 10px; text-transform: uppercase; color: rgba(255,255,255,0.35); letter-spacing: 1.2px; margin-bottom: 12px; }
+  .war-list { display: flex; flex-direction: column; gap: 6px; }
+  .war-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px; background: #0d0d1a; border: 1px solid #1e1e2e;
+    border-radius: 8px; font-size: 13px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .war-row:hover { border-color: rgba(212,168,83,0.3); }
+  .war-meta { display: flex; align-items: center; gap: 8px; }
+  .war-type { font-size: 10px; background: rgba(212,168,83,0.1); color: #d4a853; padding: 2px 7px; border-radius: 4px; }
+  .war-date { font-size: 11px; color: rgba(255,255,255,0.3); }
+
+  /* ── EDIT FORM ── */
+  .edit-form-card { background: #12121f; border: 1px solid #2a2a3d; border-radius: 12px; padding: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 11px; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 0.8px; }
+  .form-input {
+    background: #0d0d1a; border: 1px solid #2a2a3d; border-radius: 8px;
+    padding: 10px 12px; color: #e2e0d8; font-size: 14px; outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: #d4a853; }
+  .spec-select-row { display: flex; gap: 8px; }
+  .spec-select-btn {
+    flex: 1; padding: 9px; border-radius: 8px; border: 1px solid #2a2a3d;
+    background: #0d0d1a; color: rgba(255,255,255,0.5); font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .spec-select-btn.active { border-color: #d4a853; background: rgba(212,168,83,0.12); color: #d4a853; }
+
+  /* ── CLASS GRID ── */
+  .class-search {
+    width: 100%; background: #0d0d1a; border: 1px solid #2a2a3d;
+    border-radius: 8px; padding: 8px 12px; color: #e2e0d8; font-size: 13px;
+    outline: none; margin-bottom: 10px; transition: border-color 0.15s;
+  }
+  .class-search:focus { border-color: #d4a853; }
+  .class-grid-scroll { max-height: 220px; overflow-y: auto; padding-right: 2px; }
+  .class-grid-scroll::-webkit-scrollbar { width: 4px; }
+  .class-grid-scroll::-webkit-scrollbar-track { background: transparent; }
+  .class-grid-scroll::-webkit-scrollbar-thumb { background: #2a2a3d; border-radius: 4px; }
+  .class-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  }
+  .class-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 7px 4px; border-radius: 10px; border: 1px solid #2a2a3d;
+    background: #0d0d1a; cursor: pointer; transition: all 0.15s;
+  }
+  .class-item:hover { border-color: rgba(212,168,83,0.4); background: rgba(212,168,83,0.05); }
+  .class-item.active { border-color: #d4a853; background: rgba(212,168,83,0.1); }
+  .class-icon { width: 34px; height: 34px; }
+  .class-name-label { font-size: 8px; color: rgba(255,255,255,0.45); text-align: center; line-height: 1.2; }
+  .class-item.active .class-name-label { color: #d4a853; }
+
+  .save-btn {
+    width: 100%; padding: 12px; background: #d4a853; color: #0d0d1a;
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 800;
+    cursor: pointer; margin-top: 16px; transition: opacity 0.15s;
+  }
+  .save-btn:hover { opacity: 0.88; }
+  .cancel-btn {
+    width: 100%; padding: 10px; background: transparent; border: 1px solid #2a2a3d;
+    color: rgba(255,255,255,0.4); border-radius: 10px; font-size: 13px;
+    cursor: pointer; margin-top: 8px; transition: all 0.15s;
+  }
+  .cancel-btn:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); }
+
+  .back-link { font-size: 13px; color: rgba(255,255,255,0.35); display: inline-block; cursor: pointer; margin-bottom: 16px; }
+  .back-link:hover { color: #d4a853; }
+
+  /* hidden */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="viewMode">
+  <div style="max-width:1000px;margin:0 auto;">
+    <span class="back-link">← Üyelere dön</span>
+  </div>
+  <div class="profile-layout">
+
+    <!-- LEFT -->
+    <div class="portrait-panel">
+      <div class="spec-toggle">
+        <button class="spec-btn active" id="vBtn_awak" onclick="setSpec('awak')">Awak</button>
+        <button class="spec-btn inactive" id="vBtn_succ" onclick="setSpec('succ')">Succ</button>
+      </div>
+      <img id="viewPortrait" src="" class="portrait-img" alt="portrait"
+           onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'280\' height=\'340\'><rect fill=\'%231a1a2e\' width=\'280\' height=\'340\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23333\' font-size=\'60\'>⚔️</text></svg>'">
+      <div class="portrait-info">
+        <div class="role-badge"><div class="role-dot"></div>Kurmay</div>
+        <div class="portrait-class-name" id="viewClassName">Berserker</div>
+        <div class="portrait-spec-label" id="viewSpecLabel">Awakening</div>
+        <div class="gear-row">
+          <div class="gear-box"><div class="gear-label">AP</div><div class="gear-val">320</div></div>
+          <div class="gear-box"><div class="gear-label">DP</div><div class="gear-val">380</div></div>
+          <div class="gear-box gs"><div class="gear-label">GS</div><div class="gear-val">700</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-panel">
+      <div class="profile-header">
+        <div>
+          <div class="family-name">AilAdı</div>
+          <div class="family-sub">Üye · 12 Ocak 2025'ten beri</div>
+        </div>
+        <button class="edit-btn" onclick="enterEdit()">✏️ Düzenle</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Katılım</div>
+          <div class="stat-val">18</div>
+          <div class="stat-sub">/ 24 savaş</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Katılım Oranı</div>
+          <div class="stat-val green">%75</div>
+          <div class="stat-sub">İyi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">GS Trendi</div>
+          <div class="stat-val" style="font-size:20px;color:#4ade80">↑ +42</div>
+          <div class="stat-sub">Son 30 gün</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="section-label">GS Geçmişi</div>
+        <svg viewBox="0 0 500 100" style="width:100%;height:100px">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#d4a853" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#d4a853" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="40" x2="490" y1="10" y2="10" stroke="rgba(255,255,255,0.04)"/>
+          <line x1="40" x2="490" y1="35" y2="35" stroke="rgba(255,255,255,0.04)"/>
+          <line x1="40" x2="490" y1="60" y2="60" stroke="rgba(255,255,255,0.04)"/>
+          <line x1="40" x2="490" y1="80" y2="80" stroke="rgba(255,255,255,0.04)"/>
+          <text x="35" y="13" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">720</text>
+          <text x="35" y="38" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">690</text>
+          <text x="35" y="63" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">660</text>
+          <text x="35" y="83" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">630</text>
+          <path d="M40 72 L120 65 L200 58 L280 45 L360 30 L440 20 L490 12 L490 85 L40 85Z" fill="url(#g)"/>
+          <path d="M40 72 L120 65 L200 58 L280 45 L360 30 L440 20 L490 12" fill="none" stroke="#d4a853" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="40"  cy="72" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="120" cy="65" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="200" cy="58" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="280" cy="45" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="360" cy="30" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="440" cy="20" r="3.5" fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <circle cx="490" cy="12" r="4"   fill="#d4a853" stroke="#0d0d1a" stroke-width="2"/>
+          <text x="40"  y="96" text-anchor="start" fill="rgba(255,255,255,0.25)" font-size="7">1 Oca</text>
+          <text x="490" y="96" text-anchor="end"   fill="rgba(255,255,255,0.25)" font-size="7">Bugün</text>
+        </svg>
+      </div>
+      <div class="chart-card">
+        <div class="section-label">Son Savaşlar</div>
+        <div class="war-list">
+          <div class="war-row">
+            <span>Serendia Düğümü</span>
+            <div class="war-meta"><span>🏆</span><span class="war-type">Node War</span><span class="war-date">24 May</span></div>
+          </div>
+          <div class="war-row">
+            <span>Balenos Savunması</span>
+            <div class="war-meta"><span>💀</span><span class="war-type">Node War</span><span class="war-date">17 May</span></div>
+          </div>
+          <div class="war-row">
+            <span>Mediah Kuşatması</span>
+            <div class="war-meta"><span>🏆</span><span class="war-type">Siege</span><span class="war-date">10 May</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== EDIT MODE ===== -->
+<div id="editMode" class="hidden">
+  <div style="max-width:1000px;margin:0 auto;">
+    <span class="back-link" onclick="exitEdit()">← Profili görüntüle</span>
+  </div>
+  <div class="profile-layout">
+
+    <!-- LEFT (önizleme — edit'te de güncellenir) -->
+    <div class="portrait-panel">
+      <div class="spec-toggle">
+        <button class="spec-btn active"   id="eBtn_awak" onclick="setSpec('awak')">Awak</button>
+        <button class="spec-btn inactive" id="eBtn_succ" onclick="setSpec('succ')">Succ</button>
+      </div>
+      <img id="editPortrait" src="" class="portrait-img" alt="portrait"
+           onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'280\' height=\'340\'><rect fill=\'%231a1a2e\' width=\'280\' height=\'340\'/></svg>'">
+      <div class="portrait-info">
+        <div class="portrait-class-name" id="editClassName">Berserker</div>
+        <div class="portrait-spec-label" id="editSpecLabel">Awakening</div>
+        <div class="gear-row">
+          <div class="gear-box"><div class="gear-label">AP</div><div class="gear-val" id="previewAP">320</div></div>
+          <div class="gear-box"><div class="gear-label">DP</div><div class="gear-val" id="previewDP">380</div></div>
+          <div class="gear-box gs"><div class="gear-label">GS</div><div class="gear-val" id="previewGS">700</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: form -->
+    <div class="right-panel">
+      <div>
+        <div class="family-name" style="margin-bottom:4px">Profili Düzenle</div>
+        <div class="family-sub">Sol tarafta önizleme anlık güncellenir</div>
+      </div>
+      <div class="edit-form-card">
+        <div class="section-label">Karakter Bilgileri</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Aile Adı</label>
+            <input class="form-input" type="text" value="AilAdı" placeholder="Aile adınız">
+          </div>
+          <div class="form-group">
+            <label class="form-label">AP</label>
+            <input class="form-input" id="inputAP" type="number" value="320" oninput="updatePreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">DP</label>
+            <input class="form-input" id="inputDP" type="number" value="380" oninput="updatePreview()">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Spec</label>
+            <div class="spec-select-row">
+              <div class="spec-select-btn active"   id="formBtn_awak" onclick="setSpec('awak')">Awakening</div>
+              <div class="spec-select-btn inactive" id="formBtn_succ" onclick="setSpec('succ')">Succession</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px">
+          <label class="form-label">Class</label>
+          <input class="class-search" id="classSearch" type="text" placeholder="Ara..." oninput="filterClasses()">
+          <div class="class-grid-scroll">
+            <div class="class-grid" id="classGrid"></div>
+          </div>
+        </div>
+
+        <button class="save-btn">Kaydet</button>
+        <button class="cancel-btn" onclick="exitEdit()">İptal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const CLASSES = [
+  { id: 'berserker',   name: 'Berserker',   hasAwak: true  },
+  { id: 'ranger',      name: 'Ranger',      hasAwak: true  },
+  { id: 'sorceress',   name: 'Sorceress',   hasAwak: true  },
+  { id: 'tamer',       name: 'Tamer',       hasAwak: true  },
+  { id: 'valkyrie',    name: 'Valkyrie',    hasAwak: true  },
+  { id: 'warrior',     name: 'Warrior',     hasAwak: true  },
+  { id: 'witch',       name: 'Witch',       hasAwak: true  },
+  { id: 'wizard',      name: 'Wizard',      hasAwak: true  },
+  { id: 'musa',        name: 'Musa',        hasAwak: true  },
+  { id: 'maehwa',      name: 'Maehwa',      hasAwak: true  },
+  { id: 'ninja',       name: 'Ninja',       hasAwak: true  },
+  { id: 'kunoichi',    name: 'Kunoichi',    hasAwak: true  },
+  { id: 'dark_knight', name: 'Dark Knight', hasAwak: true  },
+  { id: 'striker',     name: 'Striker',     hasAwak: true  },
+  { id: 'mystic',      name: 'Mystic',      hasAwak: true  },
+  { id: 'lahn',        name: 'Lahn',        hasAwak: true  },
+  { id: 'archer',      name: 'Archer',      hasAwak: false },
+  { id: 'shai',        name: 'Shai',        hasAwak: false },
+  { id: 'guardian',    name: 'Guardian',    hasAwak: true  },
+  { id: 'hashashin',   name: 'Hashashin',   hasAwak: true  },
+  { id: 'nova',        name: 'Nova',        hasAwak: true  },
+  { id: 'sage',        name: 'Sage',        hasAwak: true  },
+  { id: 'corsair',     name: 'Corsair',     hasAwak: true  },
+  { id: 'drakania',    name: 'Drakania',    hasAwak: true  },
+  { id: 'woosa',       name: 'Woosa',       hasAwak: true  },
+  { id: 'maegu',       name: 'Maegu',       hasAwak: true  },
+  { id: 'scholar',     name: 'Scholar',     hasAwak: false },
+  { id: 'dosa',        name: 'Dosa',        hasAwak: true  },
+  { id: 'deadeye',     name: 'Deadeye',     hasAwak: false },
+  { id: 'wukong',      name: 'Wukong',      hasAwak: false },
+  { id: 'seraph',      name: 'Seraph',      hasAwak: false },
+];
+
+let currentClass = CLASSES[0];
+let currentSpec  = 'awak'; // 'awak' | 'succ'
+
+// ── Portrait URL ──
+function portraitSrc(cls, spec) {
+  // Classes without awak/succ variants
+  const singleOnly = ['archer','shai','scholar','deadeye','wukong','seraph'];
+  if (singleOnly.includes(cls.id)) return `public/portrait/${cls.id}.png`;
+  return `public/portrait/${cls.id}_${spec}.png`;
+}
+
+// ── Apply state to all portrait elements ──
+function applyState() {
+  const src        = portraitSrc(currentClass, currentSpec);
+  const specLabel  = currentSpec === 'awak' ? 'Awakening' : 'Succession';
+
+  ['viewPortrait','editPortrait'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.src = src;
+  });
+  document.getElementById('viewClassName').textContent  = currentClass.name;
+  document.getElementById('viewSpecLabel').textContent  = specLabel;
+  document.getElementById('editClassName').textContent  = currentClass.name;
+  document.getElementById('editSpecLabel').textContent  = specLabel;
+
+  // Toggle buttons — view
+  document.getElementById('vBtn_awak').className = 'spec-btn ' + (currentSpec==='awak'?'active':'inactive');
+  document.getElementById('vBtn_succ').className = 'spec-btn ' + (currentSpec==='succ'?'active':'inactive');
+  // Toggle buttons — edit header
+  document.getElementById('eBtn_awak').className = 'spec-btn ' + (currentSpec==='awak'?'active':'inactive');
+  document.getElementById('eBtn_succ').className = 'spec-btn ' + (currentSpec==='succ'?'active':'inactive');
+  // Form spec buttons
+  document.getElementById('formBtn_awak').className = 'spec-select-btn ' + (currentSpec==='awak'?'active':'inactive');
+  document.getElementById('formBtn_succ').className = 'spec-select-btn ' + (currentSpec==='succ'?'active':'inactive');
+
+  // Hide succ toggle for single-variant classes
+  const noVariant = ['archer','shai','scholar','deadeye','wukong','seraph'];
+  const hideSucc = noVariant.includes(currentClass.id);
+  ['vBtn_succ','eBtn_succ','formBtn_succ'].forEach(id => {
+    document.getElementById(id).style.display = hideSucc ? 'none' : '';
+  });
+
+  // Class grid highlight
+  document.querySelectorAll('.class-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === currentClass.id);
+  });
+}
+
+// ── Spec change ──
+function setSpec(spec) {
+  currentSpec = spec;
+  applyState();
+}
+
+// ── Class change ──
+function selectClass(cls) {
+  currentClass = cls;
+  // If class has no awak, force succ
+  const noVariant = ['archer','shai','scholar','deadeye','wukong','seraph'];
+  if (noVariant.includes(cls.id)) currentSpec = 'succ';
+  applyState();
+}
+
+// ── AP/DP preview ──
+function updatePreview() {
+  const ap = parseInt(document.getElementById('inputAP').value) || 0;
+  const dp = parseInt(document.getElementById('inputDP').value) || 0;
+  document.getElementById('previewAP').textContent = ap;
+  document.getElementById('previewDP').textContent = dp;
+  document.getElementById('previewGS').textContent = ap + dp;
+}
+
+// ── Edit mode ──
+function enterEdit() {
+  document.getElementById('viewMode').classList.add('hidden');
+  document.getElementById('editMode').classList.remove('hidden');
+  applyState();
+}
+function exitEdit() {
+  document.getElementById('editMode').classList.add('hidden');
+  document.getElementById('viewMode').classList.remove('hidden');
+  applyState();
+}
+
+// ── Build class grid ──
+function buildGrid(filter) {
+  const grid = document.getElementById('classGrid');
+  grid.innerHTML = '';
+  const filtered = filter
+    ? CLASSES.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
+    : CLASSES;
+  filtered.forEach(cls => {
+    const item = document.createElement('div');
+    item.className = 'class-item' + (cls.id === currentClass.id ? ' active' : '');
+    item.dataset.id = cls.id;
+    item.title = cls.name;
+    item.innerHTML = `
+      <img class="class-icon" src="public/icons/classes/${cls.id}.svg" alt="${cls.name}"
+           onerror="this.style.opacity=0.3">
+      <div class="class-name-label">${cls.name}</div>
+    `;
+    item.onclick = () => selectClass(cls);
+    grid.appendChild(item);
+  });
+}
+
+function filterClasses() {
+  buildGrid(document.getElementById('classSearch').value);
+}
+
+// ── Init ──
+buildGrid();
+applyState();
+</script>
+</body>
+</html>

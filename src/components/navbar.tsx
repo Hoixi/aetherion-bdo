@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/members", label: "Üyeler" },
   { href: "/etkinlikler", label: "Etkinlikler" },
   { href: "/forum", label: "Forum" },
+  { href: "/tier-list", label: "Tier List" },
   { href: "/calendar", label: "Takvim" },
   { href: "/hasar-raporu", label: "Hasar Raporu" },
   { href: "/patch-notes", label: "Yama Notları" },

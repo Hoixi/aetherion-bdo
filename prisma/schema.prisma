@@ -42,6 +42,8 @@ model User {
   forumReactions    ForumReaction[]
   geoGames          GeoGame[]
   geoImages         GeoImage[]
+  tierLists         TierList[]     @relation("TierListCreator")
+  tierVotes         TierVote[]
 
   @@map("users")
 }
@@ -399,6 +401,71 @@ model PatchNote {
   fetchedAt   DateTime @default(now())
 
   @@map("patch_notes")
+}
+
+// ─── TIER LIST ───────────────────────────────────────────────
+
+model TierList {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  tags        String   @default("") // comma-separated: PVE,NODE_WAR,ONE_V_ONE,ONE_V_X,AOS
+  isVoting    Boolean  @default(false)
+  createdBy   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator User        @relation("TierListCreator", fields: [createdBy], references: [id])
+  tiers   Tier[]
+  votes   TierVote[]
+
+  @@map("tier_lists")
+}
+
+model Tier {
+  id         Int    @id @default(autoincrement())
+  tierListId Int
+  name       String // S, A, B, C, D (customizable)
+  color      String @default("#ef4444")
+  order      Int    @default(0)
+
+  tierList TierList    @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+  entries  TierEntry[]
+  votes    TierVote[]
+
+  @@map("tiers")
+}
+
+model TierEntry {
+  id      Int     @id @default(autoincrement())
+  tierId  Int
+  classId String
+  spec    String  // "awakening" or "succession"
+  note    String? @db.Text
+  order   Int     @default(0)
+
+  tier Tier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@map("tier_entries")
+}
+
+// Her kullanıcının voting tier list'e verdiği oy
+model TierVote {
+  id         Int      @id @default(autoincrement())
+  tierListId Int
+  userId     Int
+  classId    String
+  spec       String
+  tierId     Int
+  note       String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  tierList TierList @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier     Tier     @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([tierListId, userId, classId, spec])
+  @@map("tier_votes")
 }
 
 // ─── FORUM ───────────────────────────────────────────────────
