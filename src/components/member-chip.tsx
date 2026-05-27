@@ -26,7 +26,7 @@ export interface UserPerfStats {
 // ─── Attendance dot ───────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<AttendanceStatus, { icon: string; color: string; label: string }> = {
-  attending_not_selected:    { icon: "✕", color: "text-orange-400", label: "Katıldı — seçilmedi" },
+  attending_not_selected:    { icon: "✓", color: "text-blue-400",   label: "Katıldı — seçilmedi" },
   attending_selected_absent: { icon: "✕", color: "text-red-500",    label: "Seçildi — gelmedi" },
   attending_selected_came:   { icon: "✓", color: "text-green-400",  label: "Seçildi — geldi" },
   not_attending:             { icon: "○", color: "text-orange-400/60", label: "Katılmadı / cevap yok" },

@@ -299,7 +299,7 @@ export default function WarDetailPage() {
               <span className="font-semibold text-bdo-text-primary mr-1">Son {attendanceHistory.length} savaş:</span>
               <span><span className="text-green-400 font-bold">✓</span> Katıldı + seçildi + geldi</span>
               <span><span className="text-red-500 font-bold">✕</span> Katıldı + seçildi + <em>gelmedi</em></span>
-              <span><span className="text-orange-400 font-bold">✕</span> Katıldı + seçilmedi</span>
+              <span><span className="text-blue-400 font-bold">✓</span> Katıldı + seçilmedi</span>
               <span><span className="text-orange-400/60 font-bold">○</span> Katılmadı / cevap yok</span>
               <span><span className="text-orange-400 font-bold">✓</span> Katılmadı ama geldi</span>
               <span><span className="text-bdo-border font-bold">·</span> Veri yok</span>
