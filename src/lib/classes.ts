@@ -42,6 +42,65 @@ export function getClassImageUrl(classType: number, spec: "awakening" | "success
   return `https://static.pearlcdn.com/asset/portal/bdo_tr/contents/img/portal/gameinfo/${spec}_character_${classType}_char.jpg`;
 }
 
+// Maps DB class IDs (Turkish) → portrait/icon filenames
+const CLASS_PORTRAIT_MAP: Record<string, string> = {
+  savasci:     "warrior",
+  hashashin:   "hashashin",
+  sage:        "sage",
+  wukong:      "wukong",
+  okcu:        "ranger",
+  guardian:    "guardian",
+  bilge:       "scholar",
+  drakania:    "drakania",
+  sahire:      "sorceress",
+  nova:        "nova",
+  corsair:     "corsair",
+  lahn:        "lahn",
+  vahsi:       "berserker",
+  maegu:       "maegu",
+  avci:        "tamer",
+  shai:        "shai",
+  musa:        "musa",
+  striker:     "striker",
+  maehwa:      "maehwa",
+  mistik:      "mystic",
+  valkyrie:    "valkyrie",
+  kunoichi:    "kunoichi",
+  ninja:       "ninja",
+  kara_sovalye:"dark_knight",
+  buyucu:      "wizard",
+  archer:      "archer",
+  cadi:        "witch",
+  woosa:       "woosa",
+  seraph:      "seraph",
+  dosa:        "dosa",
+  deadeye:     "deadeye",
+};
+
+// These classes only have a single portrait (no awak/succ split)
+const NO_VARIANT_PORTRAITS = new Set(["archer", "shai", "scholar", "deadeye", "wukong", "seraph"]);
+
+/** Returns `/portrait/<filename>_awak.png` or `/portrait/<filename>.png` */
+export function getPortraitUrl(classId: string, spec: string): string {
+  const filename = CLASS_PORTRAIT_MAP[classId];
+  if (!filename) return "";
+  if (NO_VARIANT_PORTRAITS.has(filename)) return `/portrait/${filename}.png`;
+  const suffix = spec === "succession" ? "succ" : "awak";
+  return `/portrait/${filename}_${suffix}.png`;
+}
+
+/** Returns `/icons/classes/<filename>.svg` */
+export function getClassIconUrl(classId: string): string {
+  const filename = CLASS_PORTRAIT_MAP[classId];
+  return filename ? `/icons/classes/${filename}.svg` : "";
+}
+
+/** True if the class has separate awak + succ portraits */
+export function hasClassVariants(classId: string): boolean {
+  const filename = CLASS_PORTRAIT_MAP[classId];
+  return !!filename && !NO_VARIANT_PORTRAITS.has(filename);
+}
+
 export function getTypeName(type: string): string {
   switch (type) {
     case "NODE_WAR": return "Node War";
