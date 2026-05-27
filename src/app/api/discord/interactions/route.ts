@@ -541,25 +541,21 @@ async function handleCommand(
     });
     if (!user) return ephemeral("❌ Bu kullanıcı sitede bulunamadı.");
 
-    const attended = await prisma.warParticipant.count({ where: { userId: user.id, status: "ATTENDING" } });
-    const totalWars = await prisma.war.count();
-    const rate = totalWars > 0 ? Math.round((attended / totalWars) * 100) : 0;
-    const classData = getClassByID(user.class);
+    // Profil kartını image olarak gönder
+    const cardUrl = `${SITE_URL}/api/profile-card/${user.id}`;
 
-    return publicEmbed([{
-      title: `👤 ${user.familyName || "İsimsiz"} Profili`,
-      color: GOLD,
-      fields: [
-        { name: "Class", value: classData?.name || user.class || "?", inline: true },
-        { name: "AP", value: `${user.ap}`, inline: true },
-        { name: "DP", value: `${user.dp}`, inline: true },
-        { name: "GS", value: `**${user.ap + user.dp}**`, inline: true },
-        { name: "Katılım", value: `${attended} savaş (%${rate})`, inline: true },
-        { name: "Rol", value: user.siteRole?.name || "Üye", inline: true },
-      ],
-      url: `${SITE_URL}/members/${user.id}`,
-      footer: { text: "Aetherion" },
-    }]);
+    return NextResponse.json({
+      type: 4,
+      data: {
+        embeds: [{
+          color: GOLD,
+          image: { url: cardUrl },
+          url: `${SITE_URL}/members/${user.id}`,
+          footer: { text: `Aetherion • ${user.familyName || "İsimsiz"} profili görüntüle →` },
+        }],
+        flags: 0,
+      },
+    });
   }
 
   // ─── /gs ───

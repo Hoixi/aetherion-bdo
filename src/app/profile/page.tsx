@@ -125,8 +125,9 @@ export default function ProfilePage() {
           ← Profili görüntüle
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5">
-          {/* Live preview portrait */}
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 md:items-start">
+          {/* Live preview portrait — sticky */}
+          <div className="md:sticky md:top-4">
           <PortraitPanel
             classId={bdoClass}
             spec={spec}
@@ -135,6 +136,7 @@ export default function ProfilePage() {
             controlledSpec={spec}
             onSpecChange={handleSpecChange}
           />
+          </div>
 
           {/* Edit form */}
           <div className="space-y-4">
@@ -274,15 +276,17 @@ export default function ProfilePage() {
   // ── VIEW MODE ──
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 md:items-start">
 
-        {/* Portrait panel */}
+        {/* Portrait panel — sticky */}
+        <div className="md:sticky md:top-4">
         <PortraitPanel
           classId={user.class}
           spec={user.spec}
           ap={user.ap}
           dp={user.dp}
         />
+        </div>
 
         {/* Right: header + stats + history */}
         <div className="flex flex-col gap-4">

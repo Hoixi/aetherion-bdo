@@ -70,16 +70,16 @@ export function PortraitPanel({
         </div>
       )}
 
-      {/* Portrait image */}
-      <div className="relative overflow-hidden flex-1" style={{ minHeight: "320px" }}>
+      {/* Portrait image — fixed aspect ratio, never stretches */}
+      <div className="relative overflow-hidden" style={{ height: "360px" }}>
         {portraitSrc ? (
           <img
             src={portraitSrc}
             alt={classData?.name ?? ""}
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            className="w-full h-full object-cover object-top"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-bdo-border/20 to-transparent flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-b from-bdo-border/20 to-transparent flex items-center justify-center">
             <span className="text-5xl opacity-20">⚔️</span>
           </div>
         )}

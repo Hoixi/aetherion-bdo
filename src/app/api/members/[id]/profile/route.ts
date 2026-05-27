@@ -28,12 +28,22 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Sadece üyenin kayıt tarihinden sonraki savaşları say
-  const totalWars = await prisma.war.count({
-    where: { date: { gte: user.createdAt } },
+  // İlk "ATTENDING" savaşından itibaren hesapla
+  const firstAttend = await prisma.warParticipant.findFirst({
+    where: { userId, status: "ATTENDING" },
+    orderBy: { war: { date: "asc" } },
+    include: { war: { select: { date: true } } },
   });
+
   const attended = user.participations.filter((p) => p.status === "ATTENDING").length;
-  const attendanceRate = totalWars > 0 ? Math.round((attended / totalWars) * 100) : 0;
+  const totalWars = firstAttend
+    ? await prisma.war.count({ where: { date: { gte: firstAttend.war.date } } })
+    : 0;
+
+  // Partiye alınıp gelmediyse çıkar
+  const absencePenalty = user.absenceCount ?? 0;
+  const effectiveAttended = Math.max(0, attended - absencePenalty);
+  const attendanceRate = totalWars > 0 ? Math.round((effectiveAttended / totalWars) * 100) : 0;
 
   const gsHistory = await prisma.gsHistory.findMany({
     where: { userId },
@@ -53,7 +63,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     createdAt: user.createdAt,
     stats: {
       totalWars,
-      attended,
+      attended: effectiveAttended,
       attendanceRate,
     },
     wars: user.participations
