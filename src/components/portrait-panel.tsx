@@ -44,31 +44,6 @@ export function PortraitPanel({
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-bdo-border/60 bg-bdo-surface flex flex-col">
-      {/* Spec toggle */}
-      {canToggle && (
-        <div className="absolute top-3 left-3 z-10 flex gap-1 bg-black/55 backdrop-blur-sm rounded-lg p-1 border border-white/8">
-          <button
-            onClick={() => toggle("awakening")}
-            className={`px-3 py-1 rounded-md text-[11px] font-bold tracking-wide transition-all ${
-              activeSpec !== "succession"
-                ? "bg-bdo-gold text-bdo-bg shadow"
-                : "text-white/45 hover:text-white/70"
-            }`}
-          >
-            Awak
-          </button>
-          <button
-            onClick={() => toggle("succession")}
-            className={`px-3 py-1 rounded-md text-[11px] font-bold tracking-wide transition-all ${
-              activeSpec === "succession"
-                ? "bg-bdo-gold text-bdo-bg shadow"
-                : "text-white/45 hover:text-white/70"
-            }`}
-          >
-            Succ
-          </button>
-        </div>
-      )}
 
       {/* Portrait image — fixed aspect ratio, never stretches */}
       <div className="relative overflow-hidden" style={{ height: "360px" }}>
