@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
+import { getClassByID, getClassImageUrl, getClassIconUrl } from "@/lib/classes";
 
 interface DashboardHeroProps {
   familyName: string;
@@ -13,27 +12,27 @@ interface DashboardHeroProps {
 }
 
 export function DashboardHero({ familyName, classId, spec, ap, dp, avatarUrl }: DashboardHeroProps) {
-  const classData   = getClassByID(classId);
-  const specKey     = spec === "succession" && classData?.hasSuccession ? "succession" : "awakening";
-  const portraitUrl = getPortraitUrl(classId, spec);
-  const iconUrl     = getClassIconUrl(classId);
-  const gs          = ap + dp;
+  const classData = getClassByID(classId);
+  const specKey   = spec === "succession" && classData?.hasSuccession ? "succession" : "awakening";
+  const splashUrl = classData ? getClassImageUrl(classData.classType, specKey) : null;
+  const iconUrl   = getClassIconUrl(classId);
+  const gs        = ap + dp;
 
   return (
     <div
       className="relative overflow-hidden rounded-xl border border-bdo-gold/30"
       style={{ height: "190px", background: "#0a0a14" }}
     >
-      {/* Portre — sağda arka plan olarak, neredeyse tam görünür */}
-      {portraitUrl && (
-        <div className="absolute right-0 top-0 bottom-0 overflow-hidden" style={{ width: "55%" }}>
+      {/* Splash art — sağda arka plan */}
+      {splashUrl && (
+        <div className="absolute right-0 top-0 bottom-0 overflow-hidden" style={{ width: "65%" }}>
           <img
-            src={portraitUrl}
+            src={splashUrl}
             alt=""
             className="h-full w-full object-cover object-top pointer-events-none select-none"
           />
-          {/* Sola doğru hafif geçiş */}
-          <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#0a0a14] to-transparent" />
+          {/* Sola hafif geçiş */}
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0a0a14] to-transparent" />
           {/* Üst kenar */}
           <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#0a0a14] to-transparent" />
           {/* Alt kenar */}
