@@ -62,7 +62,7 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
           display: "flex",
           width: "400px",
           height: "500px",
-          background: "#080810",
+          background: "#07080f",
           borderRadius: "20px",
           overflow: "hidden",
           fontFamily: "sans-serif",
@@ -95,7 +95,7 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
             right: 0,
             height: "320px",
             background:
-              "linear-gradient(to top, #080810 0%, #080810 38%, rgba(8,8,16,0.92) 58%, rgba(8,8,16,0.55) 78%, transparent 100%)",
+              "linear-gradient(to top, #07080f 0%, #07080f 38%, rgba(7,8,15,0.92) 58%, rgba(7,8,15,0.55) 78%, transparent 100%)",
           }}
         />
 

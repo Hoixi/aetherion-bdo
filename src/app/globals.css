@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  background-color: #0a0a0f;
+  background-color: #07080f;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -97,8 +97,8 @@ nav {
 .prose-forum ol { list-style: decimal; padding-left: 1.25rem; margin: 0.5rem 0; }
 .prose-forum li { margin: 0.2rem 0; }
 .prose-forum blockquote { border-left: 4px solid #d4a853; padding-left: 1rem; color: #9ca3af; font-style: italic; margin: 0.75rem 0; }
-.prose-forum code { background: #0a0a0f; padding: 1px 6px; border-radius: 4px; color: #d4a853; font-family: monospace; font-size: 0.875em; }
-.prose-forum pre { background: #0a0a0f; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
+.prose-forum code { background: #07080f; padding: 1px 6px; border-radius: 4px; color: #d4a853; font-family: monospace; font-size: 0.875em; }
+.prose-forum pre { background: #07080f; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
 .prose-forum pre code { background: none; padding: 0; color: #d4d4d4; }
 .prose-forum a { color: #d4a853; text-decoration: underline; }
 .prose-forum a:hover { color: #b8923e; }

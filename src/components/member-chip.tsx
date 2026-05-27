@@ -126,7 +126,7 @@ export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }:
       {/* Tooltip — fixed pozisyon, overflow sorununu çözer */}
       {perf && showTooltip && !isDragging && (
         <div
-          className="fixed z-[9999] w-56 bg-[#13131a] border border-bdo-border rounded-xl p-3 shadow-2xl pointer-events-none"
+          className="fixed z-[9999] w-56 bg-[#0f1020] border border-bdo-border rounded-xl p-3 shadow-2xl pointer-events-none"
           style={{ top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-100%)", minWidth: 220 }}
         >
           {/* Header */}

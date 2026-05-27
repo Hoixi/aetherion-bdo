@@ -21,7 +21,7 @@ export function DashboardHero({ familyName, classId, spec, ap, dp, avatarUrl }: 
   return (
     <div
       className="relative overflow-hidden rounded-xl border border-bdo-gold/30"
-      style={{ height: "190px", background: "#0a0a14" }}
+      style={{ height: "190px", background: "#07080f" }}
     >
       {/* Splash art — sağda arka plan */}
       {splashUrl && (
@@ -32,11 +32,11 @@ export function DashboardHero({ familyName, classId, spec, ap, dp, avatarUrl }: 
             className="h-full w-full object-cover object-top pointer-events-none select-none"
           />
           {/* Sola hafif geçiş */}
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0a0a14] to-transparent" />
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#07080f] to-transparent" />
           {/* Üst kenar */}
-          <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#0a0a14] to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-[#07080f] to-transparent" />
           {/* Alt kenar */}
-          <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#0a0a14] to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#07080f] to-transparent" />
         </div>
       )}
 
