@@ -37,12 +37,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!session?.user) return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { discordId: session.user.id } });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  const userId = Number(session.user.id);
+  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin ?? false;
 
   const list = await prisma.tierList.findUnique({ where: { id: Number(id) } });
   if (!list) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
-  if (list.createdBy !== user.id && !user.isAdmin) {
+  if (list.createdBy !== userId && !isAdmin) {
     return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
   }
 
@@ -58,7 +58,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     },
   });
 
-  // Tier isim/renk güncellemesi (varsa)
   if (tiers && Array.isArray(tiers)) {
     for (const t of tiers) {
       if (t.id) {
@@ -78,12 +77,12 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session?.user) return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { discordId: session.user.id } });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  const userId = Number(session.user.id);
+  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin ?? false;
 
   const list = await prisma.tierList.findUnique({ where: { id: Number(id) } });
   if (!list) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
-  if (list.createdBy !== user.id && !user.isAdmin) {
+  if (list.createdBy !== userId && !isAdmin) {
     return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
   }
 

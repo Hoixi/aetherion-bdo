@@ -35,16 +35,15 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
 
-  const user = await prisma.user.findUnique({ where: { discordId: session.user.id } });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  const userId = Number(session.user.id);
+  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin ?? false;
 
   const body = await req.json();
   const { title, description, tags, isVoting, customTiers } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: "Başlık zorunlu" }, { status: 400 });
 
-  // Sadece adminler voting tier list oluşturabilir
-  if (isVoting && !user.isAdmin) {
+  if (isVoting && !isAdmin) {
     return NextResponse.json({ error: "Sadece adminler oylamalı tier list oluşturabilir" }, { status: 403 });
   }
 
@@ -56,7 +55,7 @@ export async function POST(req: Request) {
       description: description?.trim() || null,
       tags: Array.isArray(tags) ? tags.join(",") : "",
       isVoting: isVoting ?? false,
-      createdBy: user.id,
+      createdBy: userId,
       tiers: {
         create: tierDefs.map((t: { name: string; color: string; order: number }) => ({
           name: t.name,

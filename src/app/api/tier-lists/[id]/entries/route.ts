@@ -3,21 +3,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// POST → class'ı tiere ekle (veya taşı)
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { discordId: session.user.id } });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  const userId = Number(session.user.id);
+  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin ?? false;
 
   const list = await prisma.tierList.findUnique({
     where: { id: Number(id) },
     include: { tiers: true },
   });
   if (!list) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
-  if (list.createdBy !== user.id && !user.isAdmin) {
+  if (list.createdBy !== userId && !isAdmin) {
     return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
   }
 
@@ -41,21 +40,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(entry, { status: 201 });
 }
 
-// DELETE → class'ı tierden kaldır
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { discordId: session.user.id } });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  const userId = Number(session.user.id);
+  const isAdmin = (session.user as { isAdmin?: boolean })?.isAdmin ?? false;
 
   const list = await prisma.tierList.findUnique({
     where: { id: Number(id) },
     include: { tiers: true },
   });
   if (!list) return NextResponse.json({ error: "Bulunamadı" }, { status: 404 });
-  if (list.createdBy !== user.id && !user.isAdmin) {
+  if (list.createdBy !== userId && !isAdmin) {
     return NextResponse.json({ error: "Yetki yok" }, { status: 403 });
   }
 
