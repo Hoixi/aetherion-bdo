@@ -168,7 +168,7 @@ export default function TierListDetailPage({ params }: { params: Promise<{ id: s
   if (!data) return <div className="text-center py-16 text-bdo-text-muted">Tier list bulunamadı.</div>;
 
   const tags = data.tags ? data.tags.split(",").filter(Boolean) : [];
-  const isEditing = canEdit || (canVote && viewMode === "my");
+  const isEditing = !!(canEdit || (canVote && viewMode === "my"));
 
   // Pool: yerleştirilmemiş classlar
   const poolItems = ALL_SPECS.filter((s) => !placedMap.has(`${s.classId}__${s.spec}`));
