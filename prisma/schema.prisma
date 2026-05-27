@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // Supabase pooler (pgBouncer) — runtime queries
+  directUrl = env("DIRECT_URL")         // Supabase direct — prisma migrate
 }
 
 model User {
@@ -390,9 +391,9 @@ model PatchNote {
   boardNo     Int      @unique
   title       String
   titleTr     String   @db.Text
-  content     String   @db.LongText
-  contentTr   String   @db.LongText
-  structured  String?  @db.LongText  // JSON: { sections: [...], summary: "..." }
+  content     String   @db.Text
+  contentTr   String   @db.Text
+  structured  String?  @db.Text  // JSON: { sections: [...], summary: "..." }
   thumbnail   String?
   publishedAt DateTime
   fetchedAt   DateTime @default(now())
@@ -422,7 +423,7 @@ model ForumTag {
 model ForumPost {
   id        Int      @id @default(autoincrement())
   title     String
-  content   String   @db.LongText
+  content   String   @db.Text
   authorId  Int
   pinned    Boolean  @default(false)
   viewCount Int      @default(0)
