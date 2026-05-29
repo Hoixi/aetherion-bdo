@@ -542,7 +542,7 @@ async function handleCommand(
     if (!user) return ephemeral("❌ Bu kullanıcı sitede bulunamadı.");
 
     // Profil kartını image olarak gönder
-    const cardUrl = `${SITE_URL}/api/profile-card/${user.id}`;
+    const cardUrl = `${SITE_URL}/api/profile-card/${user.id}?t=${Date.now()}`;
 
     return NextResponse.json({
       type: 4,
