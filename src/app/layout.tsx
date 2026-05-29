@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { Navbar } from "@/components/navbar";
+import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -38,12 +38,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-bdo-bg text-bdo-text-primary font-sans min-h-screen">
         <Providers>
-          <Navbar />
-          <main className="max-w-7xl mx-auto px-4 py-4 pb-20 md:pb-6">{children}</main>
+          <Sidebar />
+          <div className="md:ml-56 min-h-screen flex flex-col">
+            <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 pb-20 md:pb-6">{children}</main>
+            <footer className="hidden md:block text-center py-4 text-xs text-bdo-text-muted/50 select-none">
+              Made by <span className="text-bdo-gold/70">Hoixi</span> with <span className="text-red-400">♥</span>
+            </footer>
+          </div>
           <MobileNav />
-          <footer className="hidden md:block text-center py-4 text-xs text-bdo-text-muted/50 select-none">
-            Made by <span className="text-bdo-gold/70">Hoixi</span> with <span className="text-red-400">♥</span> &nbsp;·&nbsp; v1.0.0
-          </footer>
         </Providers>
         <script
           dangerouslySetInnerHTML={{

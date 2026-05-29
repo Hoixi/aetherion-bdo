@@ -72,7 +72,7 @@ export default function MemberProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 md:items-start">
 
         {/* LEFT: Portrait panel — sticky on scroll */}
-        <div className="md:sticky md:top-[72px]">
+        <div className="md:sticky md:top-4">
         <PortraitPanel
           classId={member.class}
           spec={member.spec}

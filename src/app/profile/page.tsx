@@ -127,7 +127,7 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 md:items-start">
           {/* Live preview portrait — sticky */}
-          <div className="md:sticky md:top-[72px]">
+          <div className="md:sticky md:top-4">
           <PortraitPanel
             classId={bdoClass}
             spec={spec}
@@ -279,7 +279,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 md:items-start">
 
         {/* Portrait panel — sticky */}
-        <div className="md:sticky md:top-[72px]">
+        <div className="md:sticky md:top-4">
         <PortraitPanel
           classId={user.class}
           spec={user.spec}
