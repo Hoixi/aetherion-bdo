@@ -613,8 +613,18 @@ export default function AdminPage() {
 
   if (!session?.user.isAdmin) return null;
 
+  const TAB_ITEMS = [
+    { key: "wars",          label: "Savaşlar",    icon: "⚔️" },
+    { key: "announcements", label: "Duyurular",   icon: "📢" },
+    { key: "members",       label: "Üyeler",      icon: "👥" },
+    { key: "roles",         label: "Roller",      icon: "🎭" },
+    { key: "hasar",         label: "Hasar Raporu",icon: "📊" },
+    { key: "araçlar",       label: "Araçlar",     icon: "🛠" },
+    { key: "geo",           label: "GeoGuessr",   icon: "🗺️" },
+  ] as const;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <h1 className="text-2xl font-bold text-bdo-gold">Admin Panel</h1>
 
       {message && (
@@ -623,25 +633,27 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap">
-        {(["wars", "announcements", "members", "roles", "hasar", "araçlar", "geo"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              tab === t ? "bg-bdo-gold text-bdo-bg" : "bg-bdo-surface text-bdo-text-muted hover:text-bdo-gold"
-            }`}
-          >
-            {t === "wars" ? "Savaşlar"
-              : t === "announcements" ? "Duyurular"
-              : t === "members" ? "Üyeler"
-              : t === "roles" ? "Roller"
-              : t === "hasar" ? "Hasar Raporu"
-              : t === "geo" ? "🗺️ GeoGuessr"
-              : "🛠 Araçlar"}
-          </button>
-        ))}
-      </div>
+      <div className="flex gap-4 items-start">
+        {/* Sol dikey sekmeler */}
+        <div className="flex-shrink-0 w-44 bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
+          {TAB_ITEMS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-left transition-colors border-b border-bdo-border last:border-b-0 ${
+                tab === t.key
+                  ? "bg-bdo-gold/15 text-bdo-gold"
+                  : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg"
+              }`}
+            >
+              <span className="text-base leading-none">{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sağ içerik */}
+        <div className="flex-1 min-w-0">
 
       {tab === "wars" && (
         <div className="space-y-4">
@@ -1549,6 +1561,8 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+        </div> {/* sağ içerik */}
+      </div> {/* flex wrapper */}
     </div>
   );
 }
