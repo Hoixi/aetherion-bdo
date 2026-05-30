@@ -58,7 +58,7 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col fixed left-0 top-0 h-screen w-56 bg-bdo-surface border-r border-bdo-border z-50">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-bdo-border flex-shrink-0">
-        <span className="text-bdo-gold text-xl">⚔</span>
+        <img src="/icons/logo.png" alt="Aetherion" className="w-8 h-8 flex-shrink-0" />
         <span className="text-bdo-gold font-bold text-base tracking-wide">AETHERION</span>
       </div>
 

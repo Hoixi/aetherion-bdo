@@ -15,7 +15,8 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-bdo-gold mb-4">⚔ AETHERION</h1>
+        <img src="/icons/logo.png" alt="Aetherion" className="w-36 h-36 mx-auto mb-4 drop-shadow-lg" />
+        <h1 className="text-4xl font-bold text-bdo-gold mb-2">AETHERION</h1>
         <p className="text-bdo-text-muted mb-8">Guild Management</p>
         <button
           onClick={() => signIn("discord", { callbackUrl: "/dashboard" })}

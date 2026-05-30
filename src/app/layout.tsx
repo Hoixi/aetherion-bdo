@@ -19,6 +19,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Aetherion",
   },
+  openGraph: {
+    title: "Aetherion",
+    description: "Aetherion Guild Management",
+    images: [{ url: "/icons/logo.png", width: 512, height: 512 }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -33,8 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="tr" className={`${inter.variable} ${jetbrains.variable}`}>
       <head>
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/icon.svg" />
+        <link rel="icon" href="/icons/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/icons/logo.png" />
       </head>
       <body className="bg-bdo-bg text-bdo-text-primary font-sans min-h-screen">
         <Providers>

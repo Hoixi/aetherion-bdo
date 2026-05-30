@@ -289,8 +289,11 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
               borderTop: "1px solid rgba(212,168,83,0.15)",
             }}
           >
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "#d4a853", letterSpacing: "1px", display: "flex" }}>
-              AETHERION
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <img src={`${SITE_URL}/icons/logo.png`} style={{ width: "20px", height: "20px" }} />
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#d4a853", letterSpacing: "1px", display: "flex" }}>
+                AETHERION
+              </div>
             </div>
             {user.siteRole && (
               <div
