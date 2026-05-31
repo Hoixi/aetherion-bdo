@@ -19,12 +19,8 @@ const GRADE_BORDER: Record<number, string> = {
 };
 
 const GRIND_SPOTS = [
-  { label: "Olun Vadisi", nodeId: "1571" },
-  { label: "Dehkia Kalıntıları", nodeId: "1684" },
-  { label: "Gyfin Rhasia Tapınağı", nodeId: "1546" },
-  { label: "Thornwood Ormanı", nodeId: "1560" },
-  { label: "Kratuga Antik Kalıntıları", nodeId: "1625" },
-  { label: "Özel (elle gir)", nodeId: "custom" },
+  { label: "Orbita Kalesi", nodeId: "1571", refNodeId: "2003" },
+  { label: "Özel (elle gir)", nodeId: "custom", refNodeId: "" },
 ];
 
 interface DropItem {
@@ -54,7 +50,9 @@ export default function GrindTrackerPage() {
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
   const [editPriceValue, setEditPriceValue] = useState("");
 
+  const currentSpot = GRIND_SPOTS.find((s) => s.nodeId === selectedSpot);
   const nodeId = selectedSpot === "custom" ? customNodeId : selectedSpot;
+  const refNodeId = selectedSpot === "custom" ? customNodeId : (currentSpot?.refNodeId ?? selectedSpot);
 
   const loadDrops = useCallback(async () => {
     if (!nodeId) return;
@@ -63,7 +61,7 @@ export default function GrindTrackerPage() {
     setDrops([]);
 
     try {
-      const res = await fetch(`/api/grind/drops?nodeId=${nodeId}`);
+      const res = await fetch(`/api/grind/drops?nodeId=${nodeId}&refNodeId=${refNodeId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
