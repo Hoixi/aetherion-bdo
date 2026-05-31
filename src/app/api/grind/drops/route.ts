@@ -25,18 +25,26 @@ export async function GET(req: NextRequest) {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
           "Accept": "application/json, text/javascript, */*; q=0.01",
           "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
           "X-Requested-With": "XMLHttpRequest",
-          "Sec-GPC": "1",
           "Referer": `https://bdocodex.com/tr/node/${refNodeId}/`,
-          "Cookie": "bddatabaselang=tr",
+          "Cookie": "__lhash_=6ea4bbd51bf766995108169dc7119448; bddatabaselang=tr; __js_p_=237,2700,0,0,0",
         },
       }
     );
 
+    if (!res.ok) {
+      return NextResponse.json({ error: `bdocodex HTTP ${res.status}` }, { status: 502 });
+    }
+
     const text = await res.text();
-    // Remove BOM if present
+    // Remove UTF-8 BOM if present
     const clean = text.replace(/^﻿/, "");
     const data = JSON.parse(clean);
+
+    if (!data.aaData) {
+      return NextResponse.json({ error: "No data returned from bdocodex" }, { status: 502 });
+    }
 
     const items = (data.aaData as any[]).map((row) => {
       const hasMarket = row[6]?.startsWith("[1") ?? false;
@@ -44,13 +52,13 @@ export async function GET(req: NextRequest) {
         id: row[0],
         icon: parseIconUrl(row[1]),
         name: parseName(row[2]),
-        grade: row[5] as number, // 0=gray,1=white,2=green,3=blue,4=yellow
+        grade: row[5] as number,
         hasMarket,
       };
     });
 
     return NextResponse.json({ items });
-  } catch (e) {
-    return NextResponse.json({ error: "Failed to fetch drops" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Failed to fetch drops" }, { status: 500 });
   }
 }
