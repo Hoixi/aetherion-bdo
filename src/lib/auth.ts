@@ -50,6 +50,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 gün
+    updateAge: 7 * 24 * 60 * 60, // 7 günde bir yenile (her istekte değil)
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 gün
   },
   callbacks: {
     async signIn({ user, account }) {
