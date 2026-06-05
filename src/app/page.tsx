@@ -13,7 +13,7 @@ export default function LoginPage() {
   }, [session, router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="fixed inset-0 flex items-center justify-center bg-bdo-bg z-50">
       <div className="text-center">
         <img src="/icons/logo.png" alt="Aetherion" className="w-36 h-36 mx-auto mb-4 drop-shadow-lg" />
         <h1 className="text-4xl font-bold text-bdo-gold mb-2">AETHERION</h1>
