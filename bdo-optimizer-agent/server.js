@@ -9,6 +9,20 @@ const PORT = 7432;
 app.use(cors({ origin: ["http://localhost:3000", "https://aetheri.online"] }));
 app.use(express.json());
 
+// Chrome Private Network Access — HTTPS public site → localhost requires this header
+app.options("*", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.setHeader("Access-Control-Allow-Private-Network", "true");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.sendStatus(204);
+});
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Private-Network", "true");
+  next();
+});
+
 // Run a PowerShell script, resolve with stdout string
 function runPS(script) {
   return new Promise((resolve, reject) => {
