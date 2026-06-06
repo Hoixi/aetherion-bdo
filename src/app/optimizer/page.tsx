@@ -367,7 +367,7 @@ export default function OptimizerPage() {
       const r = await fetch(`${AGENT}/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: bdoPath || undefined }),
+        body: JSON.stringify({ path: bdoPath || undefined, affinityMask: affinityMask ?? undefined }),
       });
       const d = await r.json();
       if (d.ok) showFeedback("ok", d.message || "BDO başlatıldı");

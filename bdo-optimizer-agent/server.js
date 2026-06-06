@@ -301,17 +301,27 @@ app.post("/processes/kill", async (req, res) => {
 // ─── Launch BDO ──────────────────────────────────────────────────────────────
 
 app.post("/launch", async (req, res) => {
-  const { path: gamePath, affinityMask, priority } = req.body;
+  const { path: gamePath, affinityMask } = req.body;
 
   const launchPath =
     gamePath ||
     "C:\\Program Files (x86)\\Black Desert Online\\BlackDesert_Launcher.exe";
 
-  try {
-    // Launch the game
-    await runPS(`Start-Process "${launchPath}" -ErrorAction SilentlyContinue`);
+  // Validate path characters to prevent injection
+  if (!/^[a-zA-Z0-9 :\\/_\-().]+$/.test(launchPath)) {
+    return res.status(400).json({ ok: false, error: "Invalid path" });
+  }
 
-    res.json({ ok: true, message: "Launcher started. Apply settings after BDO process appears." });
+  try {
+    if (affinityMask && Number.isInteger(affinityMask) && affinityMask > 0) {
+      // Use cmd start /affinity <hex> to launch with affinity set from the start
+      const hexMask = affinityMask.toString(16).toUpperCase();
+      await runPS(`cmd /c start /affinity ${hexMask} "" "${launchPath}"`);
+      res.json({ ok: true, message: `Launcher başlatıldı (affinity: 0x${hexMask})` });
+    } else {
+      await runPS(`Start-Process "${launchPath}"`);
+      res.json({ ok: true, message: "Launcher başlatıldı." });
+    }
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
