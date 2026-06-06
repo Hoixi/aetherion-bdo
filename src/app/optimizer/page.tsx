@@ -175,20 +175,15 @@ function AgentOffline() {
         <ol className="space-y-2 text-sm text-bdo-text-muted list-decimal list-inside">
           <li>Yukarıdaki butona tıklayarak zip'i indir ve bir klasöre çıkart</li>
           <li>
-            <code className="text-bdo-gold text-xs bg-bdo-bg px-1.5 py-0.5 rounded">start-agent.bat</code>{" "}
-            dosyasına çift tıkla (Node.js yoksa otomatik uyarı verir)
+            <code className="text-bdo-gold text-xs bg-bdo-bg px-1.5 py-0.5 rounded">BDO-Optimizer-Agent.exe</code>{" "}
+            dosyasına çift tıkla
           </li>
           <li>Komut penceresi açık kalsın — bu sayfayı yenile</li>
         </ol>
-        <div className="pt-1 border-t border-bdo-border space-y-1">
+        <div className="pt-1 border-t border-bdo-border">
           <p className="text-xs text-bdo-text-muted">
-            Node.js gerektirir →{" "}
-            <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-bdo-gold hover:underline">
-              nodejs.org
-            </a>
-          </p>
-          <p className="text-xs text-bdo-text-muted">
-            Agent yalnızca <code className="text-xs bg-bdo-bg px-1 rounded">127.0.0.1:7432</code>'de çalışır, internete açılmaz.
+            Kurulum gerekmez. Agent yalnızca{" "}
+            <code className="text-xs bg-bdo-bg px-1 rounded">127.0.0.1:7432</code>'de çalışır, internete açılmaz.
           </p>
         </div>
       </div>
