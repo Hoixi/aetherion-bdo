@@ -427,7 +427,12 @@ async function handleCommand(
     const family = getOption(options, "aile") as string;
     const ap = getOption(options, "ap") as number;
     const dp = getOption(options, "dp") as number;
-    const cls = getOption(options, "class") as string;
+    const class1 = getOption(options, "class1") as string | undefined;
+    const class2 = getOption(options, "class2") as string | undefined;
+
+    if (class1 && class2) return ephemeral("❌ Lütfen sadece **class1** veya **class2** seçeneklerinden birini doldur.");
+    const cls = class1 || class2;
+    if (!cls) return ephemeral("❌ Sınıfını seçmeyi unutma! **class1** (Savaşçı → Büyücü) veya **class2** (Archer → Deadeye) seçeneklerinden birini doldur.");
 
     if (ap < 0 || ap > 5000) return ephemeral("❌ AP değeri 0-5000 arasında olmalı.");
     if (dp < 0 || dp > 5000) return ephemeral("❌ DP değeri 0-5000 arasında olmalı.");
