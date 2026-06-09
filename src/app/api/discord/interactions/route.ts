@@ -18,9 +18,12 @@ const PARTY_SIZE = 5;
 
 type DiscordInteractionMember = {
   roles?: string[];
+  nick?: string | null;
   user?: {
     id?: string;
     avatar?: string | null;
+    username?: string;
+    global_name?: string | null;
   };
 };
 
@@ -86,18 +89,23 @@ async function syncUserFromDiscordInteraction(discordUserId: string, member?: Di
   const avatarUrl = getDiscordAvatarUrl(discordUserId, member);
   const isAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
 
+  // Discord display name: sunucu nick → global_name → username
+  const discordName = member?.nick || member?.user?.global_name || member?.user?.username || null;
+
   return withDbRetry(() => prisma.user.upsert({
     where: { discordId: discordUserId },
     update: {
       avatarUrl: avatarUrl || existingUser?.avatarUrl || "",
       isAdmin,
       siteRoleId: matchedRole?.id ?? existingUser?.siteRoleId ?? null,
+      ...(discordName && !existingUser?.familyName ? { familyName: discordName } : {}),
     },
     create: {
       discordId: discordUserId,
       avatarUrl,
       isAdmin,
       siteRoleId: matchedRole?.id ?? null,
+      familyName: discordName || "",
     },
   }));
 }
@@ -469,23 +477,29 @@ async function handleCommand(
         const user = await syncUserFromDiscordInteraction(discordUserId, member);
         const { loginUrl, expiresAt } = await createMobileLoginLink(user.id);
 
+        const expiresStr = expiresAt.toLocaleTimeString("tr-TR", {
+          timeZone: "Europe/Istanbul",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
         await fetch(
           `https://discord.com/api/v10/webhooks/${APPLICATION_ID}/${interactionToken}/messages/@original`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              content: `Siteye girmek icin **Yetkilendir** butonuna bas. Link ${expiresAt.toLocaleTimeString("tr-TR", {
-                timeZone: "Europe/Istanbul",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}'a kadar gecerlidir ve tek kullanimliktir.`,
+              embeds: [{
+                color: GOLD,
+                description: `Aşağıdaki butona tıklayarak siteye giriş yapabilirsin.\n\n⏱ Link **${expiresStr}**'a kadar geçerlidir ve tek kullanımlıktır.`,
+                footer: { text: "Aetherion • Güvenli Giriş" },
+              }],
               components: [{
                 type: 1,
                 components: [{
                   type: 2,
                   style: 5,
-                  label: "Yetkilendir",
+                  label: "🔐  Siteye Giriş Yap",
                   url: loginUrl,
                 }],
               }],
