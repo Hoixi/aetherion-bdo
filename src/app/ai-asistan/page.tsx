@@ -93,7 +93,7 @@ export default function AiAsistanPage() {
           <h1 className="text-bdo-text-primary font-semibold leading-tight">AI Asistan</h1>
           <p className="text-xs text-bdo-text-muted">Klan verilerinizi doğal dilde sorgulayın</p>
         </div>
-        <span className="ml-auto text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 rounded-full px-2 py-0.5">Gemini 2.0 Flash-001</span>
+        <span className="ml-auto text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 rounded-full px-2 py-0.5">Gemini 2.5 Flash</span>
       </div>
 
       {/* Messages */}
@@ -201,7 +201,7 @@ export default function AiAsistanPage() {
           </button>
         </div>
         <p className="text-[10px] text-bdo-text-muted/50 text-center mt-2">
-          Veriler anlık olarak veritabanından çekilir · Gemini 2.0 Flash-001
+          Veriler anlık olarak veritabanından çekilir · Gemini 2.5 Flash
         </p>
       </div>
     </div>

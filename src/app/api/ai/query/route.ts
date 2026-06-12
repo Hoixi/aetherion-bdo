@@ -138,7 +138,7 @@ Kurallar:
 - "performanslar" alanında "hasar" değeri float olabilir, bunu güzel formatla (ör: 1.2M, 500K)`;
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-001",
+    model: "gemini-2.5-flash",
     systemInstruction: systemPrompt,
   });
 
