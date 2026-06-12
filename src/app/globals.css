@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* AI Asistan markdown renderer */
+.ai-markdown p { margin: 0.4rem 0; }
+.ai-markdown p:first-child { margin-top: 0; }
+.ai-markdown p:last-child { margin-bottom: 0; }
+.ai-markdown strong { color: #d4a853; font-weight: 600; }
+.ai-markdown ul, .ai-markdown ol { margin: 0.4rem 0 0.4rem 1.25rem; }
+.ai-markdown li { margin: 0.2rem 0; }
+.ai-markdown h1, .ai-markdown h2, .ai-markdown h3 { color: #d4a853; font-weight: 600; margin: 0.75rem 0 0.25rem; }
+.ai-markdown h1 { font-size: 1rem; }
+.ai-markdown h2 { font-size: 0.9rem; }
+.ai-markdown h3 { font-size: 0.85rem; }
+.ai-markdown code { background: #07080f; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.8rem; }
+.ai-markdown pre { background: #07080f; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+.ai-markdown pre code { background: none; padding: 0; }
+.ai-markdown table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.5rem 0; }
+.ai-markdown th { border: 1px solid #1e2030; padding: 0.35rem 0.5rem; background: #07080f; color: #d4a853; text-align: left; }
+.ai-markdown td { border: 1px solid #1e2030; padding: 0.35rem 0.5rem; }
+.ai-markdown blockquote { border-left: 2px solid #d4a853; padding-left: 0.75rem; color: #8891a8; margin: 0.4rem 0; }
+.ai-markdown hr { border-color: #1e2030; margin: 0.75rem 0; }
+
 body {
   background-color: #07080f;
   -webkit-tap-highlight-color: transparent;
