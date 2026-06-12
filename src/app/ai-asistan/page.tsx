@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Message = {
   role: "user" | "model";
@@ -133,7 +134,16 @@ export default function AiAsistanPage() {
             }`}>
               {msg.role === "model" ? (
                 <div className="ai-markdown text-sm leading-relaxed">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto rounded-lg border border-[#1e2030] my-2">
+                          <table className="!m-0">{children}</table>
+                        </div>
+                      ),
+                    }}
+                  >{msg.content}</ReactMarkdown>
                 </div>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>

@@ -16,9 +16,14 @@
 .ai-markdown code { background: #07080f; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.8rem; }
 .ai-markdown pre { background: #07080f; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
 .ai-markdown pre code { background: none; padding: 0; }
-.ai-markdown table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.5rem 0; }
-.ai-markdown th { border: 1px solid #1e2030; padding: 0.35rem 0.5rem; background: #07080f; color: #d4a853; text-align: left; }
-.ai-markdown td { border: 1px solid #1e2030; padding: 0.35rem 0.5rem; }
+.ai-markdown table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.75rem 0; border-radius: 0.5rem; overflow: hidden; }
+.ai-markdown thead { background: #0d0f1a; }
+.ai-markdown th { padding: 0.5rem 0.75rem; color: #d4a853; font-weight: 600; text-align: left; white-space: nowrap; border-bottom: 1px solid #1e2030; }
+.ai-markdown td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #12141f; }
+.ai-markdown tbody tr:nth-child(even) td { background: #0a0c15; }
+.ai-markdown tbody tr:hover td { background: #d4a85310; }
+.ai-markdown td:first-child { font-weight: 500; }
+.ai-markdown .ai-table-wrap { overflow-x: auto; border-radius: 0.5rem; border: 1px solid #1e2030; }
 .ai-markdown blockquote { border-left: 2px solid #d4a853; padding-left: 0.75rem; color: #8891a8; margin: 0.4rem 0; }
 .ai-markdown hr { border-color: #1e2030; margin: 0.75rem 0; }
 
