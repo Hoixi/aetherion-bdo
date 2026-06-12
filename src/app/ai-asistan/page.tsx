@@ -85,7 +85,7 @@ export default function AiAsistanPage() {
   if (status === "loading") return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)] max-w-3xl mx-auto">
+    <div className="fixed inset-0 md:left-56 flex flex-col bg-bdo-bg z-10 px-4 md:px-6 pb-20 md:pb-0">
       {/* Header */}
       <div className="flex items-center gap-3 py-4 border-b border-bdo-border flex-shrink-0">
         <div className="w-9 h-9 rounded-lg bg-bdo-gold/15 flex items-center justify-center text-bdo-gold text-lg">✦</div>

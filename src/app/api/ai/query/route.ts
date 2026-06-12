@@ -101,6 +101,47 @@ async function buildGuildContext() {
     oran: totalWars > 0 ? `%${Math.round(((attendMap.get(m.id) ?? 0) / totalWars) * 100)}` : "%0",
   }));
 
+  // Pre-aggregate performance stats per player (case-insensitive name merge)
+  const perfMap = new Map<string, { hasar: number; kills: number; deaths: number; cc: number; iyilestirme: number; savaslar: number }>();
+  for (const w of wars) {
+    for (const p of w.performances) {
+      const key = p.inGameName.toLowerCase();
+      const existing = perfMap.get(key) ?? { hasar: 0, kills: 0, deaths: 0, cc: 0, iyilestirme: 0, savaslar: 0 };
+      perfMap.set(key, {
+        hasar: existing.hasar + Math.round(p.damageDealt),
+        kills: existing.kills + p.kills,
+        deaths: existing.deaths + p.deaths,
+        cc: existing.cc + p.ccCount,
+        iyilestirme: existing.iyilestirme + Math.round(p.hpHeal + p.allyHpHeal),
+        savaslar: existing.savaslar + 1,
+      });
+    }
+  }
+
+  // Last 5 wars performance aggregate
+  const last5Wars = wars.slice(0, 5);
+  const last5PerfMap = new Map<string, { hasar: number; kills: number; deaths: number; savaslar: number }>();
+  for (const w of last5Wars) {
+    for (const p of w.performances) {
+      const key = p.inGameName.toLowerCase();
+      const existing = last5PerfMap.get(key) ?? { hasar: 0, kills: 0, deaths: 0, savaslar: 0 };
+      last5PerfMap.set(key, {
+        hasar: existing.hasar + Math.round(p.damageDealt),
+        kills: existing.kills + p.kills,
+        deaths: existing.deaths + p.deaths,
+        savaslar: existing.savaslar + 1,
+      });
+    }
+  }
+
+  const toplamPerfStats = Array.from(perfMap.entries())
+    .map(([name, s]) => ({ oyuncu: name, ...s }))
+    .sort((a, b) => b.hasar - a.hasar);
+
+  const son5SavasPerfStats = Array.from(last5PerfMap.entries())
+    .map(([name, s]) => ({ oyuncu: name, ...s }))
+    .sort((a, b) => b.hasar - a.hasar);
+
   return {
     ozet: {
       toplamUye: members.length,
@@ -112,6 +153,8 @@ async function buildGuildContext() {
     uyeler: membersData,
     katilimIstatistikleri: memberAttendance,
     savaslar: warsData,
+    toplamPerformansOzeti: toplamPerfStats,
+    son5SavasPerformansOzeti: son5SavasPerfStats,
   };
 }
 
@@ -135,7 +178,10 @@ Kurallar:
 - Net, kısa ve faydalı ol
 - Veri yoksa dürüstçe söyle
 - Sayısal karşılaştırmalarda tabloları tercih et
-- "performanslar" alanında "hasar" değeri float olabilir, bunu güzel formatla (ör: 1.2M, 500K)`;
+- Hasar değerlerini güzel formatla: 1234567 → 1.23M, 500000 → 500K, 85000 → 85K
+- Performans soruları için "son5SavasPerformansOzeti" veya "toplamPerformansOzeti" kullan — bunlar önceden toplanmış, aynı oyuncu birden fazla satırda görünmez
+- Bireysel savaş detayları için "savaslar[].performanslar" kullan
+- Sıralama/ranking soularında kesinlikle aggregate veriyi (ozet alanlarını) kullan, ham satırları toplamaya çalışma`;
 
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
