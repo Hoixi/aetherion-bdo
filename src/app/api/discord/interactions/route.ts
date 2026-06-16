@@ -1074,33 +1074,20 @@ async function handleCommand(
     const sourceChannelId = getOption(options, "kaynak") as string;
     const targetChannelId = getOption(options, "hedef") as string;
 
-    const GUILD_ID = process.env.DISCORD_GUILD_ID!;
+    // Use persistent discord.js bot (localhost:7331) for accurate voice states
+    const moveRes = await fetch("http://127.0.0.1:7331/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceChannelId, targetChannelId }),
+    }).catch(() => null);
 
-    // Get guild voice states via REST
-    const guildRes = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}?with_counts=false`, {
-      headers: { Authorization: `Bot ${BOT_TOKEN}` },
-    });
-    const guild = await guildRes.json() as { voice_states?: { channel_id: string; user_id: string }[] };
-    const voiceStates = guild.voice_states ?? [];
+    if (!moveRes) return ephemeral("❌ Voice bot'a bağlanılamadı. Sunucu yöneticisine haber ver.");
 
-    const membersInSource = voiceStates.filter((vs) => vs.channel_id === sourceChannelId);
+    const result = await moveRes.json() as { moved: number; failed: number; message?: string };
 
-    if (membersInSource.length === 0) {
-      return ephemeral("❌ Kaynak kanalda kimse yok.");
-    }
+    if (result.message === "empty") return ephemeral("❌ Kaynak kanalda kimse yok.");
 
-    let moved = 0;
-    let failed = 0;
-    for (const vs of membersInSource) {
-      const res = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${vs.user_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
-        body: JSON.stringify({ channel_id: targetChannelId }),
-      });
-      if (res.ok) moved++; else failed++;
-    }
-
-    return ephemeral(`✅ **${moved}** kişi taşındı.${failed > 0 ? ` (${failed} kişi taşınamadı)` : ""}`);
+    return ephemeral(`✅ **${result.moved}** kişi taşındı.${result.failed > 0 ? ` (${result.failed} kişi taşınamadı)` : ""}`);
   }
 
   // ─── /yardım ───
