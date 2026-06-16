@@ -1066,6 +1066,43 @@ async function handleCommand(
     return ephemeral(`✅ **${TYPE_LABELS[type]}** etkinliği oluşturuldu! 2 saat sonra otomatik silinir.`);
   }
 
+  // ─── /topla ─── (Admin only)
+  if (name === "topla") {
+    const user = await prisma.user.findUnique({ where: { discordId: discordUserId } });
+    if (!user?.isAdmin) return ephemeral("❌ Bu komutu kullanmak için admin olmalısın.");
+
+    const sourceChannelId = getOption(options, "kaynak") as string;
+    const targetChannelId = getOption(options, "hedef") as string;
+
+    const GUILD_ID = process.env.DISCORD_GUILD_ID!;
+
+    // Get guild voice states via REST
+    const guildRes = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}?with_counts=false`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+    });
+    const guild = await guildRes.json() as { voice_states?: { channel_id: string; user_id: string }[] };
+    const voiceStates = guild.voice_states ?? [];
+
+    const membersInSource = voiceStates.filter((vs) => vs.channel_id === sourceChannelId);
+
+    if (membersInSource.length === 0) {
+      return ephemeral("❌ Kaynak kanalda kimse yok.");
+    }
+
+    let moved = 0;
+    let failed = 0;
+    for (const vs of membersInSource) {
+      const res = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${vs.user_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+        body: JSON.stringify({ channel_id: targetChannelId }),
+      });
+      if (res.ok) moved++; else failed++;
+    }
+
+    return ephemeral(`✅ **${moved}** kişi taşındı.${failed > 0 ? ` (${failed} kişi taşınamadı)` : ""}`);
+  }
+
   // ─── /yardım ───
   if (name === "yardım") {
     return publicEmbed([

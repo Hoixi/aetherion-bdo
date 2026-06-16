@@ -141,6 +141,14 @@ const COMMANDS = [
     ],
   },
   {
+    name: "topla",
+    description: "[Admin] Belirtilen ses kanalındaki herkesi başka kanala taşı",
+    options: [
+      { type: 7, name: "kaynak", description: "Üyelerin bulunduğu ses kanalı", required: true },
+      { type: 7, name: "hedef", description: "Taşınacak ses kanalı", required: true },
+    ],
+  },
+  {
     name: "yardım",
     description: "Tüm bot komutlarını listele",
   },
