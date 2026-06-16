@@ -1075,13 +1075,16 @@ async function handleCommand(
     const targetChannelId = getOption(options, "hedef") as string;
 
     // Use persistent discord.js bot for accurate voice states.
-    // Next.js runs in Docker; reach the host via Docker bridge gateway (172.17.0.1) or env override.
-    const voiceBotUrl = process.env.VOICE_BOT_URL ?? "http://172.17.0.1:7331";
+    // Next.js runs in Docker (coolify network, gateway 10.0.1.1); override via VOICE_BOT_URL env.
+    const voiceBotUrl = process.env.VOICE_BOT_URL ?? "http://10.0.1.1:7331";
+    const abortCtrl = new AbortController();
+    const abortTimer = setTimeout(() => abortCtrl.abort(), 2000);
     const moveRes = await fetch(`${voiceBotUrl}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sourceChannelId, targetChannelId }),
-    }).catch(() => null);
+      signal: abortCtrl.signal,
+    }).catch(() => null).finally(() => clearTimeout(abortTimer));
 
     if (!moveRes) return ephemeral("❌ Voice bot'a bağlanılamadı. Sunucu yöneticisine haber ver.");
 
