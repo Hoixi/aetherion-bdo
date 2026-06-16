@@ -1074,8 +1074,10 @@ async function handleCommand(
     const sourceChannelId = getOption(options, "kaynak") as string;
     const targetChannelId = getOption(options, "hedef") as string;
 
-    // Use persistent discord.js bot (localhost:7331) for accurate voice states
-    const moveRes = await fetch("http://127.0.0.1:7331/move", {
+    // Use persistent discord.js bot for accurate voice states.
+    // Next.js runs in Docker; reach the host via Docker bridge gateway (172.17.0.1) or env override.
+    const voiceBotUrl = process.env.VOICE_BOT_URL ?? "http://172.17.0.1:7331";
+    const moveRes = await fetch(`${voiceBotUrl}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sourceChannelId, targetChannelId }),
