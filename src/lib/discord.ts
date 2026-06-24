@@ -14,12 +14,14 @@ export async function checkDiscordMembership(accessToken: string): Promise<Disco
   );
 
   if (!res.ok) {
+    console.error(`[discord] guild member check failed: ${res.status}`, await res.text().catch(() => ""));
     return { isMember: false, hasRole: false, roles: [] };
   }
 
   const member = await res.json();
   const memberRoles: string[] = member.roles ?? [];
   const hasRole = memberRoles.includes(requiredRoleId);
+  console.log(`[discord] member check — status:${res.status} roles:${memberRoles.join(",")} required:${requiredRoleId} hasRole:${hasRole}`);
 
   return { isMember: true, hasRole, roles: memberRoles };
 }
