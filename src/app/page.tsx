@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function LoginPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (session) router.push("/dashboard");
   }, [session, router]);
+
+  if (status === "loading" || session) {
+    return <div className="fixed inset-0 bg-bdo-bg" />;
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-bdo-bg z-50">
