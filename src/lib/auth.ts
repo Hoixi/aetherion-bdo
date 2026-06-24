@@ -4,7 +4,32 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { checkDiscordMembership } from "./discord";
 
+const useSecure = process.env.NEXTAUTH_URL?.startsWith("https") ?? true;
+
 export const authOptions: NextAuthOptions = {
+  useSecureCookies: useSecure,
+  cookies: {
+    state: {
+      name: "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: useSecure,
+        maxAge: 900,
+      },
+    },
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: useSecure,
+        maxAge: 900,
+      },
+    },
+  },
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
