@@ -27,8 +27,81 @@
 .ai-markdown blockquote { border-left: 2px solid #d4a853; padding-left: 0.75rem; color: #8891a8; margin: 0.4rem 0; }
 .ai-markdown hr { border-color: #1e2030; margin: 0.75rem 0; }
 
+/* ── Card system ── */
+.card {
+  background: #131820;
+  border: 1px solid #1e2a3c;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #1e2a3c;
+}
+.card-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #dce4f2;
+  letter-spacing: -0.01em;
+}
+.card-meta {
+  font-size: 0.6875rem;
+  color: #4d5c73;
+}
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #1a2030;
+  transition: background 0.1s;
+}
+.card-row:last-child { border-bottom: none; }
+.card-row:hover { background: #1a2233; }
+
+/* ── Section header (bold italic style like reference) ── */
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-style: italic;
+  color: #dce4f2;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.section-desc {
+  font-size: 0.8rem;
+  color: #4d5c73;
+  margin-top: 0.125rem;
+  line-height: 1.4;
+}
+
+/* ── Status dot ── */
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot-green  { background: #2bca6e; }
+.dot-yellow { background: #e0a832; }
+.dot-red    { background: #e05252; }
+.dot-blue   { background: #4a7cf5; }
+.dot-muted  { background: #2a3a52; }
+
+/* ── Stat badge ── */
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: #1a2233;
+  border: 1px solid #1e2a3c;
+  color: #7a8ba3;
+}
+
 body {
-  background-color: #07080f;
+  background-color: #0c0f15;
   -webkit-tap-highlight-color: transparent;
 }
 
