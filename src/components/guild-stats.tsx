@@ -30,8 +30,7 @@ interface StatsData {
 }
 
 function fmtNum(n: number): string {
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + "B";
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "Mn";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return String(n);
 }
@@ -39,6 +38,9 @@ function fmtNum(n: number): string {
 function getClassName2(id: string): string {
   return BDO_CLASSES.find((c) => c.id === id)?.name ?? id;
 }
+
+const BRACKET_COLORS = ["#e05252", "#e09832", "#e0c832", "#4a7cf5", "#2bca6e"];
+const CLASS_COLORS = ["#d4a030", "#c9963f", "#dbb24e", "#b8892e", "#a67c28", "#f0c566", "#d9ac45", "#c4952e", "#e0b850", "#d4a853"];
 
 export function GuildStats() {
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -51,246 +53,205 @@ export function GuildStats() {
   useEffect(() => {
     if (!stats?.upcomingWar) return;
     const target = new Date(stats.upcomingWar.date).getTime();
-
     function update() {
       const diff = target - Date.now();
       if (diff <= 0) { setCountdown("Başladı!"); return; }
       const d = Math.floor(diff / 86400000);
       const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      setCountdown(`${d > 0 ? d + "g " : ""}${h}sa ${m}dk`);
+      setCountdown(`${d > 0 ? d + "g " : ""}${h}s ${m}dk`);
     }
-
     update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
+    const iv = setInterval(update, 60000);
+    return () => clearInterval(iv);
   }, [stats?.upcomingWar]);
 
   if (!stats) return null;
 
-  const maxClassCount = Math.max(...stats.classDistribution.map((c) => c.count), 1);
   const winRate = stats.warStats.totalWars > 0
     ? Math.round((stats.warStats.wins / (stats.warStats.wins + stats.warStats.losses + stats.warStats.draws || 1)) * 100)
     : 0;
-
-  const classColors = [
-    "#d4a853", "#e8b960", "#c9963f", "#dbb24e", "#b8892e",
-    "#a67c28", "#f0c566", "#d9ac45", "#c4952e", "#e0b850",
-  ];
+  const maxClassCount = Math.max(...stats.classDistribution.map((c) => c.count), 1);
 
   return (
     <div className="space-y-4">
-      {/* Stat Cards */}
+      {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Toplam Üye" value={stats.totalMembers} icon="👥" />
-        <StatCard label="Ortalama GS" value={stats.avgGs} icon="⚔️" />
-        <StatCard label="Win Rate" value={`%${winRate}`} sub={`${stats.warStats.wins}W ${stats.warStats.losses}L ${stats.warStats.draws}D`} icon="🏆" />
-        <StatCard label="Toplam Savaş" value={stats.warStats.totalWars} icon="🗡️" />
+        {[
+          { label: "Toplam Üye", value: stats.totalMembers, sub: "kayıtlı" },
+          { label: "Ortalama GS", value: stats.avgGs, sub: "klan ort." },
+          { label: "Win Rate", value: `%${winRate}`, sub: `${stats.warStats.wins}G ${stats.warStats.losses}M` },
+          { label: "Toplam Savaş", value: stats.warStats.totalWars, sub: "tüm zamanlar" },
+        ].map((tile) => (
+          <div key={tile.label} className="card px-4 py-3">
+            <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider mb-1">{tile.label}</p>
+            <p className="text-xl font-bold text-bdo-text-primary font-mono">{tile.value}</p>
+            <p className="text-[10px] text-bdo-text-secondary mt-0.5">{tile.sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Upcoming War Countdown */}
+      {/* Upcoming war */}
       {stats.upcomingWar && (
         <Link href={`/wars/${stats.upcomingWar.id}`} className="block">
-          <div className="bg-gradient-to-r from-bdo-gold/10 via-bdo-gold/5 to-transparent border border-bdo-gold/20 rounded-xl p-4 hover:border-bdo-gold/40 transition-colors">
+          <div className="card p-4 hover:border-bdo-gold/30 transition-colors border-bdo-gold/15">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[10px] uppercase text-bdo-gold/70 tracking-wider">Yaklaşan Etkinlik</div>
-                <div className="text-sm font-semibold text-bdo-text-primary mt-0.5">{stats.upcomingWar.title}</div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-bdo-gold animate-pulse flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Yaklaşan Savaş</p>
+                  <p className="text-sm font-semibold text-bdo-text-primary mt-0.5">{stats.upcomingWar.title}</p>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase text-bdo-gold/70 tracking-wider">Kalan Süre</div>
-                <div className="text-lg font-bold font-mono text-bdo-gold">{countdown || "..."}</div>
+                <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Kalan Süre</p>
+                <p className="text-lg font-bold font-mono text-bdo-gold mt-0.5">{countdown || "..."}</p>
               </div>
             </div>
           </div>
         </Link>
       )}
 
-      {/* Last 3 Wars Report Averages */}
-      {stats.warReportAverages?.length > 0 && (
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-          <h3 className="text-xs uppercase text-bdo-text-muted mb-3">Son 3 Savaş Raporu Ortalaması</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-bdo-border text-bdo-text-muted">
-                  <th className="text-left py-2 px-2">Savaş</th>
-                  <th className="text-center py-2 px-2">Oyuncu</th>
-                  <th className="text-center py-2 px-2" title="Ort. Kill">💀</th>
-                  <th className="text-center py-2 px-2" title="Ort. Ölüm">🪦</th>
-                  <th className="text-right py-2 px-2 whitespace-nowrap">Ort. Hasar</th>
-                  <th className="text-right py-2 px-2 whitespace-nowrap">Ort. HP Yenile</th>
-                  <th className="text-center py-2 px-2" title="Ort. CC">CC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.warReportAverages.map((w) => (
-                  <tr key={w.warId} className="border-b border-bdo-border/50 hover:bg-bdo-gold/5 transition-colors">
-                    <td className="py-2 px-2">
-                      <Link href={`/wars/${w.warId}`} className="text-bdo-text-primary hover:text-bdo-gold transition-colors">
-                        {w.title}
-                      </Link>
-                      <div className="text-[10px] text-bdo-text-muted">
-                        {new Date(w.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
-                      </div>
-                    </td>
-                    <td className="text-center py-2 px-2 text-bdo-text-secondary">{w.players}</td>
-                    <td className="text-center py-2 px-2 text-bdo-text-secondary">{w.avgKills}</td>
-                    <td className="text-center py-2 px-2 text-bdo-text-secondary">{w.avgDeaths}</td>
-                    <td className="text-right py-2 px-2 text-bdo-gold font-mono">{fmtNum(w.avgDamageDealt)}</td>
-                    <td className="text-right py-2 px-2 text-green-400/80 font-mono">{fmtNum(w.avgHpHeal)}</td>
-                    <td className="text-center py-2 px-2 text-bdo-text-secondary">{w.avgCcCount}</td>
+      {/* Main grid */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Son savaş raporları */}
+        {stats.warReportAverages?.length > 0 && (
+          <div className="card md:col-span-2">
+            <div className="card-header">
+              <span className="card-title">Son Savaş Raporları</span>
+              <span className="card-meta">ort. performans</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-bdo-border">
+                    <th className="text-left py-2 px-4 text-bdo-text-secondary font-medium">Savaş</th>
+                    <th className="text-center py-2 px-2 text-bdo-text-secondary font-medium">Kill</th>
+                    <th className="text-center py-2 px-2 text-bdo-text-secondary font-medium">Ölüm</th>
+                    <th className="text-right py-2 px-4 text-bdo-text-secondary font-medium">Hasar</th>
+                    <th className="text-center py-2 px-2 text-bdo-text-secondary font-medium">CC</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="grid md:grid-cols-2 gap-4 items-stretch">
-        {/* Left column: Class Distribution + GS Donut */}
-        <div className="flex flex-col gap-4">
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <h3 className="text-xs uppercase text-bdo-text-muted mb-3">Class Dağılımı</h3>
-            <div className="space-y-1.5">
-              {stats.classDistribution
-                .sort((a, b) => b.count - a.count)
-                .map((c, i) => (
-                  <div key={c.class} className="flex items-center gap-2 text-xs">
-                    <span className="text-bdo-text-muted w-20 truncate">{getClassName2(c.class)}</span>
-                    <div className="flex-1 bg-bdo-bg rounded-full h-3 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${(c.count / maxClassCount) * 100}%`,
-                          backgroundColor: classColors[i % classColors.length],
-                          opacity: 0.75,
-                        }}
-                      />
-                    </div>
-                    <span className="text-bdo-text-muted font-mono w-5 text-right">{c.count}</span>
-                  </div>
-                ))}
+                </thead>
+                <tbody>
+                  {stats.warReportAverages.map((w) => (
+                    <tr key={w.warId} className="border-b border-bdo-border/40 hover:bg-bdo-surface-2/50 transition-colors">
+                      <td className="py-2.5 px-4">
+                        <Link href={`/wars/${w.warId}`} className="text-bdo-text-primary hover:text-bdo-gold transition-colors font-medium">
+                          {w.title}
+                        </Link>
+                        <p className="text-[10px] text-bdo-text-secondary mt-0.5">
+                          {new Date(w.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} · {w.players} oyuncu
+                        </p>
+                      </td>
+                      <td className="text-center py-2.5 px-2 text-bdo-text-primary">{w.avgKills}</td>
+                      <td className="text-center py-2.5 px-2 text-bdo-text-muted">{w.avgDeaths}</td>
+                      <td className="text-right py-2.5 px-4 text-bdo-gold font-mono font-semibold">{fmtNum(w.avgDamageDealt)}</td>
+                      <td className="text-center py-2.5 px-2 text-bdo-text-muted">{w.avgCcCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+        )}
 
-          {/* GS Bracket Donut Chart */}
-          {stats.gsBrackets && (() => {
-            const brackets = stats.gsBrackets;
-            const total = brackets.reduce((s, b) => s + b.count, 0) || 1;
-            const COLORS = ["#e84545", "#f07f3c", "#f5c842", "#4ab3f4", "#5b6ef5"];
-            const R = 70;
-            const CIRC = 2 * Math.PI * R;
-            let offset = 0;
+        {/* GS Leaderboard */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">GS Sıralaması</span>
+            <Link href="/members" className="card-meta hover:text-bdo-gold transition-colors">Tümü →</Link>
+          </div>
+          {stats.topGs.map((u, i) => (
+            <Link key={u.id} href={`/members/${u.id}`} className="card-row gap-3">
+              <span className={`text-[11px] font-bold font-mono w-4 flex-shrink-0 ${
+                i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-bdo-text-secondary"
+              }`}>{i + 1}</span>
+              {u.avatarUrl
+                ? <img src={u.avatarUrl} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                : <div className="w-6 h-6 rounded-full bg-bdo-surface-2 flex-shrink-0" />
+              }
+              <span className="text-[13px] text-bdo-text-primary flex-1 truncate">{u.familyName}</span>
+              <span className="text-[12px] font-mono font-semibold text-bdo-gold flex-shrink-0">{u.gs}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-            return (
-              <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5 flex-1 flex flex-col justify-center">
-                <h3 className="text-xs uppercase text-bdo-text-muted mb-5">GS Dağılımı</h3>
-                <div className="flex items-center justify-between gap-6">
-                  {/* Donut */}
-                  <div className="flex-shrink-0">
-                    <svg width="180" height="180" viewBox="0 0 180 180">
-                      <circle cx="90" cy="90" r={R} fill="none" stroke="#1a1c24" strokeWidth="28" />
-                      {brackets.map((b, i) => {
-                        const dash = (b.count / total) * CIRC;
-                        const gap = CIRC - dash;
-                        const segOffset = CIRC * 0.25 - offset;
-                        const el = (
-                          <circle
-                            key={b.label}
-                            cx="90" cy="90" r={R}
-                            fill="none"
-                            stroke={COLORS[i % COLORS.length]}
-                            strokeWidth="26"
-                            strokeDasharray={`${dash} ${gap}`}
-                            strokeDashoffset={segOffset}
-                            strokeLinecap="butt"
-                          />
-                        );
-                        offset += dash;
-                        return el;
-                      })}
-                      {/* Divider ring */}
-                      <circle cx="90" cy="90" r={R} fill="none" stroke="#0f1117" strokeWidth="2" />
-                      {/* Center */}
-                      <text x="90" y="84" textAnchor="middle" fill="#d4a853" fontSize="26" fontWeight="bold" fontFamily="monospace">{total}</text>
-                      <text x="90" y="101" textAnchor="middle" fill="#6b7280" fontSize="11">üye</text>
-                    </svg>
-                  </div>
-                  {/* Legend */}
-                  <div className="flex-1 space-y-3">
-                    {brackets.map((b, i) => {
-                      const pct = Math.round((b.count / total) * 100);
-                      const barW = `${pct}%`;
-                      return (
-                        <div key={b.label}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="text-xs text-bdo-text-muted flex-1">{b.label}</span>
-                            <span className="text-xs font-mono text-bdo-text-secondary">{b.count}</span>
-                            <span className="text-xs font-mono font-bold text-bdo-gold w-8 text-right">%{pct}</span>
-                          </div>
-                          <div className="h-1 bg-bdo-bg rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: barW, backgroundColor: COLORS[i % COLORS.length], opacity: 0.7 }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+      {/* Bottom grid: class dist + GS brackets + attendance */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Class distribution */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Class Dağılımı</span>
+          </div>
+          <div className="p-4 space-y-2">
+            {stats.classDistribution.sort((a, b) => b.count - a.count).map((c, i) => (
+              <div key={c.class} className="flex items-center gap-2">
+                <span className="text-[11px] text-bdo-text-muted w-20 truncate flex-shrink-0">{getClassName2(c.class)}</span>
+                <div className="flex-1 bg-bdo-bg rounded-full h-1.5 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(c.count / maxClassCount) * 100}%`, backgroundColor: CLASS_COLORS[i % CLASS_COLORS.length] }} />
                 </div>
+                <span className="text-[11px] text-bdo-text-secondary font-mono w-4 text-right flex-shrink-0">{c.count}</span>
               </div>
-            );
-          })()}
-        </div>
-
-        {/* Right column: Leaderboards */}
-        <div className="space-y-4">
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <h3 className="text-xs uppercase text-bdo-text-muted mb-3">En Yüksek GS</h3>
-            <div className="space-y-2">
-              {stats.topGs.map((u, i) => (
-                <Link key={u.id} href={`/members/${u.id}`} className="flex items-center gap-2 hover:bg-bdo-gold/5 rounded-lg px-2 py-1 -mx-2 transition-colors">
-                  <span className={`text-xs font-bold font-mono w-5 ${i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : "text-amber-600"}`}>
-                    #{i + 1}
-                  </span>
-                  {u.avatarUrl && <img src={u.avatarUrl} alt="" className="w-6 h-6 rounded-full" />}
-                  <span className="text-sm text-bdo-text-primary flex-1">{u.familyName}</span>
-                  <span className="text-sm font-mono font-bold text-bdo-gold">{u.gs}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <h3 className="text-xs uppercase text-bdo-text-muted mb-3">En Aktif Üyeler</h3>
-            <div className="space-y-2">
-              {stats.topAttendance.map((u, i) => (
-                <Link key={u.id} href={`/members/${u.id}`} className="flex items-center gap-2 hover:bg-bdo-gold/5 rounded-lg px-2 py-1 -mx-2 transition-colors">
-                  <span className={`text-xs font-bold font-mono w-5 ${i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : "text-amber-600"}`}>
-                    #{i + 1}
-                  </span>
-                  {u.avatarUrl && <img src={u.avatarUrl} alt="" className="w-6 h-6 rounded-full" />}
-                  <span className="text-sm text-bdo-text-primary flex-1">{u.familyName}</span>
-                  <span className="text-sm font-mono text-bdo-gold">⚔️ {u.count}</span>
-                </Link>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function StatCard({ label, value, icon, sub }: { label: string; value: string | number; icon: string; sub?: string }) {
-  return (
-    <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] uppercase text-bdo-text-muted tracking-wider">{label}</span>
-        <span className="text-sm">{icon}</span>
+        {/* GS Brackets */}
+        {stats.gsBrackets && (() => {
+          const total = stats.gsBrackets.reduce((s, b) => s + b.count, 0) || 1;
+          return (
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">GS Dağılımı</span>
+                <span className="card-meta">{total} üye</span>
+              </div>
+              <div className="p-4 space-y-3">
+                {stats.gsBrackets.map((b, i) => {
+                  const pct = Math.round((b.count / total) * 100);
+                  return (
+                    <div key={b.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: BRACKET_COLORS[i] }} />
+                          <span className="text-[11px] text-bdo-text-muted">{b.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-bdo-text-secondary font-mono">{b.count}</span>
+                          <span className="text-[10px] font-bold text-bdo-text-muted w-7 text-right">%{pct}</span>
+                        </div>
+                      </div>
+                      <div className="h-1 bg-bdo-bg rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: BRACKET_COLORS[i] }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* En Aktif */}
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">En Aktif Üyeler</span>
+          </div>
+          {stats.topAttendance.map((u, i) => (
+            <Link key={u.id} href={`/members/${u.id}`} className="card-row gap-3">
+              <span className={`text-[11px] font-bold font-mono w-4 flex-shrink-0 ${
+                i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-bdo-text-secondary"
+              }`}>{i + 1}</span>
+              {u.avatarUrl
+                ? <img src={u.avatarUrl} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                : <div className="w-6 h-6 rounded-full bg-bdo-surface-2 flex-shrink-0" />
+              }
+              <span className="text-[13px] text-bdo-text-primary flex-1 truncate">{u.familyName}</span>
+              <span className="text-[11px] text-bdo-text-muted flex-shrink-0">{u.count} savaş</span>
+            </Link>
+          ))}
+        </div>
       </div>
-      <div className="text-xl font-bold font-mono text-bdo-gold">{value}</div>
-      {sub && <div className="text-[10px] text-bdo-text-muted mt-0.5">{sub}</div>}
     </div>
   );
 }

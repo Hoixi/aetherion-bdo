@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { WarCard } from "@/components/war-card";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { GuildStats } from "@/components/guild-stats";
-import { MiniCalendar } from "@/components/mini-calendar";
 import Link from "next/link";
 
 interface War {
@@ -51,7 +50,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
-
     async function fetchData() {
       setLoading(true);
       const [warsRes, annRes, profileRes, actRes] = await Promise.all([
@@ -60,29 +58,40 @@ export default function DashboardPage() {
         fetch("/api/user/profile"),
         fetch("/api/activities"),
       ]);
-
       if (warsRes.ok) setWars(await warsRes.json());
       if (annRes.ok) setAnnouncements(await annRes.json());
       if (profileRes.ok) setUser(await profileRes.json());
       if (actRes.ok) setActivities(await actRes.json());
       setLoading(false);
     }
-
     fetchData();
   }, [status]);
 
   if (status === "loading" || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-bdo-text-muted">Yükleniyor...</p>
+        <div className="flex gap-1.5 items-center">
+          <span className="w-1.5 h-1.5 bg-bdo-gold/40 rounded-full animate-bounce [animation-delay:0ms]" />
+          <span className="w-1.5 h-1.5 bg-bdo-gold/40 rounded-full animate-bounce [animation-delay:150ms]" />
+          <span className="w-1.5 h-1.5 bg-bdo-gold/40 rounded-full animate-bounce [animation-delay:300ms]" />
+        </div>
       </div>
     );
   }
 
   if (!session || !user) return null;
 
+  const upcomingWars = wars.filter((w) => new Date(w.date) >= new Date());
+  const pastWars = wars.filter((w) => new Date(w.date) < new Date()).slice(0, 2);
+
+  const TYPE_LABELS: Record<string, string> = {
+    KARA_TAPINAK: "Kara Tapınak",
+    KAN_ALTARI: "Kan Altarı",
+    PARTI_SLOTLARI: "Parti Slotları",
+  };
+
   return (
-    <div className="space-y-8">
+    <div>
       <DashboardHero
         familyName={user.familyName}
         classId={user.class}
@@ -94,67 +103,76 @@ export default function DashboardPage() {
 
       <GuildStats />
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-      {announcements.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-bdo-text-primary mb-4">Duyurular</h2>
-          <div className="space-y-3">
-            {announcements.map((a) => (
-              <div key={a.id} className="bg-gradient-to-br from-bdo-surface to-bdo-gradient-end border border-bdo-gold/20 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-bdo-gold font-semibold">{a.title}</h3>
-                  <span className="text-xs text-bdo-text-muted">
-                    {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}
-                  </span>
-                </div>
-                <p className="text-sm text-bdo-text-secondary">{a.content}</p>
-                <div className="mt-2 text-xs text-bdo-text-muted">— {a.creator.familyName}</div>
+      {/* Savaşlar + Etkinlikler + Duyurular */}
+      <div className="grid md:grid-cols-3 gap-4 mt-4">
+        {/* Savaşlar */}
+        <div className="card md:col-span-2">
+          <div className="card-header">
+            <div>
+              <p className="card-title">Savaşlar ve Etkinlikler</p>
+              <p className="text-[11px] text-bdo-text-secondary mt-0.5">Yaklaşan savaşları takip et, katılım durumunu belirt</p>
+            </div>
+            <Link href="/wars" className="card-meta hover:text-bdo-gold transition-colors text-xs">Tümü →</Link>
+          </div>
+          {upcomingWars.length === 0 && pastWars.length === 0 ? (
+            <div className="px-4 py-8 text-center text-bdo-text-muted text-sm">
+              Yaklaşan savaş yok.
+            </div>
+          ) : (
+            <>
+              {upcomingWars.slice(0, 4).map((war) => (
+                <WarCard key={war.id} war={war} />
+              ))}
+              {pastWars.length > 0 && upcomingWars.length === 0 && pastWars.map((war) => (
+                <WarCard key={war.id} war={war} />
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Duyurular + Etkinlikler */}
+        <div className="space-y-4">
+          {announcements.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Duyurular</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {announcements.slice(0, 3).map((a) => (
+                <div key={a.id} className="card-row flex-col items-start gap-1">
+                  <div className="flex items-center justify-between w-full">
+                    <p className="text-[13px] font-medium text-bdo-gold">{a.title}</p>
+                    <span className="text-[10px] text-bdo-text-secondary flex-shrink-0 ml-2">
+                      {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-bdo-text-muted leading-relaxed">{a.content}</p>
+                  <p className="text-[10px] text-bdo-text-secondary">— {a.creator.familyName}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
-      <div>
-        <h2 className="text-lg font-semibold text-bdo-text-primary mb-4">Savaşlar</h2>
-        {wars.length === 0 ? (
-          <p className="text-bdo-text-muted">Yaklaşan savaş yok.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {wars.slice(0, 4).map((war) => (
-              <WarCard key={war.id} war={war} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-bdo-text-primary">Etkinlikler</h2>
-          <Link href="/etkinlikler" className="text-xs text-bdo-gold hover:underline">Tümü →</Link>
-        </div>
-        {activities.length === 0 ? (
-          <p className="text-sm text-bdo-text-muted">Aktif etkinlik yok. <Link href="/etkinlikler" className="text-bdo-gold hover:underline">Oluştur →</Link></p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {activities.slice(0, 4).map((a) => {
-              const typeLabels: Record<string, string> = { KARA_TAPINAK: "🏰 Kara Tapınak", KAN_ALTARI: "🩸 Kan Altarı", PARTI_SLOTLARI: "⚔️ Parti Slotları" };
-              return (
-                <Link key={a.id} href="/etkinlikler" className="bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 flex items-center justify-between hover:border-bdo-gold/30 transition-colors">
-                  <span className="text-sm text-bdo-text-primary">{typeLabels[a.type] ?? a.type}</span>
-                  <span className={`text-xs font-mono font-bold ${a.members.length >= a.maxSize ? "text-red-400" : "text-bdo-gold"}`}>
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Aktif Etkinlikler</span>
+              <Link href="/etkinlikler" className="card-meta hover:text-bdo-gold transition-colors">Tümü →</Link>
+            </div>
+            {activities.length === 0 ? (
+              <div className="px-4 py-5 text-center">
+                <p className="text-[12px] text-bdo-text-muted mb-2">Aktif etkinlik yok.</p>
+                <Link href="/etkinlikler" className="text-[11px] text-bdo-gold hover:underline">Oluştur →</Link>
+              </div>
+            ) : (
+              activities.slice(0, 4).map((a) => (
+                <Link key={a.id} href="/etkinlikler" className="card-row justify-between">
+                  <span className="text-[13px] text-bdo-text-primary">{TYPE_LABELS[a.type] ?? a.type}</span>
+                  <span className={`text-[11px] font-mono font-bold ${a.members.length >= a.maxSize ? "text-red-400" : "text-emerald-400"}`}>
                     {a.members.length}/{a.maxSize}
                   </span>
                 </Link>
-              );
-            })}
+              ))
+            )}
           </div>
-        )}
-      </div>
-        </div>
-        <div>
-          <MiniCalendar />
         </div>
       </div>
     </div>

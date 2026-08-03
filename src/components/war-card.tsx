@@ -16,12 +16,22 @@ interface WarCardProps {
   };
 }
 
+const TYPE_ICONS: Record<string, string> = {
+  NODE_WAR: "⚔️",
+  SIEGE: "🏰",
+  KARA_TAPINAK: "🕳️",
+  OTHER: "📌",
+};
+
 export function WarCard({ war }: WarCardProps) {
   const currentStatus = war.participants[0]?.status ?? null;
   const [status, setStatus] = useState<string | null>(currentStatus);
   const [loading, setLoading] = useState(false);
 
   const deadlinePassed = war.deadline ? new Date() > new Date(war.deadline) : false;
+  const warDate = new Date(war.date);
+  const isPast = warDate < new Date();
+  const attending = war._count.participants;
 
   async function handleParticipate(newStatus: string) {
     setLoading(true);
@@ -35,50 +45,71 @@ export function WarCard({ war }: WarCardProps) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-bdo-surface to-bdo-gradient-end border border-bdo-border rounded-lg p-5 hover:border-bdo-gold/30 transition-colors">
-      <div className="flex items-center justify-between mb-2">
-        <Link href={`/wars/${war.id}`} className="text-bdo-text-primary font-semibold hover:text-bdo-gold transition-colors">
+    <div className="card-row items-start gap-3">
+      {/* Date column */}
+      <div className="flex-shrink-0 w-9 text-center pt-0.5">
+        <p className="text-[9px] uppercase text-bdo-text-secondary font-semibold tracking-wider leading-none">
+          {warDate.toLocaleDateString("tr-TR", { month: "short" })}
+        </p>
+        <p className="text-base font-bold text-bdo-text-primary leading-tight">
+          {warDate.getDate()}
+        </p>
+        <p className="text-[9px] text-bdo-text-secondary">
+          {warDate.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
+
+      {/* Icon */}
+      <div className="w-8 h-8 rounded-lg bg-bdo-surface-2 border border-bdo-border flex items-center justify-center flex-shrink-0 text-sm mt-0.5">
+        {TYPE_ICONS[war.type] ?? "📌"}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0 py-0.5">
+        <Link href={`/wars/${war.id}`} className="text-[13px] font-medium text-bdo-text-primary hover:text-bdo-gold transition-colors block leading-snug">
           {war.title}
         </Link>
-        <span className="text-xs bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded">
-          {getTypeName(war.type)}
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[11px] text-bdo-text-muted">{getTypeName(war.type)}</span>
+          <span className="text-[11px] text-bdo-text-secondary">·</span>
+          <span className="text-[11px] text-bdo-text-muted">{attending} katılımcı</span>
+          {status === "ATTENDING" && <span className="text-[10px] text-emerald-400 font-semibold">· Katılıyorum</span>}
+          {status === "DECLINED" && <span className="text-[10px] text-red-400 font-semibold">· Katılmıyorum</span>}
+        </div>
+      </div>
+
+      {/* Actions */}
+      {!isPast && !deadlinePassed && (
+        <div className="flex gap-1.5 flex-shrink-0 pt-0.5">
+          <button
+            onClick={() => handleParticipate("ATTENDING")}
+            disabled={loading || status === "ATTENDING"}
+            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
+              status === "ATTENDING"
+                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                : "bg-bdo-surface-2 text-bdo-text-muted border border-bdo-border hover:text-emerald-400 hover:border-emerald-500/30"
+            } disabled:opacity-50`}
+          >
+            ✓
+          </button>
+          <button
+            onClick={() => handleParticipate("DECLINED")}
+            disabled={loading || status === "DECLINED"}
+            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
+              status === "DECLINED"
+                ? "bg-red-500/15 text-red-400 border border-red-500/25"
+                : "bg-bdo-surface-2 text-bdo-text-muted border border-bdo-border hover:text-red-400 hover:border-red-500/30"
+            } disabled:opacity-50`}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {(isPast || deadlinePassed) && (
+        <span className={`text-[10px] flex-shrink-0 pt-1.5 ${isPast ? "text-bdo-text-secondary" : "text-red-400/60"}`}>
+          {isPast ? "Tamamlandı" : "Süre doldu"}
         </span>
-      </div>
-      <div className="text-sm text-bdo-text-muted mb-3">
-        {new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-bdo-text-muted">{war._count.participants} katılımcı</span>
-        {!deadlinePassed && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleParticipate("ATTENDING")}
-              disabled={loading || status === "ATTENDING"}
-              className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
-                status === "ATTENDING"
-                  ? "bg-bdo-gold text-bdo-bg"
-                  : "bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20"
-              } disabled:opacity-50`}
-            >
-              Katılıyorum
-            </button>
-            <button
-              onClick={() => handleParticipate("DECLINED")}
-              disabled={loading || status === "DECLINED"}
-              className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
-                status === "DECLINED"
-                  ? "bg-red-500/20 text-red-400"
-                  : "bg-bdo-border text-bdo-text-muted hover:bg-red-500/10 hover:text-red-400"
-              } disabled:opacity-50`}
-            >
-              Katılmıyorum
-            </button>
-          </div>
-        )}
-        {deadlinePassed && (
-          <span className="text-xs text-red-400">Süre doldu</span>
-        )}
-      </div>
+      )}
     </div>
   );
 }

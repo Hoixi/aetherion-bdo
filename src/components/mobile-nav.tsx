@@ -68,22 +68,22 @@ export function MobileNav() {
   if (!session) return null;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-bdo-surface/95 backdrop-blur-lg border-t border-bdo-border z-50 safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-bdo-bg/95 backdrop-blur-xl border-t border-bdo-border z-50 safe-area-bottom">
+      <div className="flex items-center justify-around h-14 px-1">
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all ${
                 active
                   ? "text-bdo-gold"
-                  : "text-bdo-text-muted hover:text-bdo-text-primary"
+                  : "text-bdo-text-secondary hover:text-bdo-text-muted"
               }`}
             >
-              {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className={active ? "opacity-100" : "opacity-60"}>{item.icon}</span>
+              <span className={`text-[9px] font-medium ${active ? "text-bdo-gold" : "text-bdo-text-secondary"}`}>{item.label}</span>
             </Link>
           );
         })}
