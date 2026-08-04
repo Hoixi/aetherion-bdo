@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { MessageSquare, Plus, Pin, Eye, MessagesSquare, Inbox, Layers } from "lucide-react";
+import { PageHeader, Button, Empty, Avatar } from "@/components/ui";
 
 interface Tag {
   id: number;
@@ -37,7 +38,6 @@ function timeAgo(date: string) {
 }
 
 export default function ForumPage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [tags, setTags] = useState<Tag[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -68,127 +68,148 @@ export default function ForumPage() {
   const categoryTags = tags.filter((t) => t.type === "CATEGORY");
   const classTags = tags.filter((t) => t.type === "CLASS");
 
+  const filterBtn = (active: boolean) =>
+    `w-full text-left text-[12px] px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+      active ? "bg-bdo-surface-2 text-bdo-text-primary font-medium" : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-surface-2/50"
+    }`;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-bdo-text-primary">Forum</h1>
-          <p className="text-sm text-bdo-text-muted mt-0.5">{total} gönderi</p>
-        </div>
-        <Link
-          href="/forum/yeni"
-          className="bg-bdo-gold text-bdo-bg font-semibold px-4 py-2 rounded-lg hover:bg-bdo-gold-dim transition-colors text-sm"
-        >
-          + Yeni Gönderi
-        </Link>
-      </div>
+    <div>
+      <PageHeader
+        title="Forum"
+        desc="Klan içi tartışmalar, rehberler ve duyurular."
+        icon={MessageSquare}
+        action={
+          <Link href="/forum/yeni">
+            <Button variant="primary" icon={Plus}>Yeni Gönderi</Button>
+          </Link>
+        }
+      />
 
-      <div className="grid md:grid-cols-[240px_1fr] gap-6">
-        {/* Sidebar — Tag Filtreleri */}
-        <div className="space-y-4">
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <button
-              onClick={() => { setActiveTag(null); setPage(1); }}
-              className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors mb-2 ${!activeTag ? "bg-bdo-gold/20 text-bdo-gold font-semibold" : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg"}`}
-            >
-              🗂 Tüm Gönderiler
-            </button>
+      <div className="grid md:grid-cols-[200px_1fr] gap-4">
+        {/* Filters */}
+        <div className="card p-2 h-fit">
+          <button onClick={() => { setActiveTag(null); setPage(1); }} className={filterBtn(!activeTag)}>
+            <Layers className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.75} />
+            Tüm Gönderiler
+            <span className="ml-auto text-[10px] text-bdo-text-secondary font-mono">{total}</span>
+          </button>
 
-            <p className="text-[10px] uppercase text-bdo-text-muted font-semibold tracking-wider px-1 mb-2 mt-3">Kategori</p>
+          <p className="text-[10px] uppercase text-bdo-text-secondary font-semibold tracking-widest px-2.5 mt-3 mb-1">
+            Kategori
+          </p>
+          <div className="space-y-0.5">
             {categoryTags.map((tag) => (
               <button
                 key={tag.id}
                 onClick={() => { setActiveTag(activeTag === tag.slug ? null : tag.slug); setPage(1); }}
-                className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${activeTag === tag.slug ? "bg-bdo-gold/10 font-semibold" : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg"}`}
+                className={filterBtn(activeTag === tag.slug)}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                <span style={{ color: activeTag === tag.slug ? tag.color : undefined }}>{tag.name}</span>
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                <span className="truncate">{tag.name}</span>
               </button>
             ))}
+          </div>
 
-            <p className="text-[10px] uppercase text-bdo-text-muted font-semibold tracking-wider px-1 mb-2 mt-4">Class</p>
-            <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
-              {classTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => { setActiveTag(activeTag === tag.slug ? null : tag.slug); setPage(1); }}
-                  className={`w-full text-left text-xs px-3 py-1 rounded-lg transition-colors flex items-center gap-2 ${activeTag === tag.slug ? "bg-purple-500/10 text-purple-400 font-semibold" : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg"}`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-purple-400/60" />
-                  {tag.name}
-                </button>
-              ))}
-            </div>
+          <p className="text-[10px] uppercase text-bdo-text-secondary font-semibold tracking-widest px-2.5 mt-3 mb-1">
+            Class
+          </p>
+          <div className="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
+            {classTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => { setActiveTag(activeTag === tag.slug ? null : tag.slug); setPage(1); }}
+                className={filterBtn(activeTag === tag.slug)}
+              >
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-bdo-text-secondary" />
+                <span className="truncate">{tag.name}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Post Listesi */}
-        <div className="space-y-3">
+        {/* Posts */}
+        <div>
           {loading ? (
-            <div className="text-center py-12 text-bdo-text-muted text-sm">Yükleniyor...</div>
+            <div className="card"><Empty text="Yükleniyor..." /></div>
           ) : posts.length === 0 ? (
-            <div className="text-center py-12 text-bdo-text-muted">
-              <p className="text-4xl mb-3">📭</p>
-              <p className="text-sm">Henüz gönderi yok.</p>
-              <button onClick={() => router.push("/forum/yeni")} className="mt-3 text-bdo-gold text-sm hover:underline">İlk gönderiyi sen oluştur →</button>
+            <div className="card">
+              <Empty
+                icon={Inbox}
+                text="Henüz gönderi yok."
+                action={
+                  <Button variant="primary" icon={Plus} onClick={() => router.push("/forum/yeni")}>
+                    İlk gönderiyi oluştur
+                  </Button>
+                }
+              />
             </div>
           ) : (
-            posts.map((post) => (
-              <Link key={post.id} href={`/forum/${post.id}`} className="block">
-                <div className={`bg-bdo-surface border rounded-xl p-4 hover:border-bdo-gold/40 transition-all ${post.pinned ? "border-bdo-gold/30 bg-bdo-gold/5" : "border-bdo-border"}`}>
-                  <div className="flex items-start gap-3">
-                    {post.author.avatarUrl
-                      ? <img src={post.author.avatarUrl} alt="" className="w-9 h-9 rounded-full flex-shrink-0 mt-0.5" />
-                      : <div className="w-9 h-9 rounded-full bg-bdo-border flex-shrink-0" />
-                    }
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {post.pinned && <span className="text-[10px] bg-bdo-gold/20 text-bdo-gold px-1.5 py-0.5 rounded font-bold">📌 SABİT</span>}
-                        <h2 className="text-sm font-semibold text-bdo-text-primary hover:text-bdo-gold transition-colors truncate">{post.title}</h2>
-                      </div>
+            <div className="card">
+              {posts.map((post) => (
+                <Link key={post.id} href={`/forum/${post.id}`} className="card-row items-start gap-3 py-3">
+                  <Avatar src={post.author.avatarUrl} size={30} />
 
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-1 mt-1.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {post.pinned && (
+                        <Pin className="w-3 h-3 text-bdo-gold flex-shrink-0" strokeWidth={2.5} fill="currentColor" />
+                      )}
+                      <p className="text-[13px] font-medium text-bdo-text-primary truncate">{post.title}</p>
+                    </div>
+
+                    {post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {post.tags.map(({ tag }) => (
                           <span
                             key={tag.id}
-                            className="text-[10px] px-2 py-0.5 rounded-full font-medium border"
-                            style={{ color: tag.color, borderColor: `${tag.color}40`, backgroundColor: `${tag.color}15` }}
+                            className="text-[10px] px-1.5 py-0.5 rounded font-medium border"
+                            style={{ color: tag.color, borderColor: `${tag.color}30`, backgroundColor: `${tag.color}12` }}
                           >
                             {tag.name}
                           </span>
                         ))}
                       </div>
+                    )}
 
-                      {/* Footer */}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-bdo-text-muted">
-                        <span className="font-medium text-bdo-text-secondary">{post.author.familyName || "?"}</span>
-                        {post.author.siteRole && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ color: post.author.siteRole.color }}>
-                            {post.author.siteRole.name}
-                          </span>
-                        )}
-                        <span>{timeAgo(post.createdAt)}</span>
-                        <span className="ml-auto flex items-center gap-3">
-                          <span>💬 {post._count.comments}</span>
-                          <span>👁 {post.viewCount}</span>
+                    <div className="flex items-center gap-2 mt-1.5 text-[11px] text-bdo-text-secondary">
+                      <span className="text-bdo-text-muted font-medium">{post.author.familyName || "?"}</span>
+                      {post.author.siteRole && (
+                        <span className="font-semibold" style={{ color: post.author.siteRole.color }}>
+                          {post.author.siteRole.name}
                         </span>
-                      </div>
+                      )}
+                      <span>·</span>
+                      <span>{timeAgo(post.createdAt)}</span>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))
+
+                  <div className="flex items-center gap-3 text-[11px] text-bdo-text-secondary flex-shrink-0 pt-0.5">
+                    <span className="flex items-center gap-1">
+                      <MessagesSquare className="w-3 h-3" strokeWidth={1.75} />
+                      {post._count.comments}
+                    </span>
+                    <span className="hidden sm:flex items-center gap-1">
+                      <Eye className="w-3 h-3" strokeWidth={1.75} />
+                      {post.viewCount}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           )}
 
-          {/* Pagination */}
           {pages > 1 && (
-            <div className="flex justify-center gap-2 pt-2">
+            <div className="flex justify-center gap-1.5 pt-4">
               {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-sm font-mono ${p === page ? "bg-bdo-gold text-bdo-bg font-bold" : "bg-bdo-surface border border-bdo-border text-bdo-text-muted hover:border-bdo-gold/40"}`}
+                  className={`w-7 h-7 rounded-lg text-[12px] font-mono transition-colors ${
+                    p === page
+                      ? "bg-bdo-gold text-bdo-bg font-bold"
+                      : "bg-bdo-surface border border-bdo-border text-bdo-text-muted hover:border-bdo-border-2"
+                  }`}
                 >
                   {p}
                 </button>
