@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTypeName } from "@/lib/classes";
+import { CalendarDays, ChevronLeft, ChevronRight, Trophy, Skull, Handshake, CalendarOff } from "lucide-react";
+import { PageHeader, Loading, Empty, Card, CardHeader } from "@/components/ui";
 
 interface CalendarWar {
   id: number;
@@ -15,8 +17,18 @@ interface CalendarWar {
   _count: { participants: number };
 }
 
-const DAYS_TR = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+const DAYS_TR = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const MONTHS_TR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
+const TYPE_COLOR: Record<string, string> = {
+  NODE_WAR: "#d4a030",
+  SIEGE: "#e05252",
+  KARA_TAPINAK: "#a855f7",
+  OTHER: "#4a7cf5",
+};
+
+const RESULT_ICON = { WIN: Trophy, LOSS: Skull, DRAW: Handshake } as const;
+const RESULT_TONE = { WIN: "text-emerald-400", LOSS: "text-red-400", DRAW: "text-bdo-text-muted" } as const;
 
 export default function CalendarPage() {
   const { data: session, status } = useSession();
@@ -38,9 +50,7 @@ export default function CalendarPage() {
       .then(setWars);
   }, [status, year, month]);
 
-  if (status === "loading") {
-    return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-bdo-text-muted">Yükleniyor...</p></div>;
-  }
+  if (status === "loading") return <Loading />;
   if (!session) return null;
 
   const firstDay = new Date(year, month - 1, 1);
@@ -60,132 +70,138 @@ export default function CalendarPage() {
 
   const selectedWars = selectedDay ? warMap.get(selectedDay) || [] : [];
 
-  function prevMonth() {
+  function shiftMonth(dir: -1 | 1) {
     setSelectedDay(null);
-    if (month === 1) { setMonth(12); setYear(year - 1); } else setMonth(month - 1);
+    const m = month + dir;
+    if (m < 1) { setMonth(12); setYear(year - 1); }
+    else if (m > 12) { setMonth(1); setYear(year + 1); }
+    else setMonth(m);
   }
-  function nextMonth() {
-    setSelectedDay(null);
-    if (month === 12) { setMonth(1); setYear(year + 1); } else setMonth(month + 1);
-  }
-
-  const typeColor: Record<string, string> = {
-    NODE_WAR: "bg-bdo-gold",
-    SIEGE: "bg-red-500",
-    KARA_TAPINAK: "bg-purple-500",
-    OTHER: "bg-blue-400",
-  };
-
-  const resultEmoji: Record<string, string> = {
-    WIN: "🏆",
-    LOSS: "💀",
-    DRAW: "🤝",
-  };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-bdo-gold">Takvim</h1>
+    <div>
+      <PageHeader
+        title="Takvim"
+        desc="Savaş ve etkinlik takvimi — güne tıklayarak detayları gör."
+        icon={CalendarDays}
+      />
 
-      <div className="bg-bdo-surface border border-bdo-border rounded-xl p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={prevMonth} className="text-bdo-text-muted hover:text-bdo-gold transition-colors text-lg px-3">‹</button>
-          <h2 className="text-lg font-semibold text-bdo-text-primary">{MONTHS_TR[month - 1]} {year}</h2>
-          <button onClick={nextMonth} className="text-bdo-text-muted hover:text-bdo-gold transition-colors text-lg px-3">›</button>
-        </div>
-
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {DAYS_TR.map((d) => (
-            <div key={d} className="text-xs text-bdo-text-muted text-center uppercase">{d.slice(0, 3)}</div>
-          ))}
-        </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: startDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="aspect-square" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dayWars = warMap.get(day);
-            const isToday = isCurrentMonth && today.getDate() === day;
-            const isSelected = selectedDay === day;
-
-            return (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day === selectedDay ? null : day)}
-                className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-1 text-sm transition-all border ${
-                  isSelected
-                    ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold font-bold"
-                    : isToday
-                    ? "border-bdo-gold/40 bg-bdo-gold/5 text-bdo-gold font-bold"
-                    : dayWars
-                    ? "border-bdo-border/50 hover:border-bdo-gold/30 text-bdo-text-primary hover:bg-bdo-gold/5"
-                    : "border-transparent text-bdo-text-muted/50"
-                }`}
-              >
-                {day}
-                {dayWars && (
-                  <div className="flex gap-0.5">
-                    {dayWars.slice(0, 3).map((w) => (
-                      <div key={w.id} className={`w-1.5 h-1.5 rounded-full ${typeColor[w.type] || "bg-bdo-gold"}`} />
-                    ))}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex gap-4 flex-wrap">
-        {Object.entries(typeColor).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1.5 text-xs text-bdo-text-muted">
-            <div className={`w-2 h-2 rounded-full ${color}`} />
-            {getTypeName(type)}
+      <div className="grid md:grid-cols-[1fr_300px] gap-4 items-start">
+        {/* Calendar */}
+        <Card>
+          <div className="card-header">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="p-1 rounded-md text-bdo-text-secondary hover:text-bdo-text-primary hover:bg-bdo-surface-2 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" strokeWidth={2} />
+            </button>
+            <span className="card-title">{MONTHS_TR[month - 1]} {year}</span>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="p-1 rounded-md text-bdo-text-secondary hover:text-bdo-text-primary hover:bg-bdo-surface-2 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" strokeWidth={2} />
+            </button>
           </div>
-        ))}
-      </div>
 
-      {/* Selected day detail */}
-      {selectedDay && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-bdo-text-primary">
-            {selectedDay} {MONTHS_TR[month - 1]} {year}
-          </h3>
-          {selectedWars.length === 0 ? (
-            <p className="text-sm text-bdo-text-muted">Bu gün için etkinlik yok.</p>
-          ) : (
-            <div className="space-y-2">
-              {selectedWars.map((war) => (
-                <Link
-                  key={war.id}
-                  href={`/wars/${war.id}`}
-                  className="flex items-center justify-between bg-bdo-surface border border-bdo-border rounded-lg p-4 hover:border-bdo-gold/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-8 rounded-full ${typeColor[war.type] || "bg-bdo-gold"}`} />
-                    <div>
-                      <div className="text-sm font-semibold text-bdo-text-primary">{war.title}</div>
-                      <div className="text-xs text-bdo-text-muted">
-                        {new Date(war.date).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                        {" · "}{getTypeName(war.type)}
-                        {" · "}{war._count.participants} katılımcı
-                      </div>
-                    </div>
-                  </div>
-                  {war.result && (
-                    <span className="text-lg">{resultEmoji[war.result] || ""}</span>
-                  )}
-                </Link>
+          <div className="p-3">
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {DAYS_TR.map((d) => (
+                <div key={d} className="text-[10px] text-bdo-text-secondary text-center uppercase tracking-wider py-1 font-medium">
+                  {d}
+                </div>
               ))}
             </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: startDay }).map((_, i) => <div key={`e${i}`} className="aspect-square" />)}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dayWars = warMap.get(day);
+                const isToday = isCurrentMonth && today.getDate() === day;
+                const isSelected = selectedDay === day;
+
+                return (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedDay(day === selectedDay ? null : day)}
+                    className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-1 text-[12px] transition-all border ${
+                      isSelected
+                        ? "border-bdo-gold/50 bg-bdo-gold/10 text-bdo-gold font-bold"
+                        : isToday
+                        ? "border-bdo-border-2 bg-bdo-surface-2 text-bdo-text-primary font-semibold"
+                        : dayWars
+                        ? "border-bdo-border text-bdo-text-primary hover:border-bdo-border-2 hover:bg-bdo-surface-2"
+                        : "border-transparent text-bdo-text-secondary hover:bg-bdo-surface-2/50"
+                    }`}
+                  >
+                    {day}
+                    <div className="flex gap-0.5 h-1">
+                      {dayWars?.slice(0, 3).map((w) => (
+                        <span
+                          key={w.id}
+                          className="w-1 h-1 rounded-full"
+                          style={{ backgroundColor: TYPE_COLOR[w.type] ?? TYPE_COLOR.OTHER }}
+                        />
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex gap-3 flex-wrap px-4 py-2.5 border-t border-bdo-border">
+            {Object.entries(TYPE_COLOR).map(([type, color]) => (
+              <div key={type} className="flex items-center gap-1.5 text-[10px] text-bdo-text-secondary">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                {getTypeName(type)}
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Day detail */}
+        <Card>
+          <CardHeader
+            title={selectedDay ? `${selectedDay} ${MONTHS_TR[month - 1]}` : "Gün Detayı"}
+            meta={selectedDay ? `${selectedWars.length} etkinlik` : undefined}
+          />
+          {!selectedDay ? (
+            <Empty icon={CalendarDays} text="Detayları görmek için bir gün seç." />
+          ) : selectedWars.length === 0 ? (
+            <Empty icon={CalendarOff} text="Bu gün için etkinlik yok." />
+          ) : (
+            selectedWars.map((war) => {
+              const ResultIcon = war.result ? RESULT_ICON[war.result as keyof typeof RESULT_ICON] : null;
+              return (
+                <Link key={war.id} href={`/wars/${war.id}`} className="card-row gap-2.5">
+                  <span
+                    className="w-1 self-stretch rounded-full flex-shrink-0 min-h-[32px]"
+                    style={{ backgroundColor: TYPE_COLOR[war.type] ?? TYPE_COLOR.OTHER }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-bdo-text-primary truncate leading-tight">{war.title}</p>
+                    <p className="text-[10px] text-bdo-text-secondary leading-tight mt-0.5">
+                      {new Date(war.date).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                      {" · "}{getTypeName(war.type)}
+                      {" · "}{war._count.participants} kişi
+                    </p>
+                  </div>
+                  {ResultIcon && (
+                    <ResultIcon
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${RESULT_TONE[war.result as keyof typeof RESULT_TONE]}`}
+                      strokeWidth={1.75}
+                    />
+                  )}
+                </Link>
+              );
+            })
           )}
-        </div>
-      )}
+        </Card>
+      </div>
     </div>
   );
 }
