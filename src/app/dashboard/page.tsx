@@ -33,6 +33,7 @@ interface UserProfile {
   class: string;
   spec: string;
   avatarUrl: string;
+  guild?: { id: number; name: string; tag: string; color: string } | null;
 }
 
 export default function DashboardPage() {
@@ -99,6 +100,9 @@ export default function DashboardPage() {
         ap={user.ap}
         dp={user.dp}
         avatarUrl={user.avatarUrl}
+        guildName={user.guild?.name}
+        guildTag={user.guild?.tag}
+        guildColor={user.guild?.color}
       />
 
       <GuildStats />

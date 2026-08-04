@@ -11,6 +11,7 @@ export async function GET() {
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: {
+      guild: { select: { id: true, name: true, tag: true, color: true } },
       participations: {
         where: { status: "ATTENDING" },
         include: { war: { select: { id: true, title: true, type: true, date: true } } },

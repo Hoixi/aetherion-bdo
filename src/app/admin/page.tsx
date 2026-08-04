@@ -12,7 +12,7 @@ import type { MapMarker } from "@/components/bdo-leaflet-map";
 import {
   Settings, Swords, Megaphone, Users, Shield, BarChart3, Wrench, Map as MapIcon,
   Plus, Trash2, Pencil, Send, CalendarClock, RefreshCw, Bot, UserCog, Database,
-  AlertTriangle, Trophy, Skull, Handshake, X, Info,
+  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star,
 } from "lucide-react";
 import { PageHeader, Button, Card, CardHeader, Empty, Avatar } from "@/components/ui";
 
@@ -54,6 +54,16 @@ interface War {
   maxParticipants: number | null;
 }
 
+interface GuildRow {
+  id: number;
+  name: string;
+  tag: string;
+  color: string;
+  isPrimary: boolean;
+  discordRoleIds: string;
+  _count: { members: number };
+}
+
 interface Member {
   id: number;
   familyName: string;
@@ -61,6 +71,7 @@ interface Member {
   isAdmin: boolean;
   avatarUrl: string;
   siteRole: { name: string; color: string } | null;
+  guild: { id: number; name: string; tag: string; color: string } | null;
 }
 
 type AnnouncementTarget = "all" | "no_login" | "no_gear" | "pvp";
@@ -151,7 +162,16 @@ export default function AdminPage() {
   const [schedSaving, setSchedSaving] = useState(false);
   const [showWarForm, setShowWarForm] = useState(false);
   const [editingWar, setEditingWar] = useState<War | null>(null);
-  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "hasar" | "araçlar" | "geo">("wars");
+  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "guilds" | "hasar" | "araçlar" | "geo">("wars");
+
+  // ── Klanlar ──
+  const [guilds, setGuilds] = useState<GuildRow[]>([]);
+  const [editingGuild, setEditingGuild] = useState<GuildRow | null>(null);
+  const [gName, setGName] = useState("");
+  const [gTag, setGTag] = useState("");
+  const [gColor, setGColor] = useState("#4a7cf5");
+  const [gRoleIds, setGRoleIds] = useState("");
+  const [gSaving, setGSaving] = useState(false);
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
@@ -266,11 +286,82 @@ export default function AdminPage() {
     fetchRoles();
     fetchWarSchedules();
     fetchGeoImages();
+    fetchGuilds();
   }, []);
 
   async function fetchWars() {
     const res = await fetch("/api/wars");
     if (res.ok) setWars(await res.json());
+  }
+
+  // ── Klan işlemleri ──
+
+  async function fetchGuilds() {
+    const res = await fetch("/api/guilds");
+    if (res.ok) setGuilds(await res.json());
+  }
+
+  function resetGuildForm() {
+    setEditingGuild(null);
+    setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds("");
+  }
+
+  function startEditGuild(g: GuildRow) {
+    setEditingGuild(g);
+    setGName(g.name);
+    setGTag(g.tag);
+    setGColor(g.color);
+    try {
+      setGRoleIds((JSON.parse(g.discordRoleIds || "[]") as string[]).join(", "));
+    } catch {
+      setGRoleIds("");
+    }
+  }
+
+  async function saveGuild(e: React.FormEvent) {
+    e.preventDefault();
+    setGSaving(true);
+    const payload = { name: gName, tag: gTag, color: gColor, discordRoleIds: gRoleIds };
+    const res = await fetch("/api/guilds", {
+      method: editingGuild ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingGuild ? { ...payload, id: editingGuild.id } : payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      resetGuildForm();
+      await fetchGuilds();
+      await fetchMembers();
+      setMessage(editingGuild ? "Klan güncellendi." : "Klan oluşturuldu.");
+    } else {
+      setMessage(data.error ?? "Kaydedilemedi.");
+    }
+    setGSaving(false);
+    setTimeout(() => setMessage(null), 3000);
+  }
+
+  async function deleteGuild(g: GuildRow) {
+    if (!confirm(`"${g.name}" klanını silmek istediğine emin misin? ${g._count.members} üye klansız kalacak.`)) return;
+    const res = await fetch("/api/guilds", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: g.id }),
+    });
+    const data = await res.json();
+    setMessage(res.ok ? "Klan silindi." : (data.error ?? "Silinemedi."));
+    await fetchGuilds();
+    await fetchMembers();
+    setTimeout(() => setMessage(null), 3000);
+  }
+
+  async function setMemberGuild(memberId: number, guildId: string) {
+    await fetch(`/api/members/${memberId}/guild`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guildId: guildId || null }),
+    });
+    await fetchMembers();
+    await fetchGuilds();
   }
 
   async function fetchMembers() {
@@ -623,6 +714,7 @@ export default function AdminPage() {
     { key: "wars",          label: "Savaşlar",     icon: Swords },
     { key: "announcements", label: "Duyurular",    icon: Megaphone },
     { key: "members",       label: "Üyeler",       icon: Users },
+    { key: "guilds",        label: "Klanlar",      icon: Flag },
     { key: "roles",         label: "Roller",       icon: Shield },
     { key: "hasar",         label: "Hasar Raporu", icon: BarChart3 },
     { key: "araçlar",       label: "Araçlar",      icon: Wrench },
@@ -1305,14 +1397,26 @@ export default function AdminPage() {
             <Empty icon={Users} text="Henüz üye yok." />
           ) : (
             members.map((member) => (
-              <div key={member.id} className="card-row gap-3">
-                <Link href={`/members/${member.id}`} className="flex items-center gap-2.5 flex-1 min-w-0 group">
+              <div key={member.id} className="card-row gap-3 flex-wrap">
+                <Link href={`/members/${member.id}`} className="flex items-center gap-2.5 flex-1 min-w-[160px] group">
                   <Avatar src={member.avatarUrl} size={26} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] text-bdo-text-primary group-hover:text-bdo-gold transition-colors truncate">
                         {member.familyName || "İsimsiz"}
                       </span>
+                      {member.guild && (
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border"
+                          style={{
+                            color: member.guild.color,
+                            borderColor: `${member.guild.color}35`,
+                            backgroundColor: `${member.guild.color}12`,
+                          }}
+                        >
+                          {member.guild.tag}
+                        </span>
+                      )}
                       {member.siteRole && (
                         <span
                           className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border"
@@ -1329,6 +1433,14 @@ export default function AdminPage() {
                   </div>
                 </Link>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <select
+                    value={member.guild?.id ?? ""}
+                    onChange={(e) => setMemberGuild(member.id, e.target.value)}
+                    className="text-[11px] bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1 text-bdo-text-muted focus:border-bdo-gold/40 focus:outline-none"
+                  >
+                    <option value="">Klansız</option>
+                    {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
                   <Button
                     variant={member.isAdmin ? "primary" : "ghost"}
                     size="xs"
@@ -1348,6 +1460,118 @@ export default function AdminPage() {
             ))
           )}
         </Card>
+      )}
+
+      {tab === "guilds" && (
+        <div className="space-y-4">
+          {/* Form */}
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2">
+                <Flag className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <span className="card-title">{editingGuild ? "Klanı Düzenle" : "Yeni Klan"}</span>
+              </div>
+              {editingGuild && (
+                <button
+                  onClick={resetGuildForm}
+                  className="p-1 rounded-md text-bdo-text-secondary hover:text-bdo-text-primary hover:bg-bdo-surface-2 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={saveGuild} className="p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_90px] gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">Klan Adı</label>
+                  <input
+                    value={gName} onChange={(e) => setGName(e.target.value)} required maxLength={40}
+                    placeholder="Örn: Nexus"
+                    className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">Tag</label>
+                  <input
+                    value={gTag} onChange={(e) => setGTag(e.target.value.toUpperCase())} required maxLength={5}
+                    placeholder="NEX"
+                    className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] font-mono font-bold text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">Renk</label>
+                  <input
+                    type="color" value={gColor} onChange={(e) => setGColor(e.target.value)}
+                    className="w-full h-[38px] bg-bdo-bg border border-bdo-border rounded-lg px-1 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">
+                  Discord Rol ID&apos;leri <span className="normal-case opacity-60">(virgülle ayır — giriş yapanlar otomatik bu klana atanır)</span>
+                </label>
+                <input
+                  value={gRoleIds} onChange={(e) => setGRoleIds(e.target.value)}
+                  placeholder="1234567890, 9876543210"
+                  className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] font-mono text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button type="submit" variant="primary" size="md" disabled={gSaving}>
+                  {gSaving ? "Kaydediliyor..." : editingGuild ? "Güncelle" : "Klan Oluştur"}
+                </Button>
+                {editingGuild && (
+                  <Button variant="ghost" size="md" onClick={resetGuildForm}>İptal</Button>
+                )}
+              </div>
+            </form>
+          </Card>
+
+          {/* Liste */}
+          <Card>
+            <CardHeader title="Klanlar" icon={Flag} meta={`${guilds.length} klan`} />
+            {guilds.length === 0 ? (
+              <Empty icon={Flag} text="Henüz klan yok." />
+            ) : (
+              guilds.map((g) => {
+                let roleCount = 0;
+                try { roleCount = (JSON.parse(g.discordRoleIds || "[]") as string[]).length; } catch { /* ignore */ }
+                return (
+                  <div key={g.id} className={`card-row gap-3 ${g.isPrimary ? "card-row-active" : ""}`}>
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded border flex-shrink-0 font-mono"
+                      style={{ color: g.color, borderColor: `${g.color}40`, backgroundColor: `${g.color}15` }}
+                    >
+                      {g.tag}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[13px] font-medium text-bdo-text-primary truncate">{g.name}</p>
+                        {g.isPrimary && (
+                          <Star className="w-3 h-3 text-bdo-gold flex-shrink-0" strokeWidth={2} fill="currentColor" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-bdo-text-secondary mt-0.5">
+                        {g._count.members} üye
+                        {roleCount > 0 && ` · ${roleCount} Discord rolü bağlı`}
+                        {g.isPrimary && " · ana klan"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Button variant="ghost" size="xs" icon={Pencil} onClick={() => startEditGuild(g)} />
+                      {!g.isPrimary && (
+                        <Button variant="danger" size="xs" icon={Trash2} onClick={() => deleteGuild(g)} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </Card>
+        </div>
       )}
 
       {tab === "hasar" && (

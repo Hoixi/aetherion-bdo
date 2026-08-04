@@ -6,6 +6,8 @@ import { BDO_CLASSES, getClassByID, getPortraitUrl, getClassIconUrl } from "@/li
 import { Search, LayoutList, LayoutGrid, Swords, ArrowUpDown, UserX } from "lucide-react";
 import { Avatar, Empty } from "./ui";
 
+interface Guild { id: number; name: string; tag: string; color: string }
+
 interface Member {
   id: number;
   familyName: string;
@@ -15,6 +17,7 @@ interface Member {
   dp: number;
   avatarUrl: string;
   siteRole?: { name: string; color: string } | null;
+  guild?: Guild | null;
   _count?: { participations: number };
 }
 
@@ -25,15 +28,41 @@ const SORT_LABELS: Record<SortField, string> = {
   gs: "GS", ap: "AP", dp: "DP", katilim: "Katılım",
 };
 
+function GuildTag({ guild }: { guild?: Guild | null }) {
+  if (!guild) return null;
+  return (
+    <span
+      className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
+      style={{
+        color: guild.color,
+        borderColor: `${guild.color}35`,
+        backgroundColor: `${guild.color}12`,
+      }}
+      title={guild.name}
+    >
+      {guild.tag}
+    </span>
+  );
+}
+
 export function MemberTable({ members }: { members: Member[] }) {
   const [sortBy, setSortBy] = useState<SortField>("gs");
   const [filterClass, setFilterClass] = useState("");
+  const [filterGuild, setFilterGuild] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  // Guild listesi — sadece birden fazla guild varsa filtre göster
+  const guilds = useMemo(() => {
+    const map = new Map<number, Guild>();
+    for (const m of members) if (m.guild) map.set(m.guild.id, m.guild);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [members]);
 
   const filtered = useMemo(() => {
     let result = members;
     if (filterClass) result = result.filter((m) => m.class === filterClass);
+    if (filterGuild) result = result.filter((m) => String(m.guild?.id ?? "") === filterGuild);
     if (search) result = result.filter((m) => m.familyName.toLowerCase().includes(search.toLowerCase()));
     return [...result].sort((a, b) => {
       if (sortBy === "gs") return (b.ap + b.dp) - (a.ap + a.dp);
@@ -41,7 +70,7 @@ export function MemberTable({ members }: { members: Member[] }) {
       if (sortBy === "dp") return b.dp - a.dp;
       return (b._count?.participations ?? 0) - (a._count?.participations ?? 0);
     });
-  }, [members, sortBy, filterClass, search]);
+  }, [members, sortBy, filterClass, filterGuild, search]);
 
   return (
     <div className="space-y-3">
@@ -66,6 +95,17 @@ export function MemberTable({ members }: { members: Member[] }) {
           <option value="">Tüm Classlar</option>
           {BDO_CLASSES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+
+        {guilds.length > 1 && (
+          <select
+            value={filterGuild}
+            onChange={(e) => setFilterGuild(e.target.value)}
+            className="bg-bdo-surface border border-bdo-border rounded-lg px-3 py-1.5 text-[13px] text-bdo-text-muted focus:outline-none focus:border-bdo-gold/40 transition-colors"
+          >
+            <option value="">Tüm Klanlar</option>
+            {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        )}
 
         <div className="flex items-center gap-0.5 bg-bdo-surface border border-bdo-border rounded-lg p-0.5">
           <ArrowUpDown className="w-3 h-3 text-bdo-text-secondary ml-1.5 mr-0.5" strokeWidth={1.75} />
@@ -127,9 +167,12 @@ export function MemberTable({ members }: { members: Member[] }) {
                 <Avatar src={member.avatarUrl} size={24} />
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-bdo-text-primary truncate leading-tight">
-                    {member.familyName || "—"}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[13px] font-medium text-bdo-text-primary truncate leading-tight">
+                      {member.familyName || "—"}
+                    </p>
+                    {guilds.length > 1 && <GuildTag guild={member.guild} />}
+                  </div>
                   {member.siteRole && (
                     <p className="text-[10px] leading-tight truncate" style={{ color: member.siteRole.color }}>
                       {member.siteRole.name}
@@ -183,6 +226,19 @@ export function MemberTable({ members }: { members: Member[] }) {
                   <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider bg-bdo-bg/70 backdrop-blur-sm text-bdo-text-muted px-1.5 py-0.5 rounded border border-bdo-border">
                     {specKey === "succession" ? "SUC" : "AWK"}
                   </span>
+                  {guilds.length > 1 && member.guild && (
+                    <span
+                      className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm px-1.5 py-0.5 rounded border"
+                      style={{
+                        color: member.guild.color,
+                        borderColor: `${member.guild.color}40`,
+                        backgroundColor: `${member.guild.color}20`,
+                      }}
+                      title={member.guild.name}
+                    >
+                      {member.guild.tag}
+                    </span>
+                  )}
                 </div>
 
                 <div className="px-3 pb-3 -mt-3 relative">

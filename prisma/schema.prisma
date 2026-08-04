@@ -8,6 +8,23 @@ datasource db {
   directUrl = env("DIRECT_URL")         // Supabase direct — prisma migrate
 }
 
+// ── Guilds (Aetherion + müttefikler) ────────────────────────────────────────
+
+model Guild {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique                    // "Aetherion"
+  tag         String   @unique                    // "AET" — listelerde rozet
+  color       String   @default("#d4a030")        // rozet rengi
+  isPrimary   Boolean  @default(false)            // true = kendi klanımız
+  discordRoleIds String @default("[]") @db.Text   // JSON: bu guild'e ait Discord rol ID'leri
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members User[]
+
+  @@map("guilds")
+}
+
 model User {
   id          Int      @id @default(autoincrement())
   discordId   String   @unique
@@ -19,11 +36,13 @@ model User {
   avatarUrl   String   @default("")
   isAdmin     Boolean   @default(false)
   siteRoleId  Int?
+  guildId     Int?
   absenceCount Int     @default(0)
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  guild          Guild?           @relation(fields: [guildId], references: [id], onDelete: SetNull)
   siteRole       SiteRole?        @relation(fields: [siteRoleId], references: [id], onDelete: SetNull)
   participations WarParticipant[]
   partyMembers   PartyMember[]

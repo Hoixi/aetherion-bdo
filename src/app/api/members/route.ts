@@ -13,6 +13,7 @@ export async function GET() {
     orderBy: [{ ap: "desc" }, { dp: "desc" }],
     include: {
       siteRole: { select: { name: true, color: true } },
+      guild: { select: { id: true, name: true, tag: true, color: true } },
       _count: { select: { participations: { where: { status: "ATTENDING" } } } },
     },
   });

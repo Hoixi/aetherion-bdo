@@ -117,18 +117,40 @@ export const authOptions: NextAuthOptions = {
       // isAdmin = true if role says admin OR user was already manually set as admin
       const newIsAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
 
+      // Discord rollerine göre klan tespiti — eşleşme yoksa ana klana düş
+      const guilds = await prisma.guild.findMany({
+        orderBy: { isPrimary: "asc" }, // ally'ler önce denenir, ana klan fallback kalır
+      });
+      let matchedGuildId: number | null = null;
+      for (const g of guilds) {
+        let ids: string[] = [];
+        try {
+          ids = JSON.parse(g.discordRoleIds || "[]");
+        } catch {
+          continue;
+        }
+        if (ids.length > 0 && ids.some((id) => roles.includes(id))) {
+          matchedGuildId = g.id;
+          break;
+        }
+      }
+      const primaryGuild = guilds.find((g) => g.isPrimary);
+      const guildId = matchedGuildId ?? existingUser?.guildId ?? primaryGuild?.id ?? null;
+
       await prisma.user.upsert({
         where: { discordId: user.id },
         update: {
           avatarUrl: user.image ?? "",
           isAdmin: newIsAdmin,
           siteRoleId: matchedRole?.id ?? existingUser?.siteRoleId ?? null,
+          guildId,
         },
         create: {
           discordId: user.id,
           avatarUrl: user.image ?? "",
           isAdmin: newIsAdmin,
           siteRoleId: matchedRole?.id ?? null,
+          guildId,
         },
       });
 

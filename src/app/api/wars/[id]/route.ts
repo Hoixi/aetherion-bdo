@@ -12,8 +12,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const war = await prisma.war.findUnique({
     where: { id: Number(params.id) },
     include: {
-      participants: { include: { user: true } },
-      parties: { include: { members: { include: { user: true }, orderBy: { order: "asc" } } }, orderBy: { order: "asc" } },
+      participants: {
+        include: { user: { include: { guild: { select: { id: true, name: true, tag: true, color: true } } } } },
+      },
+      parties: {
+        include: {
+          members: {
+            include: { user: { include: { guild: { select: { id: true, name: true, tag: true, color: true } } } } },
+            orderBy: { order: "asc" },
+          },
+        },
+        orderBy: { order: "asc" },
+      },
     },
   });
 
