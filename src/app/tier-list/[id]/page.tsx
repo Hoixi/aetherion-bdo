@@ -17,12 +17,14 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { BDO_CLASSES, getPortraitUrl } from "@/lib/classes";
+import { ArrowLeft, Vote, Trash2, X, Plus, MoveVertical } from "lucide-react";
+import { Loading, Empty, Button, Avatar } from "@/components/ui";
 
 const TAG_LABELS: Record<string, string> = {
   PVE: "PvE", NODE_WAR: "Node War", ONE_V_ONE: "1v1", ONE_V_X: "1vX", AOS: "AoS",
 };
 const TAG_COLORS: Record<string, string> = {
-  PVE: "#22c55e", NODE_WAR: "#f97316", ONE_V_ONE: "#ef4444", ONE_V_X: "#a855f7", AOS: "#3b82f6",
+  PVE: "#2bca6e", NODE_WAR: "#e09832", ONE_V_ONE: "#e05252", ONE_V_X: "#a855f7", AOS: "#4a7cf5",
 };
 
 function getAllClassSpecs() {
@@ -72,29 +74,29 @@ function DraggableCard({
       `}
       style={{ ...style, width: 64, touchAction: "none" }}
     >
-      <div className="relative w-16 h-[72px] bg-bdo-bg overflow-hidden">
+      <div className="relative w-16 h-[72px] bg-bdo-surface-2 overflow-hidden ring-1 ring-bdo-border">
         {imgUrl ? (
           <img src={imgUrl} alt={name} className="w-full h-full object-cover object-top" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-bdo-text-muted text-xs">{name[0]}</div>
+          <div className="w-full h-full flex items-center justify-center text-bdo-text-secondary text-xs">{name[0]}</div>
         )}
-        <div className="absolute bottom-0 right-0 text-[9px] font-bold px-1 py-0.5 bg-bdo-bg/80 text-bdo-text-muted leading-none">
+        <div className="absolute bottom-0 right-0 text-[8px] font-bold px-1 py-0.5 bg-bdo-bg/85 backdrop-blur-sm text-bdo-text-secondary leading-none rounded-tl">
           {specLabel}
         </div>
         {note && (
           <div
-            className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-bdo-gold z-10"
+            className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full bg-bdo-gold z-10 ring-2 ring-bdo-bg/50"
             onMouseEnter={() => setShowNote(true)}
             onMouseLeave={() => setShowNote(false)}
           />
         )}
         {showNote && note && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1.5 text-xs text-bdo-text-primary w-36 text-center pointer-events-none whitespace-pre-wrap">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 bg-bdo-surface border border-bdo-border-2 rounded-lg px-2 py-1.5 text-[11px] text-bdo-text-primary w-36 text-center pointer-events-none whitespace-pre-wrap shadow-xl">
             {note}
           </div>
         )}
         {voteCount !== null && voteCount > 0 && (
-          <div className="absolute top-0.5 right-0.5 text-[9px] font-bold bg-bdo-gold/90 text-bdo-bg px-1 rounded">
+          <div className="absolute top-1 right-1 text-[9px] font-bold bg-bdo-gold text-bdo-bg px-1 rounded leading-tight">
             {voteCount}
           </div>
         )}
@@ -102,13 +104,13 @@ function DraggableCard({
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-red-500/80 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center leading-none z-20"
+            className="absolute top-1 left-1 w-4 h-4 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20"
           >
-            ✕
+            <X className="w-2.5 h-2.5" strokeWidth={3} />
           </button>
         )}
       </div>
-      <div className="w-full bg-bdo-bg/90 text-[9px] text-center text-bdo-text-muted px-1 py-0.5 truncate">
+      <div className="w-full bg-bdo-surface text-[9px] text-center text-bdo-text-secondary px-1 py-0.5 truncate border-x border-b border-bdo-border">
         {name}
       </div>
     </div>
@@ -126,19 +128,23 @@ function DroppableTierRow({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[88px] border-b border-bdo-border last:border-b-0 transition-colors ${isOver ? "bg-bdo-gold/10" : ""}`}
+      className={`flex min-h-[92px] border-b border-bdo-border last:border-b-0 transition-colors ${isOver ? "bg-bdo-gold/[0.07]" : ""}`}
     >
       <div
-        className="flex items-center justify-center font-black text-lg w-16 flex-shrink-0"
-        style={{ backgroundColor: `${tier.color}20`, color: tier.color, borderRight: `2px solid ${tier.color}40` }}
+        className="flex items-center justify-center font-black text-lg w-14 flex-shrink-0"
+        style={{
+          background: `linear-gradient(160deg, ${tier.color}28, ${tier.color}10)`,
+          color: tier.color,
+          borderRight: `1px solid ${tier.color}30`,
+        }}
       >
         {tier.name}
       </div>
-      <div className="flex flex-wrap gap-2 p-2 flex-1 items-start content-start">
+      <div className="flex flex-wrap gap-2 p-2.5 flex-1 items-start content-start">
         {children}
         {isOver && (
-          <div className="border-2 border-dashed border-bdo-gold/60 rounded-lg w-16 h-[88px] flex items-center justify-center text-bdo-gold/60 text-lg animate-pulse">
-            +
+          <div className="border border-dashed border-bdo-gold/50 rounded-lg w-16 h-[88px] flex items-center justify-center text-bdo-gold/50 animate-pulse">
+            <Plus className="w-4 h-4" strokeWidth={2} />
           </div>
         )}
       </div>
@@ -151,10 +157,7 @@ function DroppableTierRow({
 function DroppablePool({ children, isEditing }: { children: React.ReactNode; isEditing: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: "pool", disabled: !isEditing });
   return (
-    <div
-      ref={setNodeRef}
-      className={`bg-bdo-surface border border-bdo-border rounded-xl p-4 transition-colors ${isOver ? "border-bdo-gold/50 bg-bdo-gold/5" : ""}`}
-    >
+    <div ref={setNodeRef} className={`card transition-colors ${isOver ? "border-bdo-gold/40" : ""}`}>
       {children}
     </div>
   );
@@ -290,8 +293,8 @@ export default function TierListDetailPage({ params }: { params: { id: string } 
     router.push("/tier-list");
   }
 
-  if (loading) return <div className="text-center py-16 text-bdo-text-muted text-sm">Yükleniyor...</div>;
-  if (!data) return <div className="text-center py-16 text-bdo-text-muted">Tier list bulunamadı.</div>;
+  if (loading) return <Loading />;
+  if (!data) return <div className="card"><Empty text="Tier list bulunamadı." /></div>;
 
   const tags = data.tags ? data.tags.split(",").filter(Boolean) : [];
   const poolItems = ALL_SPECS.filter((s) => !placedMap.has(`${s.classId}__${s.spec}`));
@@ -300,66 +303,81 @@ export default function TierListDetailPage({ params }: { params: { id: string } 
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-6">
+      <div>
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-1.5 text-[12px] text-bdo-text-secondary hover:text-bdo-gold transition-colors mb-4"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
+          Geri
+        </button>
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <button onClick={() => router.back()} className="text-bdo-text-muted hover:text-bdo-text-primary text-sm mb-2 block">← Geri</button>
+        <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {data.isVoting && (
-                <span className="text-[10px] bg-bdo-sapphire/20 text-bdo-sapphire px-1.5 py-0.5 rounded font-bold border border-bdo-sapphire/30">🗳 OYLAMALI</span>
+                <span className="inline-flex items-center gap-1 text-[10px] bg-[#4a7cf5]/10 text-[#6b93ff] px-1.5 py-0.5 rounded font-semibold border border-[#4a7cf5]/20">
+                  <Vote className="w-3 h-3" strokeWidth={2} />
+                  OYLAMALI
+                </span>
               )}
-              <h1 className="text-xl font-bold text-bdo-text-primary">{data.title}</h1>
+              <h1 className="section-title">{data.title}</h1>
             </div>
-            {data.description && <p className="text-sm text-bdo-text-muted mt-1">{data.description}</p>}
+            {data.description && <p className="section-desc">{data.description}</p>}
+
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {tags.map((tag) => (
-                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium border"
-                    style={{ color: TAG_COLORS[tag] ?? "#d4a030", borderColor: `${TAG_COLORS[tag] ?? "#d4a030"}40`, backgroundColor: `${TAG_COLORS[tag] ?? "#d4a030"}15` }}>
-                    {TAG_LABELS[tag] ?? tag}
-                  </span>
-                ))}
+                {tags.map((tag) => {
+                  const c = TAG_COLORS[tag] ?? "#d4a030";
+                  return (
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded font-medium border"
+                      style={{ color: c, borderColor: `${c}30`, backgroundColor: `${c}12` }}>
+                      {TAG_LABELS[tag] ?? tag}
+                    </span>
+                  );
+                })}
               </div>
             )}
-            <div className="flex items-center gap-2 mt-2 text-xs text-bdo-text-muted">
-              {data.creator.avatarUrl
-                ? <img src={data.creator.avatarUrl} className="w-4 h-4 rounded-full" alt="" />
-                : <div className="w-4 h-4 rounded-full bg-bdo-border" />}
-              <span>{data.creator.familyName}</span>
+
+            <div className="flex items-center gap-2 mt-2 text-[11px] text-bdo-text-secondary">
+              <Avatar src={data.creator.avatarUrl} size={16} ring={false} />
+              <span className="text-bdo-text-muted">{data.creator.familyName}</span>
               {data.isVoting && <span>· {new Set(data.votes.map((v) => v.userId)).size} katılımcı</span>}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
             {data.isVoting && session?.user && (
-              <div className="flex rounded-lg overflow-hidden border border-bdo-border">
-                <button onClick={() => setViewMode("list")}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "list" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}>
-                  Genel
-                </button>
-                <button onClick={() => setViewMode("my")}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "my" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}>
-                  Oyum
-                </button>
+              <div className="flex gap-0.5 bg-bdo-surface border border-bdo-border rounded-lg p-0.5">
+                {([["list", "Genel"], ["my", "Oyum"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      viewMode === mode ? "bg-bdo-surface-2 text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
             {(isCreator || isAdmin) && (
-              <button onClick={deleteList} className="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-400/30 hover:border-red-400/60 transition-colors">
-                Sil
-              </button>
+              <Button variant="danger" icon={Trash2} onClick={deleteList}>Sil</Button>
             )}
           </div>
         </div>
 
         {isEditing && (
-          <p className="text-xs text-bdo-text-muted mb-3 flex items-center gap-1.5">
-            <span className="text-bdo-gold">↕</span> Classları havuzdan tier&apos;a sürükle · Kaldırmak için havuza geri sürükle
+          <p className="text-[11px] text-bdo-text-secondary mb-3 flex items-center gap-1.5">
+            <MoveVertical className="w-3.5 h-3.5 text-bdo-gold/60 flex-shrink-0" strokeWidth={1.75} />
+            Classları havuzdan tier&apos;a sürükle · kaldırmak için havuza geri sürükle
           </p>
         )}
 
         {/* Tier Board */}
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden mb-4">
+        <div className="card mb-4">
           {data.tiers.map((tier) => {
             const tierEntries = ALL_SPECS.filter((s) => placedMap.get(`${s.classId}__${s.spec}`)?.tierId === tier.id);
             return (
@@ -391,10 +409,13 @@ export default function TierListDetailPage({ params }: { params: { id: string } 
         {/* Class Havuzu */}
         {(isEditing || poolItems.length > 0) && (
           <DroppablePool isEditing={isEditing}>
-            <p className="text-xs text-bdo-text-muted mb-3 font-semibold uppercase tracking-wider">
-              {isEditing ? `Havuz (${poolItems.length}) — tier satırına sürükle` : `Yerleştirilmemiş (${poolItems.length})`}
-            </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="card-header">
+              <span className="card-title">{isEditing ? "Havuz" : "Yerleştirilmemiş"}</span>
+              <span className="card-meta">
+                {poolItems.length}{isEditing && " · tier satırına sürükle"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2 p-3">
               {poolItems.map((s) => (
                 <DraggableCard
                   key={`${s.classId}__${s.spec}`}
@@ -430,45 +451,55 @@ export default function TierListDetailPage({ params }: { params: { id: string } 
 
       {/* Not Modalı */}
       {noteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setNoteModal(null)}>
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-              {(() => {
-                const s = ALL_SPECS.find((s) => s.classId === noteModal.classId && s.spec === noteModal.spec);
-                const imgUrl = s ? getPortraitUrl(s.classId, s.spec) : "";
-                return imgUrl
-                  ? <img src={imgUrl} className="w-12 h-16 object-cover object-top rounded-lg" alt="" />
-                  : <div className="w-12 h-16 rounded-lg bg-bdo-border" />;
-              })()}
-              <div>
-                <p className="font-bold text-bdo-text-primary text-sm">
-                  {ALL_SPECS.find((s) => s.classId === noteModal.classId)?.name}
-                </p>
-                <p className="text-xs text-bdo-text-muted capitalize">
-                  {noteModal.spec === "succession" ? "Aktarım" : "Uyanış"}
-                </p>
-              </div>
-            </div>
-            <label className="block text-xs text-bdo-text-muted mb-1.5">Not <span className="text-bdo-text-muted/50">(isteğe bağlı)</span></label>
-            <textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Bu yerleştirme için not..."
-              rows={3}
-              autoFocus
-              className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none text-sm resize-none mb-4"
-            />
-            <div className="flex gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4" onClick={() => setNoteModal(null)}>
+          <div className="card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="card-header">
+              <span className="card-title">Tier&apos;a Yerleştir</span>
               <button
-                onClick={() => confirmPlace(noteText)}
-                disabled={saving}
-                className="flex-1 bg-bdo-gold text-bdo-bg font-semibold py-2 rounded-lg text-sm hover:bg-bdo-gold-dim transition-colors disabled:opacity-50"
+                onClick={() => setNoteModal(null)}
+                className="p-1 rounded-md text-bdo-text-secondary hover:text-bdo-text-primary hover:bg-bdo-surface-2 transition-colors"
               >
-                {saving ? "Kaydediliyor..." : "Yerleştir"}
+                <X className="w-3.5 h-3.5" strokeWidth={2} />
               </button>
-              <button onClick={() => setNoteModal(null)} className="px-4 py-2 text-sm text-bdo-text-muted hover:text-bdo-text-primary">
-                İptal
-              </button>
+            </div>
+
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-4">
+                {(() => {
+                  const s = ALL_SPECS.find((s) => s.classId === noteModal.classId && s.spec === noteModal.spec);
+                  const imgUrl = s ? getPortraitUrl(s.classId, s.spec) : "";
+                  return imgUrl
+                    ? <img src={imgUrl} className="w-12 h-16 object-cover object-top rounded-lg ring-1 ring-bdo-border" alt="" />
+                    : <div className="w-12 h-16 rounded-lg bg-bdo-surface-2 ring-1 ring-bdo-border" />;
+                })()}
+                <div>
+                  <p className="text-[14px] font-semibold text-bdo-text-primary">
+                    {ALL_SPECS.find((s) => s.classId === noteModal.classId)?.name}
+                  </p>
+                  <p className="text-[11px] text-bdo-text-secondary">
+                    {noteModal.spec === "succession" ? "Aktarım" : "Uyanış"}
+                  </p>
+                </div>
+              </div>
+
+              <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">
+                Not <span className="normal-case opacity-60">(isteğe bağlı)</span>
+              </label>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Bu yerleştirme için not..."
+                rows={3}
+                autoFocus
+                className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none resize-none mb-4 transition-colors"
+              />
+
+              <div className="flex gap-2">
+                <Button variant="primary" size="md" className="flex-1" onClick={() => confirmPlace(noteText)} disabled={saving}>
+                  {saving ? "Kaydediliyor..." : "Yerleştir"}
+                </Button>
+                <Button variant="ghost" size="md" onClick={() => setNoteModal(null)}>İptal</Button>
+              </div>
             </div>
           </div>
         </div>

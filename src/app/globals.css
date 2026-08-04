@@ -29,17 +29,44 @@
 
 /* ── Card system ── */
 .card {
-  background: #131820;
+  position: relative;
+  background:
+    linear-gradient(160deg, #1a2233 0%, #131820 42%, #10151d 100%);
   border: 1px solid #1e2a3c;
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+/* top highlight line */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07) 30%, rgba(255, 255, 255, 0.07) 70%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+/* accent variant — subtle gold wash */
+.card-accent {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(212, 160, 48, 0.07), transparent 55%),
+    linear-gradient(160deg, #1a2233 0%, #131820 42%, #10151d 100%);
+  border-color: rgba(212, 160, 48, 0.18);
+}
+.card-accent::before {
+  background: linear-gradient(90deg, transparent, rgba(212, 160, 48, 0.28) 30%, rgba(212, 160, 48, 0.14) 70%, transparent);
 }
 .card-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.875rem 1rem;
   border-bottom: 1px solid #1e2a3c;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent);
 }
 .card-title {
   font-size: 0.8125rem;
@@ -52,30 +79,49 @@
   color: #4d5c73;
 }
 .card-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.625rem;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid #1a2030;
-  transition: background 0.1s;
+  border-bottom: 1px solid rgba(30, 42, 60, 0.5);
+  transition: background 0.12s ease;
 }
 .card-row:last-child { border-bottom: none; }
-.card-row:hover { background: #1a2233; }
+.card-row:hover {
+  background: linear-gradient(90deg, rgba(74, 124, 245, 0.05), rgba(26, 34, 51, 0.6) 25%);
+}
+/* highlighted row (selected / featured) */
+.card-row-active {
+  background: linear-gradient(90deg, rgba(212, 160, 48, 0.09), rgba(26, 34, 51, 0.5) 30%);
+  box-shadow: inset 2px 0 0 #d4a030;
+}
 
-/* ── Section header (bold italic style like reference) ── */
+/* ── Section header ── */
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 800;
   font-style: italic;
   color: #dce4f2;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
 }
 .section-desc {
   font-size: 0.8rem;
   color: #4d5c73;
-  margin-top: 0.125rem;
-  line-height: 1.4;
+  margin-top: 0.2rem;
+  line-height: 1.45;
+}
+
+/* ── Page ambient glow ── */
+.page-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60% 40% at 15% 0%, rgba(74, 124, 245, 0.05), transparent 60%),
+    radial-gradient(50% 35% at 85% 5%, rgba(212, 160, 48, 0.04), transparent 60%);
 }
 
 /* ── Status dot ── */
@@ -95,13 +141,29 @@
   border-radius: 0.375rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  background: #1a2233;
+  background: linear-gradient(160deg, #1e2839, #161c26);
   border: 1px solid #1e2a3c;
   color: #7a8ba3;
 }
 
+/* ── Icon tile (rounded square with soft tint) ── */
+.icon-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.625rem;
+  background: linear-gradient(160deg, #202a3d, #161d28);
+  border: 1px solid #253347;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 body {
   background-color: #0c0f15;
+  background-image:
+    radial-gradient(70% 45% at 12% -5%, rgba(74, 124, 245, 0.055), transparent 60%),
+    radial-gradient(55% 40% at 90% 0%, rgba(212, 160, 48, 0.04), transparent 62%);
+  background-attachment: fixed;
   -webkit-tap-highlight-color: transparent;
 }
 

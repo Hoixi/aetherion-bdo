@@ -9,6 +9,12 @@ import { WarForm } from "@/components/war-form";
 import { WarPerformanceTab } from "@/components/war-performance-tab";
 import { getTypeName } from "@/lib/classes";
 import type { MapMarker } from "@/components/bdo-leaflet-map";
+import {
+  Settings, Swords, Megaphone, Users, Shield, BarChart3, Wrench, Map as MapIcon,
+  Plus, Trash2, Pencil, Send, CalendarClock, RefreshCw, Bot, UserCog, Database,
+  AlertTriangle, Trophy, Skull, Handshake, X, Info,
+} from "lucide-react";
+import { PageHeader, Button, Card, CardHeader, Empty, Avatar } from "@/components/ui";
 
 const BdoLeafletMap = dynamic(
   () => import("@/components/bdo-leaflet-map").then((m) => ({ default: m.BdoLeafletMap })),
@@ -69,9 +75,9 @@ interface Announcement {
 }
 
 const TARGET_LABELS: Record<AnnouncementTarget, string> = {
-  all: "📢 Tüm Klan (kanal)",
+  all: "Tüm Klan (kanal)",
   no_login: "👤 Siteye giriş yapmamışlar (DM)",
-  no_gear: "⚔️ Gear doldurmamışlar (DM)",
+  no_gear: "Gear doldurmamışlar (DM)",
   pvp: "🗡️ PvP'ciler — savaşa girenler (DM)",
 };
 
@@ -431,9 +437,9 @@ export default function AdminPage() {
     const res = await fetch("/api/discord/register-commands", { method: "POST" });
     const data = await res.json();
     if (res.ok) {
-      setRegisterCmdsResult(`✅ ${data.registered} komut başarıyla kaydedildi.`);
+      setRegisterCmdsResult(`${data.registered} komut kaydedildi.`);
     } else {
-      setRegisterCmdsResult(`❌ Hata: ${JSON.stringify(data.error)}`);
+      setRegisterCmdsResult(`Hata: ${JSON.stringify(data.error)}`);
     }
     setRegisteringCmds(false);
   }
@@ -456,7 +462,7 @@ export default function AdminPage() {
     if (res.ok) {
       setRecalcResult(data);
     } else {
-      setMessage(`❌ Hata: ${data.error}`);
+      setMessage(`Hata: ${data.error}`);
       setTimeout(() => setMessage(null), 4000);
     }
     setRecalcingAbsences(false);
@@ -471,7 +477,7 @@ export default function AdminPage() {
     if (res.ok) {
       setClassRolesResult(data);
     } else {
-      setMessage(`❌ Hata: ${data.error}`);
+      setMessage(`Hata: ${data.error}`);
       setTimeout(() => setMessage(null), 4000);
     }
     setSyncingClassRoles(false);
@@ -614,133 +620,169 @@ export default function AdminPage() {
   if (!session?.user.isAdmin) return null;
 
   const TAB_ITEMS = [
-    { key: "wars",          label: "Savaşlar",    icon: "⚔️" },
-    { key: "announcements", label: "Duyurular",   icon: "📢" },
-    { key: "members",       label: "Üyeler",      icon: "👥" },
-    { key: "roles",         label: "Roller",      icon: "🎭" },
-    { key: "hasar",         label: "Hasar Raporu",icon: "📊" },
-    { key: "araçlar",       label: "Araçlar",     icon: "🛠" },
-    { key: "geo",           label: "GeoGuessr",   icon: "🗺️" },
+    { key: "wars",          label: "Savaşlar",     icon: Swords },
+    { key: "announcements", label: "Duyurular",    icon: Megaphone },
+    { key: "members",       label: "Üyeler",       icon: Users },
+    { key: "roles",         label: "Roller",       icon: Shield },
+    { key: "hasar",         label: "Hasar Raporu", icon: BarChart3 },
+    { key: "araçlar",       label: "Araçlar",      icon: Wrench },
+    { key: "geo",           label: "GeoGuessr",    icon: MapIcon },
   ] as const;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-bdo-gold">Admin Panel</h1>
+    <div>
+      <PageHeader
+        title="Admin Panel"
+        desc="Savaş, duyuru, üye ve rol yönetimi."
+        icon={Settings}
+      />
 
       {message && (
-        <div className="bg-bdo-gold/10 border border-bdo-gold/30 text-bdo-gold px-4 py-2 rounded-lg text-sm">
-          {message}
+        <div className="card card-accent px-4 py-2.5 mb-3 flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 text-bdo-gold flex-shrink-0" strokeWidth={2} />
+          <span className="text-[13px] text-bdo-gold">{message}</span>
         </div>
       )}
 
-      <div className="flex gap-4 items-start">
-        {/* Sol dikey sekmeler */}
-        <div className="flex-shrink-0 w-44 bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          {TAB_ITEMS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-left transition-colors border-b border-bdo-border last:border-b-0 ${
-                tab === t.key
-                  ? "bg-bdo-gold/15 text-bdo-gold"
-                  : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg"
-              }`}
-            >
-              <span className="text-base leading-none">{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        {/* Sekmeler */}
+        <div className="card w-full md:w-44 flex-shrink-0 p-1.5 flex md:flex-col gap-0.5 overflow-x-auto">
+          {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-left transition-all whitespace-nowrap group ${
+                  active
+                    ? "bg-bdo-surface-2 text-bdo-text-primary"
+                    : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-surface-2/60"
+                }`}
+              >
+                <Icon
+                  className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                    active ? "text-bdo-gold" : "text-bdo-text-secondary group-hover:text-bdo-text-muted"
+                  }`}
+                  strokeWidth={1.75}
+                />
+                {label}
+                {active && <span className="ml-auto w-1 h-1 rounded-full bg-bdo-gold flex-shrink-0 hidden md:block" />}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Sağ içerik */}
-        <div className="flex-1 min-w-0">
+        {/* İçerik */}
+        <div className="flex-1 min-w-0 w-full">
 
       {tab === "wars" && (
         <div className="space-y-4">
-          <button
-            onClick={() => { setEditingWar(null); setShowWarForm(true); }}
-            className="text-sm bg-bdo-gold/10 text-bdo-gold px-4 py-2 rounded-lg hover:bg-bdo-gold/20 transition-colors"
-          >
-            + Yeni Etkinlik
-          </button>
-
-          {(showWarForm || editingWar) && (
-            <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
-              <WarForm
-                initial={editingWar ? { ...editingWar } : undefined}
-                onSubmit={() => { setShowWarForm(false); setEditingWar(null); fetchWars(); setMessage("Etkinlik başarıyla oluşturuldu!"); setTimeout(() => setMessage(null), 3000); }}
-              />
-            </div>
+          {(showWarForm || editingWar) ? (
+            <Card>
+              <div className="card-header">
+                <span className="card-title">{editingWar ? "Etkinliği Düzenle" : "Yeni Etkinlik"}</span>
+                <button
+                  onClick={() => { setShowWarForm(false); setEditingWar(null); }}
+                  className="p-1 rounded-md text-bdo-text-secondary hover:text-bdo-text-primary hover:bg-bdo-surface-2 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+              </div>
+              <div className="p-4">
+                <WarForm
+                  initial={editingWar ? { ...editingWar } : undefined}
+                  onSubmit={() => { setShowWarForm(false); setEditingWar(null); fetchWars(); setMessage("Etkinlik başarıyla oluşturuldu!"); setTimeout(() => setMessage(null), 3000); }}
+                />
+              </div>
+            </Card>
+          ) : (
+            <Button variant="primary" icon={Plus} onClick={() => { setEditingWar(null); setShowWarForm(true); }}>
+              Yeni Etkinlik
+            </Button>
           )}
 
-          <div className="space-y-2">
-            {wars.map((war) => (
-              <div key={war.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 flex items-center justify-between">
-                <Link href={`/wars/${war.id}`} className="flex-1 hover:opacity-80 transition-opacity">
-                  <span className="text-bdo-text-primary font-semibold cursor-pointer hover:text-bdo-gold transition-colors">{war.title}</span>
-                  <span className="ml-2 text-xs bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded">
-                    {getTypeName(war.type)}
-                  </span>
-                  <div className="text-sm text-bdo-text-muted mt-1">
-                    {new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          <Card>
+            <CardHeader title="Etkinlikler" icon={Swords} meta={`${wars.length} kayıt`} />
+            {wars.length === 0 ? (
+              <Empty icon={Swords} text="Henüz etkinlik yok." />
+            ) : (
+              wars.map((war) => {
+                const RIcon = war.result === "WIN" ? Trophy : war.result === "LOSS" ? Skull : war.result === "DRAW" ? Handshake : null;
+                return (
+                  <div key={war.id} className="card-row flex-wrap gap-x-3 gap-y-2 py-2.5">
+                    <Link href={`/wars/${war.id}`} className="flex-1 min-w-[180px] group">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-medium text-bdo-text-primary group-hover:text-bdo-gold transition-colors">
+                          {war.title}
+                        </span>
+                        <span className="text-[10px] bg-bdo-surface-2 border border-bdo-border text-bdo-text-muted px-1.5 py-0.5 rounded">
+                          {getTypeName(war.type)}
+                        </span>
+                        {RIcon && (
+                          <RIcon
+                            className={`w-3.5 h-3.5 flex-shrink-0 ${
+                              war.result === "WIN" ? "text-emerald-400" : war.result === "LOSS" ? "text-red-400" : "text-bdo-text-muted"
+                            }`}
+                            strokeWidth={1.75}
+                          />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-bdo-text-secondary mt-0.5">
+                        {new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </Link>
+
+                    <div className="flex gap-1.5 items-center flex-wrap justify-end">
+                      <select
+                        value={war.result || ""}
+                        onChange={(e) => setWarResult(war.id, e.target.value || null)}
+                        disabled={settingResult === war.id}
+                        className="text-[11px] bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1 text-bdo-text-muted focus:border-bdo-gold/40 focus:outline-none disabled:opacity-50"
+                      >
+                        <option value="">Sonuç yok</option>
+                        <option value="WIN">Kazandık</option>
+                        <option value="LOSS">Kaybettik</option>
+                        <option value="DRAW">Berabere</option>
+                      </select>
+                      <Button variant="ghost" size="xs" icon={Send} onClick={() => publishToDiscord("war", war.id)} disabled={publishing === war.id}>
+                        {publishing === war.id ? "..." : "Discord"}
+                      </Button>
+                      <Link href={`/wars/${war.id}`}>
+                        <Button variant="ghost" size="xs" icon={Users}>Parti</Button>
+                      </Link>
+                      <Button variant="ghost" size="xs" icon={Pencil} onClick={() => { setEditingWar(war); setShowWarForm(false); }} />
+                      <Button variant="danger" size="xs" icon={Trash2} onClick={() => deleteWar(war.id)} />
+                    </div>
                   </div>
-                </Link>
-                <div className="flex gap-2 items-center flex-wrap justify-end">
-                  <select
-                    value={war.result || ""}
-                    onChange={(e) => setWarResult(war.id, e.target.value || null)}
-                    disabled={settingResult === war.id}
-                    className="text-xs bg-bdo-bg border border-bdo-border rounded px-2 py-1 text-bdo-text-primary focus:border-bdo-gold focus:outline-none disabled:opacity-50"
-                  >
-                    <option value="">Sonuç yok</option>
-                    <option value="WIN">🏆 Kazandık</option>
-                    <option value="LOSS">💀 Kaybettik</option>
-                    <option value="DRAW">🤝 Berabere</option>
-                  </select>
-                  <button
-                    onClick={() => publishToDiscord("war", war.id)}
-                    disabled={publishing === war.id}
-                    className="text-xs bg-[#5865F2]/10 text-[#5865F2] px-2 py-1 rounded hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50"
-                  >
-                    {publishing === war.id ? "..." : "Discord'a Gönder"}
-                  </button>
-                  <Link
-                    href={`/wars/${war.id}`}
-                    className="text-xs bg-bdo-gold/10 text-bdo-gold px-2 py-1 rounded hover:bg-bdo-gold/20 transition-colors font-semibold"
-                  >
-                    ⚔️ Parti Kur
-                  </Link>
-                  <button
-                    onClick={() => { setEditingWar(war); setShowWarForm(false); }}
-                    className="text-xs text-bdo-gold hover:underline"
-                  >
-                    Düzenle
-                  </button>
-                  <button
-                    onClick={() => deleteWar(war.id)}
-                    className="text-xs text-red-400 hover:underline"
-                  >
-                    Sil
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })
+            )}
+          </Card>
 
           {/* ── Otomatik Savaş Programı ── */}
-          <div className="mt-6 border-t border-bdo-border pt-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">📅 Otomatik Savaş Programı</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">Belirtilen günlerde savaşlar otomatik oluşturulur ve Discord&apos;a gönderilir.</p>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2 min-w-0">
+                <CalendarClock className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Otomatik Savaş Programı</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    Belirtilen günlerde savaşlar otomatik oluşturulup Discord&apos;a gönderilir.
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setShowScheduleForm(!showScheduleForm)} className="text-xs bg-bdo-gold/10 text-bdo-gold px-3 py-1.5 rounded hover:bg-bdo-gold/20 transition-colors font-semibold">
-                {showScheduleForm ? "İptal" : "+ Program Ekle"}
-              </button>
+              <Button
+                variant={showScheduleForm ? "ghost" : "primary"}
+                size="xs"
+                icon={showScheduleForm ? X : Plus}
+                onClick={() => setShowScheduleForm(!showScheduleForm)}
+              >
+                {showScheduleForm ? "İptal" : "Ekle"}
+              </Button>
             </div>
 
             {showScheduleForm && (
-              <form onSubmit={createSchedule} className="bg-bdo-surface border border-bdo-border rounded-lg p-4 space-y-3">
+              <form onSubmit={createSchedule} className="p-4 space-y-3 border-b border-bdo-border">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-bdo-text-muted mb-1">Başlık</label>
@@ -790,43 +832,49 @@ export default function AdminPage() {
                   <label className="block text-xs text-bdo-text-muted mb-1">Not (opsiyonel)</label>
                   <textarea value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} rows={2} className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none resize-none" />
                 </div>
-                <button type="submit" disabled={schedSaving} className="bg-bdo-gold text-bdo-bg font-semibold px-5 py-2 rounded-lg hover:bg-bdo-gold-dim transition-colors disabled:opacity-50 text-sm">
+                <Button type="submit" variant="primary" size="md" disabled={schedSaving}>
                   {schedSaving ? "Kaydediliyor..." : "Program Oluştur"}
-                </button>
+                </Button>
               </form>
             )}
 
-            {warSchedules.length === 0 && !showScheduleForm && (
-              <p className="text-xs text-bdo-text-muted">Henüz otomatik program eklenmemiş.</p>
-            )}
-
-            <div className="space-y-2">
-              {warSchedules.map((s) => (
-                <div key={s.id} className={`border rounded-lg px-4 py-3 flex items-center justify-between gap-3 transition-colors ${s.isActive ? "bg-bdo-surface border-bdo-border" : "bg-bdo-bg border-bdo-border opacity-50"}`}>
-                  <div className="min-w-0">
+            {warSchedules.length === 0 ? (
+              !showScheduleForm && <Empty icon={CalendarClock} text="Henüz otomatik program yok." />
+            ) : (
+              warSchedules.map((s) => (
+                <div key={s.id} className={`card-row flex-wrap gap-x-3 gap-y-2 py-2.5 ${s.isActive ? "" : "opacity-45"}`}>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-bdo-text-primary">{s.name}</span>
-                      <span className="text-[10px] bg-bdo-gold/10 text-bdo-gold px-1.5 py-0.5 rounded">{s.type.replace("_", " ")}</span>
-                      {!s.isActive && <span className="text-[10px] text-bdo-text-muted bg-bdo-border px-1.5 py-0.5 rounded">Pasif</span>}
+                      <span className="text-[13px] font-medium text-bdo-text-primary">{s.name}</span>
+                      <span className="text-[10px] bg-bdo-surface-2 border border-bdo-border text-bdo-text-muted px-1.5 py-0.5 rounded">
+                        {s.type.replace("_", " ")}
+                      </span>
+                      {!s.isActive && (
+                        <span className="text-[10px] text-bdo-text-secondary border border-bdo-border px-1.5 py-0.5 rounded">Pasif</span>
+                      )}
                     </div>
-                    <div className="text-xs text-bdo-text-muted mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span>📅 Her {DAY_NAMES[s.dayOfWeek]} {String(s.hour).padStart(2,"0")}:{String(s.minute).padStart(2,"0")}</span>
-                      <span>⏱ {s.createDaysBefore} gün önce oluştur</span>
-                      {s.deadlineHours && <span>🔒 {s.deadlineHours}s önce deadline</span>}
-                      {s.maxParticipants && <span>👥 Maks. {s.maxParticipants}</span>}
-                      {s.sendToDiscord && <span>💬 Discord otomatik</span>}
+                    <div className="text-[11px] text-bdo-text-secondary mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>Her {DAY_NAMES[s.dayOfWeek]} {String(s.hour).padStart(2, "0")}:{String(s.minute).padStart(2, "0")}</span>
+                      <span>· {s.createDaysBefore}g önce oluştur</span>
+                      {s.deadlineHours && <span>· {s.deadlineHours}s deadline</span>}
+                      {s.maxParticipants && <span>· maks {s.maxParticipants}</span>}
+                      {s.sendToDiscord && <span>· Discord otomatik</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => toggleSchedule(s.id, !s.isActive)} className={`text-xs px-2 py-1 rounded transition-colors ${s.isActive ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20" : "bg-green-500/10 text-green-400 hover:bg-green-500/20"}`}>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Button
+                      variant={s.isActive ? "ghost" : "success"}
+                      size="xs"
+                      onClick={() => toggleSchedule(s.id, !s.isActive)}
+                    >
                       {s.isActive ? "Durdur" : "Aktifleştir"}
-                    </button>
-                    <button onClick={() => deleteSchedule(s.id)} className="text-xs text-red-400 hover:underline">Sil</button>
+                    </Button>
+                    <Button variant="danger" size="xs" icon={Trash2} onClick={() => deleteSchedule(s.id)} />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              ))
+            )}
+          </Card>
         </div>
       )}
 
@@ -882,7 +930,7 @@ export default function AdminPage() {
                 <div className="rounded-lg border border-bdo-border bg-bdo-bg p-3 space-y-2">
                   {formPreviewData.mode === "channel" ? (
                     <p className="text-sm text-bdo-text-secondary">
-                      📢 <span className="text-bdo-gold font-semibold">#klan kanalına</span> <code className="text-xs">@everyone</code> ile gönderilecek.
+                      <span className="text-bdo-gold font-semibold">#klan kanalına</span> <code className="text-xs">@everyone</code> ile gönderilecek.
                     </p>
                   ) : (
                     <>
@@ -992,7 +1040,7 @@ export default function AdminPage() {
                         {previewData.mode === "channel" ? (
                           <div className="flex items-center gap-3">
                             <p className="text-sm text-bdo-text-secondary">
-                              📢 Bu duyuru <span className="text-bdo-gold font-semibold">#klan kanalına</span> gönderilecek (<code className="text-xs">@everyone</code> ile).
+                              Bu duyuru <span className="text-bdo-gold font-semibold">#klan kanalına</span> gönderilecek (<code className="text-xs">@everyone</code> ile).
                             </p>
                             <button
                               onClick={() => publishToDiscord("announcement", a.id)}
@@ -1057,180 +1105,249 @@ export default function AdminPage() {
       {tab === "araçlar" && (
         <div className="space-y-4">
           {/* Discord Sync */}
-          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">🔄 Discord Üye Senkronizasyonu</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">Guild rolü olanları çeker, rolü olmayanları gizler.</p>
-              </div>
-              <button onClick={syncMembers} disabled={syncing} className="text-sm bg-bdo-gold/10 text-bdo-gold px-4 py-2 rounded-lg hover:bg-bdo-gold/20 transition-colors disabled:opacity-50 font-semibold">
-                {syncing ? "Syncleniyor..." : "🔄 Sync"}
-              </button>
-            </div>
-            {syncResult && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1.5 rounded-lg">✅ {syncResult.created} yeni üye</span>
-                  <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg">🔁 {syncResult.restored} geri döndü</span>
-                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg">🗑 {syncResult.softDeleted} gizlendi</span>
-                  <span className="bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/20 px-3 py-1.5 rounded-lg">👥 {syncResult.totalWithRole} guild üyesi</span>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <RefreshCw className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Discord Üye Senkronizasyonu</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    Guild rolü olanları çeker, rolü olmayanları gizler.
+                  </p>
                 </div>
-                {syncResult.incomplete.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-amber-400">⚠️ {syncResult.incomplete.length} üye profilini doldurmamış</p>
-                      <button onClick={sendDmAll} disabled={dmSendingAll} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap">
-                        {dmSendingAll ? "Gönderiliyor..." : "📨 Tümüne DM"}
-                      </button>
+              </div>
+              <Button variant="primary" size="xs" icon={RefreshCw} onClick={syncMembers} disabled={syncing}>
+                {syncing ? "Syncleniyor..." : "Sync"}
+              </Button>
+            </div>
+
+            {syncResult && (
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label: "Yeni üye", value: syncResult.created, tone: "text-emerald-400" },
+                    { label: "Geri döndü", value: syncResult.restored, tone: "text-[#6b93ff]" },
+                    { label: "Gizlendi", value: syncResult.softDeleted, tone: "text-red-400" },
+                    { label: "Guild üyesi", value: syncResult.totalWithRole, tone: "text-bdo-gold" },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">{s.label}</p>
+                      <p className={`text-[15px] font-bold font-mono ${s.tone}`}>{s.value}</p>
                     </div>
-                    {dmAllResult && <p className="text-xs text-bdo-text-muted">✅ {dmAllResult.sent} gönderildi{dmAllResult.failed > 0 && ` · ❌ ${dmAllResult.failed} başarısız`}</p>}
-                    {syncResult.incomplete.map((u) => (
-                      <div key={u.id} className="flex items-center justify-between bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full" /> : <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-xs text-bdo-text-muted">?</div>}
-                          <div>
-                            <span className="text-sm text-bdo-text-primary">{u.familyName || u.discordUsername}</span>
-                            <span className="ml-2 text-xs text-bdo-text-muted font-mono">{u.discordId}</span>
-                            <div className="text-xs text-bdo-text-muted">{[!u.familyName && "Aile adı yok", !u.class && "Class yok", !u.ap && !u.dp && "GS yok"].filter(Boolean).join(" · ")}</div>
+                  ))}
+                </div>
+
+                {syncResult.incomplete.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[12px] font-medium text-yellow-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                        {syncResult.incomplete.length} üye profilini doldurmamış
+                      </p>
+                      <Button variant="ghost" size="xs" icon={Send} onClick={sendDmAll} disabled={dmSendingAll}>
+                        {dmSendingAll ? "Gönderiliyor..." : "Tümüne DM"}
+                      </Button>
+                    </div>
+                    {dmAllResult && (
+                      <p className="text-[11px] text-bdo-text-secondary">
+                        {dmAllResult.sent} gönderildi{dmAllResult.failed > 0 && ` · ${dmAllResult.failed} başarısız`}
+                      </p>
+                    )}
+                    <div className="space-y-1">
+                      {syncResult.incomplete.map((u) => (
+                        <div key={u.id} className="flex items-center gap-2.5 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
+                          <Avatar src={u.avatarUrl} size={26} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] text-bdo-text-primary truncate">{u.familyName || u.discordUsername}</span>
+                              <span className="text-[10px] text-bdo-text-secondary font-mono">{u.discordId}</span>
+                            </div>
+                            <p className="text-[11px] text-bdo-text-secondary">
+                              {[!u.familyName && "Aile adı yok", !u.class && "Class yok", !u.ap && !u.dp && "GS yok"].filter(Boolean).join(" · ")}
+                            </p>
                           </div>
+                          <Button variant="ghost" size="xs" icon={Send} onClick={() => sendDm(u.id)} disabled={dmSending === u.id}>
+                            {dmSending === u.id ? "..." : "DM"}
+                          </Button>
                         </div>
-                        <button onClick={() => sendDm(u.id)} disabled={dmSending === u.id} className="text-xs bg-[#5865F2]/10 text-[#5865F2] border border-[#5865F2]/20 px-3 py-1.5 rounded-lg hover:bg-[#5865F2]/20 transition-colors disabled:opacity-50 whitespace-nowrap">
-                          {dmSending === u.id ? "Gönderiliyor..." : "💬 DM"}
-                        </button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                ) : (
+                  <p className="text-[12px] text-emerald-400">Tüm üyeler profillerini doldurmuş.</p>
                 )}
-                {syncResult.incomplete.length === 0 && <p className="text-xs text-green-400">✅ Tüm üyeler profillerini doldurmuş!</p>}
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Discord Slash Commands */}
-          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">🤖 Discord Slash Komutları</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">Yeni komutları Discord'a kaydetmek için tıkla.</p>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Bot className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Discord Slash Komutları</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    Yeni komutları Discord&apos;a kaydeder.
+                  </p>
+                </div>
               </div>
-              <button onClick={registerDiscordCommands} disabled={registeringCmds} className="text-sm bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-50 font-semibold">
+              <Button variant="ghost" size="xs" onClick={registerDiscordCommands} disabled={registeringCmds}>
                 {registeringCmds ? "Kaydediliyor..." : "Komutları Kaydet"}
-              </button>
+              </Button>
             </div>
-            {registerCmdsResult && <p className="text-xs mt-2 text-bdo-text-muted">{registerCmdsResult}</p>}
-          </div>
+            {registerCmdsResult && <p className="px-4 py-2.5 text-[11px] text-bdo-text-secondary">{registerCmdsResult}</p>}
+          </Card>
 
           {/* Class Roles Sync */}
-          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">🎭 Karakter Rolleri</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">Eksik class rollerini oluşturur ve üyelere otomatik atar.</p>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <UserCog className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Karakter Rolleri</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    Eksik class rollerini oluşturur ve üyelere atar.
+                  </p>
+                </div>
               </div>
-              <button onClick={syncClassRoles} disabled={syncingClassRoles} className="text-sm bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
-                {syncingClassRoles ? "⏳ Çalışıyor..." : "Rolleri Sync Et"}
-              </button>
+              <Button variant="ghost" size="xs" onClick={syncClassRoles} disabled={syncingClassRoles}>
+                {syncingClassRoles ? "Çalışıyor..." : "Sync Et"}
+              </Button>
             </div>
-            {syncingClassRoles && <p className="text-xs mt-2 text-bdo-text-muted animate-pulse">Roller oluşturuluyor ve atanıyor, 1-2 dakika sürebilir…</p>}
+            {syncingClassRoles && (
+              <p className="px-4 py-2.5 text-[11px] text-bdo-text-secondary animate-pulse">
+                Roller oluşturuluyor ve atanıyor, 1-2 dakika sürebilir…
+              </p>
+            )}
             {classRolesResult && !syncingClassRoles && (
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="p-4 grid sm:grid-cols-2 gap-2">
                 {classRolesResult.created.length > 0 && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2">
-                    <span className="font-semibold text-emerald-400">✅ {classRolesResult.created.length} rol oluşturuldu</span>
-                    <p className="text-bdo-text-muted mt-0.5 leading-relaxed">{classRolesResult.created.join(", ")}</p>
+                  <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-2.5">
+                    <p className="text-[12px] font-semibold text-emerald-400">{classRolesResult.created.length} rol oluşturuldu</p>
+                    <p className="text-[11px] text-bdo-text-secondary mt-1 leading-relaxed">{classRolesResult.created.join(", ")}</p>
                   </div>
                 )}
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg p-2 space-y-1">
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Mevcut</span><span className="font-mono text-bdo-gold">{classRolesResult.existing.length}</span></div>
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Atandı</span><span className="font-mono text-emerald-400">{classRolesResult.assigned}</span></div>
-                  <div className="flex justify-between"><span className="text-bdo-text-muted">Kaldırıldı</span><span className="font-mono text-orange-400">{classRolesResult.removed}</span></div>
-                  {classRolesResult.errors > 0 && <div className="flex justify-between"><span className="text-bdo-text-muted">Hata</span><span className="font-mono text-red-400">{classRolesResult.errors}</span></div>}
+                <div className="bg-bdo-bg border border-bdo-border rounded-lg p-2.5 space-y-1">
+                  {[
+                    { l: "Mevcut", v: classRolesResult.existing.length, t: "text-bdo-gold" },
+                    { l: "Atandı", v: classRolesResult.assigned, t: "text-emerald-400" },
+                    { l: "Kaldırıldı", v: classRolesResult.removed, t: "text-orange-400" },
+                    ...(classRolesResult.errors > 0 ? [{ l: "Hata", v: classRolesResult.errors, t: "text-red-400" }] : []),
+                  ].map((r) => (
+                    <div key={r.l} className="flex justify-between text-[11px]">
+                      <span className="text-bdo-text-secondary">{r.l}</span>
+                      <span className={`font-mono font-semibold ${r.t}`}>{r.v}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* DB Fix */}
-          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">🛠 Forum DB Düzelt</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">forum_posts.content → LONGTEXT (resim yükleme için).</p>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Database className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Forum DB Düzelt</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    forum_posts.content → LONGTEXT (resim yükleme için).
+                  </p>
+                </div>
               </div>
-              <button onClick={fixLongText} disabled={fixingDb} className="text-sm bg-blue-500/10 text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
-                {fixingDb ? "⏳ Çalışıyor..." : "Fix Uygula"}
-              </button>
+              <Button variant="ghost" size="xs" onClick={fixLongText} disabled={fixingDb}>
+                {fixingDb ? "Çalışıyor..." : "Fix Uygula"}
+              </Button>
             </div>
-            {fixDbResult && <p className="text-xs mt-2 text-bdo-text-muted">{fixDbResult}</p>}
-          </div>
+            {fixDbResult && <p className="px-4 py-2.5 text-[11px] text-bdo-text-secondary">{fixDbResult}</p>}
+          </Card>
 
           {/* Retroactive Absence Recalc */}
-          <div className="bg-bdo-surface border border-bdo-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-bdo-text-primary">⚠️ Geçmiş Devamsızlık Hesapla</h3>
-                <p className="text-xs text-bdo-text-muted mt-0.5">Tüm eski savaşlara bakarak absenceCount'u sıfırdan hesaplar.</p>
+          <Card>
+            <div className="card-header">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <p className="card-title">Geçmiş Devamsızlık Hesapla</p>
+                  <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-tight">
+                    Tüm eski savaşlara bakarak absenceCount&apos;u sıfırdan hesaplar.
+                  </p>
+                </div>
               </div>
-              <button onClick={recalcAbsences} disabled={recalcingAbsences} className="text-sm bg-red-500/10 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 font-semibold whitespace-nowrap">
-                {recalcingAbsences ? "⏳ Hesaplanıyor..." : "Yeniden Hesapla"}
-              </button>
+              <Button variant="danger" size="xs" onClick={recalcAbsences} disabled={recalcingAbsences}>
+                {recalcingAbsences ? "Hesaplanıyor..." : "Yeniden Hesapla"}
+              </Button>
             </div>
             {recalcResult && !recalcingAbsences && (
-              <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">İşlenen savaş</span><span className="ml-2 font-mono text-bdo-gold font-bold">{recalcResult.warsProcessed}</span></div>
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">Toplam devamsızlık</span><span className="ml-2 font-mono text-red-400 font-bold">{recalcResult.totalAbsences}</span></div>
-                <div className="bg-bdo-bg/50 border border-bdo-border rounded-lg px-3 py-2"><span className="text-bdo-text-muted">Etkilenen üye</span><span className="ml-2 font-mono text-orange-400 font-bold">{recalcResult.affectedUsers}</span></div>
+              <div className="p-4 grid grid-cols-3 gap-2">
+                {[
+                  { l: "İşlenen savaş", v: recalcResult.warsProcessed, t: "text-bdo-gold" },
+                  { l: "Toplam devamsızlık", v: recalcResult.totalAbsences, t: "text-red-400" },
+                  { l: "Etkilenen üye", v: recalcResult.affectedUsers, t: "text-orange-400" },
+                ].map((r) => (
+                  <div key={r.l} className="bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">{r.l}</p>
+                    <p className={`text-[15px] font-bold font-mono ${r.t}`}>{r.v}</p>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {tab === "members" && (
-        <div className="space-y-4">
-          {/* Member List */}
-          <div className="space-y-2">
-          {members.map((member) => (
-            <div key={member.id} className="bg-bdo-surface border border-bdo-border rounded-lg p-3 flex items-center justify-between">
-              <Link href={`/members/${member.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                {member.avatarUrl
-                  ? <img src={member.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-                  : <div className="w-8 h-8 rounded-full bg-bdo-border flex items-center justify-center text-xs text-bdo-text-muted">{member.familyName?.[0] ?? "?"}</div>
-                }
-                <div>
-                  <span className="text-bdo-text-primary hover:text-bdo-gold transition-colors">{member.familyName || "İsimsiz"}</span>
-                  {member.siteRole && (
-                    <span
-                      className="ml-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border"
-                      style={{ color: member.siteRole.color, borderColor: `${member.siteRole.color}40`, backgroundColor: `${member.siteRole.color}15` }}
-                    >
-                      {member.siteRole.name}
-                    </span>
-                  )}
+        <Card>
+          <CardHeader title="Üyeler" icon={Users} meta={`${members.length} kayıt`} />
+          {members.length === 0 ? (
+            <Empty icon={Users} text="Henüz üye yok." />
+          ) : (
+            members.map((member) => (
+              <div key={member.id} className="card-row gap-3">
+                <Link href={`/members/${member.id}`} className="flex items-center gap-2.5 flex-1 min-w-0 group">
+                  <Avatar src={member.avatarUrl} size={26} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[13px] text-bdo-text-primary group-hover:text-bdo-gold transition-colors truncate">
+                        {member.familyName || "İsimsiz"}
+                      </span>
+                      {member.siteRole && (
+                        <span
+                          className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border"
+                          style={{
+                            color: member.siteRole.color,
+                            borderColor: `${member.siteRole.color}30`,
+                            backgroundColor: `${member.siteRole.color}12`,
+                          }}
+                        >
+                          {member.siteRole.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Button
+                    variant={member.isAdmin ? "primary" : "ghost"}
+                    size="xs"
+                    icon={Shield}
+                    onClick={() => toggleAdmin(member.id, !member.isAdmin)}
+                  >
+                    {member.isAdmin ? "Admin" : "Admin Yap"}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="xs"
+                    icon={Trash2}
+                    onClick={() => deleteMember(member.id, member.familyName || "İsimsiz")}
+                  />
                 </div>
-              </Link>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleAdmin(member.id, !member.isAdmin)}
-                  className={`text-xs px-3 py-1 rounded transition-colors ${
-                    member.isAdmin
-                      ? "bg-bdo-gold text-bdo-bg"
-                      : "bg-bdo-border text-bdo-text-muted hover:bg-bdo-gold/20 hover:text-bdo-gold"
-                  }`}
-                >
-                  {member.isAdmin ? "Admin ✓" : "Admin Yap"}
-                </button>
-                <button
-                  onClick={() => deleteMember(member.id, member.familyName || "İsimsiz")}
-                  className="text-xs px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                >
-                  Sil
-                </button>
               </div>
-            </div>
-          ))}
-          </div>
-        </div>
+            ))
+          )}
+        </Card>
       )}
 
       {tab === "hasar" && (
@@ -1398,7 +1515,7 @@ export default function AdminPage() {
       {/* ─── GeoGuessr Images ───────────────────────────────────── */}
       {tab === "geo" && (
         <div className="space-y-6">
-          <h2 className="text-lg font-bold text-bdo-gold">🗺️ GeoGuessr Resimleri</h2>
+          <h2 className="text-[15px] font-bold text-bdo-text-primary">GeoGuessr Resimleri</h2>
 
           {/* Add image form */}
           <div className="bg-bdo-surface border border-bdo-border rounded-xl p-5">
@@ -1497,7 +1614,7 @@ export default function AdminPage() {
                   <label className="text-xs text-bdo-text-muted">
                     Haritada Konum{" "}
                     {geoPickX != null
-                      ? `✅ seçildi (${(geoPickX * 100).toFixed(1)}%, ${(geoPickY! * 100).toFixed(1)}%)`
+                      ? `Seçildi (${(geoPickX * 100).toFixed(1)}%, ${(geoPickY! * 100).toFixed(1)}%)`
                       : "— henüz seçilmedi"}
                   </label>
                   <button

@@ -80,7 +80,7 @@ export function GuildStats() {
       {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile label="Toplam Üye" value={stats.totalMembers} sub="kayıtlı" icon={Users} />
-        <StatTile label="Ortalama GS" value={stats.avgGs} sub="klan ort." icon={Shield} tone="text-bdo-gold" />
+        <StatTile label="Ortalama GS" value={stats.avgGs} sub="klan ort." icon={Shield} tone="text-bdo-gold" accent />
         <StatTile label="Win Rate" value={`%${winRate}`} sub={`${stats.warStats.wins}G ${stats.warStats.losses}M`} icon={Trophy} tone={winRate >= 50 ? "text-emerald-400" : "text-bdo-text-primary"} />
         <StatTile label="Toplam Savaş" value={stats.warStats.totalWars} sub="tüm zamanlar" icon={Swords} />
       </div>
@@ -88,7 +88,7 @@ export function GuildStats() {
       {/* Upcoming war */}
       {stats.upcomingWar && (
         <Link href={`/wars/${stats.upcomingWar.id}`} className="block">
-          <div className="card p-4 hover:border-bdo-gold/30 transition-colors border-bdo-gold/15">
+          <div className="card card-accent p-4 hover:border-bdo-gold/35 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="relative flex h-2 w-2 flex-shrink-0">

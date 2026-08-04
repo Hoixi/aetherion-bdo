@@ -11,7 +11,7 @@ export function PageHeader({
     <div className="flex items-start justify-between gap-4 mb-5">
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
-          <div className="w-9 h-9 rounded-xl bg-bdo-surface border border-bdo-border flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="icon-tile w-9 h-9 mt-0.5">
             <Icon className="w-4 h-4 text-bdo-gold" strokeWidth={1.75} />
           </div>
         )}
@@ -74,10 +74,10 @@ export function Loading() {
 /* ── Button ── */
 type BtnVariant = "primary" | "ghost" | "danger" | "success";
 const BTN: Record<BtnVariant, string> = {
-  primary: "bg-bdo-gold text-bdo-bg hover:bg-bdo-gold-dim font-semibold",
-  ghost: "bg-bdo-surface-2 text-bdo-text-muted border border-bdo-border hover:text-bdo-text-primary hover:border-bdo-border-2",
-  danger: "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/15",
-  success: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/15",
+  primary: "bg-gradient-to-b from-[#e0b040] to-[#c29328] text-bdo-bg hover:from-[#e8bb4d] hover:to-[#cc9c2c] font-semibold shadow-[0_1px_2px_rgba(0,0,0,.35),inset_0_1px_0_rgba(255,255,255,.18)]",
+  ghost: "bg-gradient-to-b from-[#1e2839] to-[#161c26] text-bdo-text-muted border border-bdo-border hover:text-bdo-text-primary hover:border-bdo-border-2",
+  danger: "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/[0.17]",
+  success: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/[0.17]",
 };
 
 export function Button({
@@ -126,10 +126,10 @@ export function Badge({ children, tone = "default" }: { children: React.ReactNod
 
 /* ── Stat tile ── */
 export function StatTile({
-  label, value, sub, icon: Icon, tone,
-}: { label: string; value: string | number; sub?: string; icon?: LucideIcon; tone?: string }) {
+  label, value, sub, icon: Icon, tone, accent,
+}: { label: string; value: string | number; sub?: string; icon?: LucideIcon; tone?: string; accent?: boolean }) {
   return (
-    <div className="card px-4 py-3">
+    <div className={`card px-4 py-3 ${accent ? "card-accent" : ""}`}>
       <div className="flex items-center justify-between mb-1">
         <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">{label}</p>
         {Icon && <Icon className="w-3.5 h-3.5 text-bdo-text-secondary/50" strokeWidth={1.75} />}
