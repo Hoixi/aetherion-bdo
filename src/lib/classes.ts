@@ -42,6 +42,14 @@ export function getClassImageUrl(classType: number, spec: "awakening" | "success
   return `https://static.pearlcdn.com/asset/portal/bdo_tr/contents/img/portal/gameinfo/${spec}_character_${classType}_char.jpg`;
 }
 
+/**
+ * Geniş banner görseli (~2000x844). Awakening/Succession ayrımı yok —
+ * her class için tek görsel. Dashboard kartında tam arka plan olarak kullanılır.
+ */
+export function getClassBannerUrl(classType: number): string {
+  return `https://static.pearlcdn.com/asset/brand/bdo/contents_bdo/img/classes/class_${classType}/class_detail_top.jpg`;
+}
+
 // Maps DB class IDs (Turkish) → portrait/icon filenames
 const CLASS_PORTRAIT_MAP: Record<string, string> = {
   savasci:     "warrior",
