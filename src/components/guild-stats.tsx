@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BDO_CLASSES } from "@/lib/classes";
-import { Users, Shield, Trophy, Swords, Timer } from "lucide-react";
+import { Users, Shield, Trophy, Swords, Timer, Handshake } from "lucide-react";
 import { StatTile, Card, CardHeader } from "./ui";
 
 interface WarReportAverage {
@@ -20,6 +20,7 @@ interface WarReportAverage {
 }
 
 interface StatsData {
+  guild: { id: number; name: string; tag: string; color: string } | null;
   totalMembers: number;
   avgGs: number;
   topGs: { id: number; familyName: string; avatarUrl: string; gs: number }[];
@@ -77,6 +78,29 @@ export function GuildStats() {
 
   return (
     <div className="space-y-4">
+      {/* Kapsam göstergesi — verilerin hangi klana ait olduğu */}
+      {stats.guild && (
+        <div className="flex items-center gap-2 text-[11px] text-bdo-text-secondary">
+          <span
+            className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+            style={{
+              color: stats.guild.color,
+              borderColor: `${stats.guild.color}38`,
+              backgroundColor: `${stats.guild.color}14`,
+            }}
+          >
+            {stats.guild.tag}
+          </span>
+          <span>
+            Aşağıdaki tüm veriler <span className="text-bdo-text-muted font-medium">{stats.guild.name}</span> klanına aittir.
+          </span>
+          <Link href="/ally" className="ml-auto text-bdo-gold hover:underline flex items-center gap-1">
+            Ortak veriler
+            <Handshake className="w-3 h-3" strokeWidth={2} />
+          </Link>
+        </div>
+      )}
+
       {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile label="Toplam Üye" value={stats.totalMembers} sub="kayıtlı" icon={Users} />

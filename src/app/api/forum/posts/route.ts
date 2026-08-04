@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const POST_INCLUDE = {
-  author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } } } },
+  author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } }, guild: { select: { id: true, name: true, tag: true, color: true } } } },
   tags: { include: { tag: true } },
   _count: { select: { comments: true, reactions: true } },
 };

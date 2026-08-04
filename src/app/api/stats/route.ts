@@ -1,32 +1,42 @@
 export const dynamic = "force-dynamic";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getGuildScope } from "@/lib/guild-scope";
 
+/**
+ * Dashboard istatistikleri — SADECE oturum sahibinin klanı.
+ * Klanlar arası ortak veriler için /api/ally/stats kullanılır.
+ */
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const scope = await getGuildScope();
+  if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [members, wars, classDistribution] = await Promise.all([
+  const { guildId } = scope;
+  const memberFilter = { familyName: { not: "" }, deletedAt: null, guildId };
+
+  const [members, wars, classDistribution, guild] = await Promise.all([
     prisma.user.findMany({
-      where: { familyName: { not: "" } },
+      where: memberFilter,
       select: { ap: true, dp: true, familyName: true, id: true, avatarUrl: true },
     }),
-    prisma.war.findMany({
-      select: { id: true, result: true, date: true },
-    }),
+    prisma.war.findMany({ select: { id: true, result: true, date: true } }),
     prisma.user.groupBy({
       by: ["class"],
-      where: { familyName: { not: "" }, class: { not: "" } },
+      where: { ...memberFilter, class: { not: "" } },
       _count: true,
     }),
+    guildId ? prisma.guild.findUnique({
+      where: { id: guildId },
+      select: { id: true, name: true, tag: true, color: true },
+    }) : null,
   ]);
 
-  // Top participation
+  const memberIds = members.map((m) => m.id);
+
+  // Katılım sıralaması — sadece kendi klanının üyeleri
   const topParticipants = await prisma.warParticipant.groupBy({
     by: ["userId"],
-    where: { status: "ATTENDING" },
+    where: { status: "ATTENDING", userId: { in: memberIds } },
     _count: true,
     orderBy: { _count: { userId: "desc" } },
     take: 10,
@@ -65,9 +75,9 @@ export async function GET() {
   const losses = wars.filter((w) => w.result === "LOSS").length;
   const draws = wars.filter((w) => w.result === "DRAW").length;
 
-  // Last 3 wars with performance data averages (excluding defense party members)
+  // Son 3 savaş — performanslar kendi klanına filtreli, savunma partisi hariç
   const last3Wars = await prisma.war.findMany({
-    where: { performances: { some: {} } },
+    where: { performances: { some: { userId: { in: memberIds } } } },
     orderBy: { date: "desc" },
     take: 3,
     select: {
@@ -75,6 +85,7 @@ export async function GET() {
       title: true,
       date: true,
       performances: {
+        where: { userId: { in: memberIds } },
         select: {
           userId: true, kills: true, deaths: true, damageDealt: true, damageTaken: true,
           hpHeal: true, allyHpHeal: true, ccCount: true, castleDamage: true,
@@ -83,7 +94,6 @@ export async function GET() {
     },
   });
 
-  // Build defense party userId map per war
   const defenseMembers = await prisma.partyMember.findMany({
     where: { party: { warId: { in: last3Wars.map((w) => w.id) }, isDefense: true } },
     select: { userId: true, party: { select: { warId: true } } },
@@ -113,14 +123,20 @@ export async function GET() {
     };
   });
 
-  const now = new Date();
   const upcomingWar = await prisma.war.findFirst({
-    where: { date: { gt: now } },
+    where: { date: { gt: new Date() } },
     orderBy: { date: "asc" },
     select: { id: true, title: true, date: true, type: true },
   });
 
+  const gsIn = (min: number, max?: number) =>
+    members.filter((m) => {
+      const gs = m.ap + m.dp;
+      return gs >= min && (max === undefined || gs < max);
+    }).length;
+
   return NextResponse.json({
+    guild,
     totalMembers,
     avgGs,
     topGs,
@@ -131,10 +147,10 @@ export async function GET() {
     warReportAverages,
     gsBrackets: [
       { label: "< 800", count: members.filter((m) => m.ap + m.dp < 800).length },
-      { label: "800-820", count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 800 && gs < 820; }).length },
-      { label: "820+",  count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 820 && gs < 840; }).length },
-      { label: "840+",  count: members.filter((m) => { const gs = m.ap + m.dp; return gs >= 840 && gs < 860; }).length },
-      { label: "860+",  count: members.filter((m) => m.ap + m.dp >= 860).length },
+      { label: "800-820", count: gsIn(800, 820) },
+      { label: "820+", count: gsIn(820, 840) },
+      { label: "840+", count: gsIn(840, 860) },
+      { label: "860+", count: gsIn(860) },
     ],
   });
 }

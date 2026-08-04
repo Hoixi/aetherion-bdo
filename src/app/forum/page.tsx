@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, Plus, Pin, Eye, MessagesSquare, Inbox, Layers } from "lucide-react";
-import { PageHeader, Button, Empty, Avatar } from "@/components/ui";
+import { PageHeader, Button, Empty, Avatar, GuildTag, type GuildInfo } from "@/components/ui";
 
 interface Tag {
   id: number;
@@ -21,7 +21,7 @@ interface Post {
   pinned: boolean;
   viewCount: number;
   createdAt: string;
-  author: { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null };
+  author: { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null; guild?: GuildInfo | null };
   tags: { tag: Tag }[];
   _count: { comments: number; reactions: number };
 }
@@ -174,6 +174,7 @@ export default function ForumPage() {
 
                     <div className="flex items-center gap-2 mt-1.5 text-[11px] text-bdo-text-secondary">
                       <span className="text-bdo-text-muted font-medium">{post.author.familyName || "?"}</span>
+                      <GuildTag guild={post.author.guild} />
                       {post.author.siteRole && (
                         <span className="font-semibold" style={{ color: post.author.siteRole.color }}>
                           {post.author.siteRole.name}

@@ -1,18 +1,19 @@
 export const dynamic = "force-dynamic";
-import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getGuildScope } from "@/lib/guild-scope";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 type ChatMessage = { role: "user" | "model"; parts: [{ text: string }] };
 
-async function buildGuildContext() {
+async function buildGuildContext(guildId: number | null) {
+  const memberWhere = { familyName: { not: "" }, deletedAt: null, guildId };
+
   const [members, wars] = await Promise.all([
     prisma.user.findMany({
-      where: { familyName: { not: "" } },
+      where: memberWhere,
       orderBy: [{ ap: "desc" }, { dp: "desc" }],
       select: {
         id: true, familyName: true, ap: true, dp: true, class: true, spec: true, createdAt: true,
@@ -25,12 +26,14 @@ async function buildGuildContext() {
       select: {
         id: true, title: true, type: true, date: true, result: true,
         participants: {
+          where: { user: { guildId } },
           select: {
             status: true,
             user: { select: { familyName: true, ap: true, dp: true } },
           },
         },
         performances: {
+          where: { user: { guildId } },
           select: {
             inGameName: true, kills: true, deaths: true, damageDealt: true,
             damageTaken: true, killStreak: true, ccCount: true, hpHeal: true,
@@ -87,10 +90,10 @@ async function buildGuildContext() {
     };
   });
 
-  // Attendance stats per member
+  // Attendance stats per member — sadece bu klanın üyeleri
   const attended = await prisma.warParticipant.groupBy({
     by: ["userId"],
-    where: { status: "ATTENDING" },
+    where: { status: "ATTENDING", userId: { in: members.map((m) => m.id) } },
     _count: true,
   });
   const attendMap = new Map(attended.map((a) => [a.userId, a._count]));
@@ -159,15 +162,20 @@ async function buildGuildContext() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const scope = await getGuildScope();
+  if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { message, history } = await req.json() as { message: string; history?: ChatMessage[] };
   if (!message?.trim()) return NextResponse.json({ error: "Mesaj boş olamaz" }, { status: 400 });
 
-  const guildData = await buildGuildContext();
+  const guild = scope.guildId
+    ? await prisma.guild.findUnique({ where: { id: scope.guildId }, select: { name: true } })
+    : null;
+  const guildName = guild?.name ?? "klan";
 
-  const systemPrompt = `Sen Aetherion klanının yapay zeka asistanısın. Klan verilerine erişimin var ve üyeler sana soru sorabilir.
+  const guildData = await buildGuildContext(scope.guildId);
+
+  const systemPrompt = `Sen ${guildName} klanının yapay zeka asistanısın. Sadece ${guildName} klanının verilerine erişimin var — başka klanların (müttefikler dahil) verisi sana verilmez, sorulursa "bu veriye erişimim yok" de.
 
 Güncel klan verisi (JSON formatında):
 ${JSON.stringify(guildData, null, 2)}

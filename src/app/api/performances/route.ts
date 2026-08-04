@@ -1,34 +1,53 @@
 export const dynamic = "force-dynamic";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getGuildScope } from "@/lib/guild-scope";
 
+/**
+ * Hasar raporu — SADECE oturum sahibinin klanı.
+ * Siteye kayıtlı olmayan (eşleşmemiş) oyuncular hiçbir klana ait olmadığı için gizlenir.
+ * Klanlar arası ortak rapor için /api/ally/performances kullanılır.
+ */
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Giriş yapılmadı" }, { status: 401 });
+  const scope = await getGuildScope();
+  if (!scope) return NextResponse.json({ error: "Giriş yapılmadı" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const warId = searchParams.get("warId");
   const userId = searchParams.get("userId");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {};
+  const guildMembers = await prisma.user.findMany({
+    where: { guildId: scope.guildId, deletedAt: null },
+    select: { id: true },
+  });
+  const memberIds = guildMembers.map((m) => m.id);
+
+  const where: { warId?: number; userId: number | { in: number[] } } = {
+    userId: { in: memberIds },
+  };
   if (warId) where.warId = parseInt(warId);
-  if (userId) where.userId = parseInt(userId);
+  if (userId) {
+    const uid = parseInt(userId);
+    // Başka klandan bir üyenin verisi istenirse boş döner
+    where.userId = memberIds.includes(uid) ? uid : -1;
+  }
 
   const performances = await prisma.warPerformance.findMany({
     where,
     orderBy: { damageDealt: "desc" },
     include: {
-      user: { select: { id: true, familyName: true, avatarUrl: true, class: true } },
+      user: {
+        select: {
+          id: true, familyName: true, avatarUrl: true, class: true,
+          guild: { select: { id: true, name: true, tag: true, color: true } },
+        },
+      },
       war: { select: { id: true, title: true, date: true } },
     },
   });
 
-  // Also fetch wars that have performances for the selector
   const wars = await prisma.war.findMany({
-    where: { performances: { some: {} } },
+    where: { performances: { some: { userId: { in: memberIds } } } },
     orderBy: { date: "desc" },
     select: { id: true, title: true, date: true },
   });

@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { RichTextContent } from "@/components/rich-text-editor";
 import { ArrowLeft, Pin, PinOff, Pencil, Trash2, Eye, MessagesSquare, Send, X } from "lucide-react";
-import { Card, CardHeader, Button, Loading, Empty, Avatar } from "@/components/ui";
+import { Card, CardHeader, Button, Loading, Empty, Avatar, GuildTag, type GuildInfo } from "@/components/ui";
 
 const RichTextEditor = dynamic(
   () => import("@/components/rich-text-editor").then((m) => m.RichTextEditor),
@@ -14,7 +14,7 @@ const RichTextEditor = dynamic(
 );
 
 interface Tag { id: number; name: string; slug: string; type: string; color: string }
-interface Author { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null }
+interface Author { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null; guild?: GuildInfo | null }
 interface Comment { id: number; content: string; createdAt: string; author: Author }
 interface Reaction { emoji: string; count: number }
 
@@ -157,6 +157,7 @@ export default function ForumPostPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[13px] font-semibold text-bdo-text-primary">{post.author.familyName || "?"}</span>
+                <GuildTag guild={post.author.guild} />
                 {post.author.siteRole && (
                   <span className="text-[10px] font-bold" style={{ color: post.author.siteRole.color }}>
                     {post.author.siteRole.name}
@@ -271,6 +272,7 @@ export default function ForumPostPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[12px] font-semibold text-bdo-text-primary">{c.author.familyName || "?"}</span>
+                  <GuildTag guild={c.author.guild} />
                   {c.author.siteRole && (
                     <span className="text-[10px] font-bold" style={{ color: c.author.siteRole.color }}>
                       {c.author.siteRole.name}

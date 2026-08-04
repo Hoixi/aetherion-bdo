@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getGuildScope } from "@/lib/guild-scope";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const scope = await getGuildScope();
+  if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = Number(params.id);
 
@@ -15,6 +14,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     where: { id: userId },
     include: {
       siteRole: { select: { name: true, color: true } },
+      guild: { select: { id: true, name: true, tag: true, color: true } },
       participations: {
         include: {
           war: { select: { id: true, title: true, type: true, date: true, result: true } },
@@ -26,6 +26,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   if (!user || !user.familyName) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Başka klanın üyesi görüntülenemez (admin hariç)
+  if (!scope.isAdmin && user.guildId !== scope.guildId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // İlk "ATTENDING" savaşından itibaren hesapla
@@ -60,6 +65,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     dp: user.dp,
     avatarUrl: user.avatarUrl,
     siteRole: user.siteRole,
+    guild: user.guild,
     createdAt: user.createdAt,
     stats: {
       totalWars,
@@ -74,7 +80,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   };
 
   // Sadece admin görebilsin
-  if (session.user?.isAdmin) {
+  if (scope.isAdmin) {
     response.absenceCount = user.absenceCount;
   }
 

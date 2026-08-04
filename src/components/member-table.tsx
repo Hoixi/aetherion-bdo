@@ -4,9 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { BDO_CLASSES, getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
 import { Search, LayoutList, LayoutGrid, Swords, ArrowUpDown, UserX } from "lucide-react";
-import { Avatar, Empty } from "./ui";
-
-interface Guild { id: number; name: string; tag: string; color: string }
+import { Avatar, Empty, GuildTag, type GuildInfo as Guild } from "./ui";
 
 interface Member {
   id: number;
@@ -27,23 +25,6 @@ type ViewMode = "list" | "card";
 const SORT_LABELS: Record<SortField, string> = {
   gs: "GS", ap: "AP", dp: "DP", katilim: "Katılım",
 };
-
-function GuildTag({ guild }: { guild?: Guild | null }) {
-  if (!guild) return null;
-  return (
-    <span
-      className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
-      style={{
-        color: guild.color,
-        borderColor: `${guild.color}35`,
-        backgroundColor: `${guild.color}12`,
-      }}
-      title={guild.name}
-    >
-      {guild.tag}
-    </span>
-  );
-}
 
 export function MemberTable({ members }: { members: Member[] }) {
   const [sortBy, setSortBy] = useState<SortField>("gs");
@@ -171,7 +152,7 @@ export function MemberTable({ members }: { members: Member[] }) {
                     <p className="text-[13px] font-medium text-bdo-text-primary truncate leading-tight">
                       {member.familyName || "—"}
                     </p>
-                    {guilds.length > 1 && <GuildTag guild={member.guild} />}
+                    <GuildTag guild={member.guild} />
                   </div>
                   {member.siteRole && (
                     <p className="text-[10px] leading-tight truncate" style={{ color: member.siteRole.color }}>
@@ -226,7 +207,7 @@ export function MemberTable({ members }: { members: Member[] }) {
                   <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider bg-bdo-bg/70 backdrop-blur-sm text-bdo-text-muted px-1.5 py-0.5 rounded border border-bdo-border">
                     {specKey === "succession" ? "SUC" : "AWK"}
                   </span>
-                  {guilds.length > 1 && member.guild && (
+                  {member.guild && (
                     <span
                       className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm px-1.5 py-0.5 rounded border"
                       style={{

@@ -8,7 +8,7 @@ import { PortraitPanel } from "@/components/portrait-panel";
 import { UserPerformanceStats } from "@/components/user-performance-stats";
 import { getTypeName } from "@/lib/classes";
 import { ArrowLeft, Trophy, Skull, Handshake, TrendingUp, Swords, AlertTriangle } from "lucide-react";
-import { Loading, Card, CardHeader, Empty } from "@/components/ui";
+import { Loading, Card, CardHeader, Empty, GuildTag, type GuildInfo } from "@/components/ui";
 
 interface GsHistoryEntry { ap: number; dp: number; createdAt: string }
 interface WarEntry { id: number; title: string; type: string; date: string; result: string | null }
@@ -23,6 +23,7 @@ interface MemberProfile {
   avatarUrl: string;
   createdAt: string;
   siteRole: { name: string; color: string } | null;
+  guild: GuildInfo | null;
   stats: { totalWars: number; attended: number; attendanceRate: number };
   wars: WarEntry[];
   gsHistory: GsHistoryEntry[];
@@ -85,7 +86,10 @@ export default function MemberProfilePage() {
 
         <div className="space-y-4">
           <div>
-            <h1 className="section-title">{member.familyName || "İsimsiz"}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="section-title">{member.familyName || "İsimsiz"}</h1>
+              <GuildTag guild={member.guild} />
+            </div>
             <p className="section-desc">
               {member.siteRole?.name && (
                 <span style={{ color: member.siteRole.color }} className="font-semibold">

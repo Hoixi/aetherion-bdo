@@ -17,7 +17,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const comment = await prisma.forumComment.create({
     data: { postId, authorId: session.user.id, content: content.trim() },
-    include: { author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } } } } },
+    include: { author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } }, guild: { select: { id: true, name: true, tag: true, color: true } } } } },
   });
 
   return NextResponse.json(comment, { status: 201 });

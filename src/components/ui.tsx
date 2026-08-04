@@ -148,6 +148,29 @@ export function Avatar({ src, size = 24, ring = true }: { src?: string | null; s
     : <div className={`bg-bdo-surface-2 ${cls}`} style={{ width: size, height: size }} />;
 }
 
+/* ── Guild tag ── */
+export type GuildInfo = { id: number; name: string; tag: string; color: string };
+
+export function GuildTag({
+  guild, size = "sm",
+}: { guild?: GuildInfo | null; size?: "xs" | "sm" }) {
+  if (!guild) return null;
+  const dims = size === "xs" ? "text-[8px] px-1 py-px" : "text-[9px] px-1 py-0.5";
+  return (
+    <span
+      className={`${dims} font-bold uppercase tracking-wider rounded border flex-shrink-0 leading-none`}
+      style={{
+        color: guild.color,
+        borderColor: `${guild.color}38`,
+        backgroundColor: `${guild.color}14`,
+      }}
+      title={guild.name}
+    >
+      {guild.tag}
+    </span>
+  );
+}
+
 /* ── Input ── */
 export function Input({
   value, onChange, placeholder, type = "text", className = "", icon: Icon,

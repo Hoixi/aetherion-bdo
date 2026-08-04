@@ -181,6 +181,7 @@ export default function AdminPage() {
   const [dcLoading, setDcLoading] = useState(false);
   const [dcError, setDcError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
+  const [selectedServerId, setSelectedServerId] = useState<string>("");
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
@@ -323,8 +324,13 @@ export default function AdminPage() {
     setDcError(null);
     const res = await fetch("/api/discord/roles");
     const data = await res.json();
-    if (res.ok) setDiscordServers(data);
-    else setDcError(data.error ?? "Roller çekilemedi.");
+    if (res.ok) {
+      setDiscordServers(data);
+      // Tek sunucu varsa otomatik seç
+      if (data.length === 1) setSelectedServerId(data[0].id);
+    } else {
+      setDcError(data.error ?? "Roller çekilemedi.");
+    }
     setDcLoading(false);
   }
 
@@ -422,7 +428,8 @@ export default function AdminPage() {
   }
 
   async function fetchMembers() {
-    const res = await fetch("/api/members");
+    // Admin paneli tüm klanları yönetir
+    const res = await fetch("/api/members?all=1");
     if (res.ok) setMembers(await res.json());
   }
 
@@ -1619,70 +1626,100 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="bg-bdo-bg border border-bdo-border rounded-lg overflow-hidden">
-                    <div className="p-2 border-b border-bdo-border">
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-bdo-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.75} />
-                        <input
-                          value={roleSearch}
-                          onChange={(e) => setRoleSearch(e.target.value)}
-                          placeholder="Rol ara..."
-                          className="w-full bg-bdo-surface border border-bdo-border rounded-md pl-8 pr-2 py-1.5 text-[12px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
-                        />
+                    {/* Sunucu seçici */}
+                    <div className="p-2 border-b border-bdo-border space-y-2">
+                      <div>
+                        <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1">
+                          Discord Sunucusu
+                        </label>
+                        <select
+                          value={selectedServerId}
+                          onChange={(e) => { setSelectedServerId(e.target.value); setRoleSearch(""); }}
+                          className="w-full bg-bdo-surface border border-bdo-border rounded-md px-2 py-1.5 text-[12px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors"
+                        >
+                          <option value="">Sunucu seç ({discordServers.length} sunucu)</option>
+                          {discordServers.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} — {s.roles.length} rol
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
+                      {selectedServerId && (
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-bdo-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.75} />
+                          <input
+                            value={roleSearch}
+                            onChange={(e) => setRoleSearch(e.target.value)}
+                            placeholder="Rol ara..."
+                            className="w-full bg-bdo-surface border border-bdo-border rounded-md pl-8 pr-2 py-1.5 text-[12px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="max-h-64 overflow-y-auto">
-                      {discordServers.map((server) => {
-                        const visible = server.roles.filter((r) =>
-                          r.name.toLowerCase().includes(roleSearch.toLowerCase())
-                        );
-                        if (visible.length === 0) return null;
+                    {/* Rol listesi */}
+                    {!selectedServerId ? (
+                      <div className="px-3 py-6 text-center">
+                        <p className="text-[12px] text-bdo-text-secondary">
+                          Rolleri görmek için yukarıdan bir sunucu seç.
+                        </p>
+                      </div>
+                    ) : (() => {
+                      const server = discordServers.find((s) => s.id === selectedServerId);
+                      const visible = (server?.roles ?? []).filter((r) =>
+                        r.name.toLowerCase().includes(roleSearch.toLowerCase())
+                      );
+                      if (visible.length === 0) {
                         return (
-                          <div key={server.id}>
-                            <div className="px-3 py-1.5 bg-bdo-surface/60 border-y border-bdo-border sticky top-0 z-10">
-                              <p className="text-[10px] uppercase tracking-widest text-bdo-text-secondary font-semibold">
-                                {server.name}
-                              </p>
-                            </div>
-                            {visible.map((role) => {
-                              const selected = gRoleIds.includes(role.id);
-                              const owner = roleOwner(role.id);
-                              return (
-                                <button
-                                  key={role.id}
-                                  type="button"
-                                  onClick={() => toggleRoleId(role.id)}
-                                  disabled={!!owner}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors border-b border-bdo-border/40 last:border-0 ${
-                                    owner
-                                      ? "opacity-40 cursor-not-allowed"
-                                      : selected
-                                      ? "bg-bdo-gold/[0.08]"
-                                      : "hover:bg-bdo-surface-2/60"
-                                  }`}
-                                >
-                                  <span
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: role.color }}
-                                  />
-                                  <span className={`text-[12px] flex-1 truncate ${selected ? "text-bdo-text-primary font-medium" : "text-bdo-text-muted"}`}>
-                                    {role.name}
-                                  </span>
-                                  {owner && (
-                                    <span className="text-[10px] text-bdo-text-secondary flex-shrink-0">
-                                      {owner.tag}&apos;a bağlı
-                                    </span>
-                                  )}
-                                  {selected && !owner && (
-                                    <Check className="w-3.5 h-3.5 text-bdo-gold flex-shrink-0" strokeWidth={2.5} />
-                                  )}
-                                </button>
-                              );
-                            })}
+                          <div className="px-3 py-6 text-center">
+                            <p className="text-[12px] text-bdo-text-secondary">
+                              {roleSearch ? "Eşleşen rol yok." : "Bu sunucuda atanabilir rol yok."}
+                            </p>
                           </div>
                         );
-                      })}
-                    </div>
+                      }
+                      return (
+                        <div className="max-h-64 overflow-y-auto">
+                          {visible.map((role) => {
+                            const selected = gRoleIds.includes(role.id);
+                            const owner = roleOwner(role.id);
+                            return (
+                              <button
+                                key={role.id}
+                                type="button"
+                                onClick={() => toggleRoleId(role.id)}
+                                disabled={!!owner}
+                                className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors border-b border-bdo-border/40 last:border-0 ${
+                                  owner
+                                    ? "opacity-40 cursor-not-allowed"
+                                    : selected
+                                    ? "bg-bdo-gold/[0.08]"
+                                    : "hover:bg-bdo-surface-2/60"
+                                }`}
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: role.color }}
+                                />
+                                <span className={`text-[12px] flex-1 truncate ${selected ? "text-bdo-text-primary font-medium" : "text-bdo-text-muted"}`}>
+                                  {role.name}
+                                </span>
+                                {owner && (
+                                  <span className="text-[10px] text-bdo-text-secondary flex-shrink-0">
+                                    {owner.tag}&apos;a bağlı
+                                  </span>
+                                )}
+                                {selected && !owner && (
+                                  <Check className="w-3.5 h-3.5 text-bdo-gold flex-shrink-0" strokeWidth={2.5} />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -5,10 +5,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const POST_INCLUDE = {
-  author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } } } },
+  author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } }, guild: { select: { id: true, name: true, tag: true, color: true } } } },
   tags: { include: { tag: true } },
   comments: {
-    include: { author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } } } } },
+    include: { author: { select: { id: true, familyName: true, avatarUrl: true, siteRole: { select: { name: true, color: true } }, guild: { select: { id: true, name: true, tag: true, color: true } } } } },
     orderBy: { createdAt: "asc" as const },
   },
   reactions: { include: { user: { select: { id: true, familyName: true } } } },

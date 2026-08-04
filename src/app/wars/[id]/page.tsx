@@ -11,7 +11,7 @@ import {
   ArrowLeft, Check, X, HelpCircle, AlertTriangle, Users, Send, Clock, Swords,
 } from "lucide-react";
 import Link from "next/link";
-import { Loading, Card, CardHeader, Empty, Button, Avatar } from "@/components/ui";
+import { Loading, Card, CardHeader, Empty, Button, Avatar, GuildTag, type GuildInfo as Guild } from "@/components/ui";
 
 interface WarPerf {
   id: number;
@@ -30,23 +30,9 @@ function fmtNum(n: number): string {
   return String(Math.round(n));
 }
 
-interface Guild { id: number; name: string; tag: string; color: string }
 interface User {
   id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
   guild?: Guild | null;
-}
-
-function GuildTag({ guild }: { guild?: Guild | null }) {
-  if (!guild) return null;
-  return (
-    <span
-      className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
-      style={{ color: guild.color, borderColor: `${guild.color}35`, backgroundColor: `${guild.color}12` }}
-      title={guild.name}
-    >
-      {guild.tag}
-    </span>
-  );
 }
 interface PartyMember { id: number; userId: number; order: number; user: User }
 interface Party { id: number; name: string; order: number; isDefense: boolean; members: PartyMember[] }
@@ -107,7 +93,8 @@ export default function WarDetailPage() {
       setLoading(true);
       const [warRes, membersRes, perfRes, statsRes, historyRes] = await Promise.all([
         fetch(`/api/wars/${warId}`),
-        fetch("/api/members"),
+        // Savaş sayfası ortak alan: admin tüm klanları görür, üye kendi klanını
+        fetch(session?.user?.isAdmin ? "/api/members?all=1" : "/api/members"),
         fetch(`/api/wars/${warId}/performance`),
         fetch("/api/performances/user-averages"),
         fetch("/api/wars/attendance-history"),
@@ -132,7 +119,7 @@ export default function WarDetailPage() {
     }
 
     fetchWar();
-  }, [status, warId, router, session?.user?.id]);
+  }, [status, warId, router, session?.user?.id, session?.user?.isAdmin]);
 
   async function handleParticipate(newStatus: string) {
     if (!war) return;
@@ -158,22 +145,14 @@ export default function WarDetailPage() {
   const respondedIds = new Set(war.participants.map((p) => p.user.id));
   const notResponded = allMembers.filter((m) => !respondedIds.has(m.id));
 
-  // Birden fazla klan varsa rozetleri göster (ally savaşı)
-  const guildIds = new Set(
-    war.participants.map((p) => p.user.guild?.id).filter((id): id is number => id !== undefined)
-  );
-  const multiGuild = guildIds.size > 1;
-
   // Katılanların klan bazlı dağılımı
-  const guildBreakdown = multiGuild
-    ? Array.from(
-        attending.reduce((map, u) => {
-          if (!u.guild) return map;
-          map.set(u.guild.id, { guild: u.guild, count: (map.get(u.guild.id)?.count ?? 0) + 1 });
-          return map;
-        }, new Map<number, { guild: Guild; count: number }>()).values()
-      ).sort((a, b) => b.count - a.count)
-    : [];
+  const guildBreakdown = Array.from(
+    attending.reduce((map, u) => {
+      if (!u.guild) return map;
+      map.set(u.guild.id, { guild: u.guild, count: (map.get(u.guild.id)?.count ?? 0) + 1 });
+      return map;
+    }, new Map<number, { guild: Guild; count: number }>()).values()
+  ).sort((a, b) => b.count - a.count);
 
   const deadlinePassed = war.deadline ? new Date() > new Date(war.deadline) : false;
   const warDate = new Date(war.date);
@@ -257,7 +236,7 @@ export default function WarDetailPage() {
               </span>
             </div>
           )}
-          {multiGuild && guildBreakdown.length > 0 && (
+          {guildBreakdown.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-4 py-2 border-b border-bdo-border">
               {guildBreakdown.map(({ guild, count }) => (
                 <span
@@ -279,7 +258,7 @@ export default function WarDetailPage() {
                 <div key={u.id} className="card-row gap-2.5">
                   <Avatar src={u.avatarUrl} size={22} />
                   <span className="text-[13px] text-bdo-text-primary truncate flex-1">{u.familyName}</span>
-                  {multiGuild && <GuildTag guild={u.guild} />}
+                  <GuildTag guild={u.guild} />
                   <span className="text-[11px] font-mono font-semibold text-bdo-gold flex-shrink-0">{u.ap + u.dp}</span>
                 </div>
               ))}
@@ -470,7 +449,7 @@ export default function WarDetailPage() {
                   <div key={m.id} className="card-row gap-2.5">
                     <Avatar src={m.user.avatarUrl} size={20} />
                     <span className="text-[12px] text-bdo-text-primary truncate flex-1">{m.user.familyName}</span>
-                    {multiGuild && <GuildTag guild={m.user.guild} />}
+                    <GuildTag guild={m.user.guild} />
                     <span className="text-[11px] font-mono text-bdo-gold flex-shrink-0">{m.user.ap + m.user.dp}</span>
                   </div>
                 ))}
