@@ -90,7 +90,7 @@ export const authOptions: NextAuthOptions = {
 
       if (!account?.access_token) return false;
 
-      const { hasRole, roles } = await checkDiscordMembership(account.access_token);
+      const { hasRole, roles, matchedGuildId } = await checkDiscordMembership(account.access_token);
       if (!hasRole) return "/denied";
 
       // Find matching site role based on Discord role IDs
@@ -117,24 +117,8 @@ export const authOptions: NextAuthOptions = {
       // isAdmin = true if role says admin OR user was already manually set as admin
       const newIsAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
 
-      // Discord rollerine göre klan tespiti — eşleşme yoksa ana klana düş
-      const guilds = await prisma.guild.findMany({
-        orderBy: { isPrimary: "asc" }, // ally'ler önce denenir, ana klan fallback kalır
-      });
-      let matchedGuildId: number | null = null;
-      for (const g of guilds) {
-        let ids: string[] = [];
-        try {
-          ids = JSON.parse(g.discordRoleIds || "[]");
-        } catch {
-          continue;
-        }
-        if (ids.length > 0 && ids.some((id) => roles.includes(id))) {
-          matchedGuildId = g.id;
-          break;
-        }
-      }
-      const primaryGuild = guilds.find((g) => g.isPrimary);
+      // Klan: rol eşleşmesi → mevcut klanı koru → ana klana düş
+      const primaryGuild = await prisma.guild.findFirst({ where: { isPrimary: true } });
       const guildId = matchedGuildId ?? existingUser?.guildId ?? primaryGuild?.id ?? null;
 
       await prisma.user.upsert({

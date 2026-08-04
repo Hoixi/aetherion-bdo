@@ -60,6 +60,7 @@ interface GuildRow {
   tag: string;
   color: string;
   isPrimary: boolean;
+  discordServerId: string | null;
   discordRoleIds: string;
   _count: { members: number };
 }
@@ -365,6 +366,7 @@ export default function AdminPage() {
     setEditingGuild(null);
     setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds([]);
     setRoleSearch("");
+    setSelectedServerId(discordServers.length === 1 ? discordServers[0].id : "");
   }
 
   function startEditGuild(g: GuildRow) {
@@ -373,6 +375,7 @@ export default function AdminPage() {
     setGTag(g.tag);
     setGColor(g.color);
     setRoleSearch("");
+    setSelectedServerId(g.discordServerId ?? "");
     try {
       setGRoleIds(JSON.parse(g.discordRoleIds || "[]") as string[]);
     } catch {
@@ -384,7 +387,11 @@ export default function AdminPage() {
   async function saveGuild(e: React.FormEvent) {
     e.preventDefault();
     setGSaving(true);
-    const payload = { name: gName, tag: gTag, color: gColor, discordRoleIds: gRoleIds.join(",") };
+    const payload = {
+      name: gName, tag: gTag, color: gColor,
+      discordRoleIds: gRoleIds.join(","),
+      discordServerId: selectedServerId || null,
+    };
     const res = await fetch("/api/guilds", {
       method: editingGuild ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -1634,7 +1641,18 @@ export default function AdminPage() {
                         </label>
                         <select
                           value={selectedServerId}
-                          onChange={(e) => { setSelectedServerId(e.target.value); setRoleSearch(""); }}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setRoleSearch("");
+                            // Sunucu değişince başka sunucunun rolleri seçili kalmasın
+                            if (next !== selectedServerId) {
+                              const valid = new Set(
+                                (discordServers.find((s) => s.id === next)?.roles ?? []).map((r) => r.id)
+                              );
+                              setGRoleIds((prev) => prev.filter((id) => valid.has(id)));
+                            }
+                            setSelectedServerId(next);
+                          }}
                           className="w-full bg-bdo-surface border border-bdo-border rounded-md px-2 py-1.5 text-[12px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors"
                         >
                           <option value="">Sunucu seç ({discordServers.length} sunucu)</option>

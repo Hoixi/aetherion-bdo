@@ -16,6 +16,7 @@ model Guild {
   tag         String   @unique                    // "AET" — listelerde rozet
   color       String   @default("#d4a030")        // rozet rengi
   isPrimary   Boolean  @default(false)            // true = kendi klanımız
+  discordServerId String?                         // rollerin bulunduğu Discord sunucusu
   discordRoleIds String @default("[]") @db.Text   // JSON: bu guild'e ait Discord rol ID'leri
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
