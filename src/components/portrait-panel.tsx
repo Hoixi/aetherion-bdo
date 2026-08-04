@@ -2,106 +2,97 @@
 
 import { useState } from "react";
 import { getClassByID, getPortraitUrl, hasClassVariants } from "@/lib/classes";
+import { Swords } from "lucide-react";
 
 interface PortraitPanelProps {
   classId: string;
-  spec: string;          // "awakening" | "succession"
+  spec: string;
   ap: number;
   dp: number;
   roleName?: string | null;
   roleColor?: string | null;
-  /** If provided, overrides the internal spec toggle (controlled mode for edit form) */
   controlledSpec?: string;
   onSpecChange?: (spec: string) => void;
 }
 
 export function PortraitPanel({
-  classId,
-  spec,
-  ap,
-  dp,
-  roleName,
-  roleColor,
-  controlledSpec,
-  onSpecChange,
+  classId, spec, ap, dp, roleName, roleColor, controlledSpec, onSpecChange,
 }: PortraitPanelProps) {
-  // Local "display" spec — cosmetic toggle in view mode
   const [displaySpec, setDisplaySpec] = useState(spec);
   const activeSpec = controlledSpec ?? displaySpec;
 
-  const classData   = getClassByID(classId);
-  const canToggle   = hasClassVariants(classId);
+  const classData = getClassByID(classId);
+  const canToggle = hasClassVariants(classId);
   const portraitSrc = getPortraitUrl(classId, activeSpec);
-  const specLabel   = activeSpec === "succession" ? "Succession" : "Awakening";
+  const specLabel = activeSpec === "succession" ? "Succession" : "Awakening";
 
   function toggle(s: string) {
-    if (onSpecChange) {
-      onSpecChange(s); // controlled mode (edit form)
-    } else {
-      setDisplaySpec(s); // cosmetic mode (view)
-    }
+    if (onSpecChange) onSpecChange(s);
+    else setDisplaySpec(s);
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-bdo-border/60 bg-bdo-surface flex flex-col">
-
-      {/* Portrait image — fixed aspect ratio, never stretches */}
-      <div className="relative overflow-hidden" style={{ height: "360px" }}>
+    <div className="card flex flex-col">
+      <div className="relative overflow-hidden bg-bdo-surface-2" style={{ height: "330px" }}>
         {portraitSrc ? (
-          <img
-            src={portraitSrc}
-            alt={classData?.name ?? ""}
-            className="w-full h-full object-cover object-top"
-          />
+          <img src={portraitSrc} alt="" className="w-full h-full object-cover object-top" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-b from-bdo-border/20 to-transparent flex items-center justify-center">
-            <span className="text-5xl opacity-20">⚔️</span>
+          <div className="w-full h-full flex items-center justify-center">
+            <Swords className="w-10 h-10 text-bdo-text-secondary/20" strokeWidth={1.5} />
           </div>
         )}
-        {/* Bottom fade */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-bdo-surface to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-bdo-surface to-transparent" />
+
+        {canToggle && !onSpecChange && (
+          <div className="absolute top-2.5 right-2.5 flex gap-0.5 bg-bdo-bg/70 backdrop-blur-sm border border-bdo-border rounded-lg p-0.5">
+            {(["awakening", "succession"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => toggle(s)}
+                className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                  activeSpec === s ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-secondary hover:text-bdo-text-muted"
+                }`}
+              >
+                {s === "succession" ? "SUC" : "AWK"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Info section */}
-      <div className="px-4 pb-4 pt-2">
+      <div className="px-4 pb-4 -mt-4 relative">
         {roleName && (
           <div
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold mb-2 px-2.5 py-0.5 rounded-full border"
+            className="inline-flex items-center gap-1.5 text-[10px] font-semibold mb-1.5 px-2 py-0.5 rounded-md border"
             style={{
-              color: roleColor ?? "#a78bfa",
-              borderColor: `${roleColor ?? "#a78bfa"}33`,
-              background: `${roleColor ?? "#a78bfa"}11`,
+              color: roleColor ?? "#7a8ba3",
+              borderColor: `${roleColor ?? "#7a8ba3"}30`,
+              background: `${roleColor ?? "#7a8ba3"}12`,
             }}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ background: roleColor ?? "#a78bfa" }}
-            />
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: roleColor ?? "#7a8ba3" }} />
             {roleName}
           </div>
         )}
 
-        <div className="text-xl font-black text-white leading-tight">
+        <p className="text-[15px] font-bold text-bdo-text-primary leading-tight">
           {classData?.name ?? "—"}
-        </div>
-        <div className="text-[11px] text-bdo-gold uppercase tracking-widest mt-0.5 mb-3">
+        </p>
+        <p className="text-[10px] text-bdo-text-secondary uppercase tracking-widest mt-0.5 mb-3">
           {specLabel}
-        </div>
+        </p>
 
-        {/* AP / DP / GS */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-bdo-bg/60 border border-bdo-border rounded-lg py-2 text-center">
-            <div className="text-[9px] uppercase text-white/35 tracking-wider mb-0.5">AP</div>
-            <div className="text-base font-bold font-mono text-white/90">{ap}</div>
-          </div>
-          <div className="bg-bdo-bg/60 border border-bdo-border rounded-lg py-2 text-center">
-            <div className="text-[9px] uppercase text-white/35 tracking-wider mb-0.5">DP</div>
-            <div className="text-base font-bold font-mono text-white/90">{dp}</div>
-          </div>
-          <div className="bg-bdo-gold/8 border border-bdo-gold/25 rounded-lg py-2 text-center">
-            <div className="text-[9px] uppercase text-bdo-gold/60 tracking-wider mb-0.5">GS</div>
-            <div className="text-base font-bold font-mono text-bdo-gold">{ap + dp}</div>
-          </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { label: "AP", value: ap, tone: "text-red-400/90", border: "border-bdo-border" },
+            { label: "DP", value: dp, tone: "text-[#6b93ff]/90", border: "border-bdo-border" },
+            { label: "GS", value: ap + dp, tone: "text-bdo-gold", border: "border-bdo-gold/20" },
+          ].map((s) => (
+            <div key={s.label} className={`bg-bdo-bg border ${s.border} rounded-lg py-1.5 text-center`}>
+              <p className="text-[9px] uppercase text-bdo-text-secondary tracking-wider">{s.label}</p>
+              <p className={`text-[15px] font-bold font-mono ${s.tone} leading-tight`}>{s.value}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
