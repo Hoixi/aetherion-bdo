@@ -5,16 +5,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Sparkles, Send, Trash2 } from "lucide-react";
 
-type Message = {
-  role: "user" | "model";
-  content: string;
-};
-
-type ChatHistoryItem = {
-  role: "user" | "model";
-  parts: [{ text: string }];
-};
+type Message = { role: "user" | "model"; content: string };
+type ChatHistoryItem = { role: "user" | "model"; parts: [{ text: string }] };
 
 const SUGGESTED = [
   "Son 5 savaşta en çok hasar vuran üyeleri listele",
@@ -64,12 +58,11 @@ export default function AiAsistanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),
       });
-
       if (!res.ok) throw new Error("API hatası");
       const data = await res.json();
       setMessages([...newMessages, { role: "model", content: data.response }]);
     } catch {
-      setMessages([...newMessages, { role: "model", content: "❌ Bir hata oluştu. Lütfen tekrar dene." }]);
+      setMessages([...newMessages, { role: "model", content: "Bir hata oluştu. Lütfen tekrar dene." }]);
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -86,30 +79,45 @@ export default function AiAsistanPage() {
   if (status === "loading") return null;
 
   return (
-    <div className="fixed inset-0 md:left-56 flex flex-col bg-bdo-bg z-10 px-4 md:px-6 pb-20 md:pb-0">
+    <div className="fixed inset-0 md:left-56 flex flex-col bg-bdo-bg z-10 px-4 md:px-6 pb-16 md:pb-0">
       {/* Header */}
-      <div className="flex items-center gap-3 py-4 border-b border-bdo-border flex-shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-bdo-gold/15 flex items-center justify-center text-bdo-gold text-lg">✦</div>
-        <div>
-          <h1 className="text-bdo-text-primary font-semibold leading-tight">AI Asistan</h1>
-          <p className="text-xs text-bdo-text-muted">Klan verilerinizi doğal dilde sorgulayın</p>
+      <div className="flex items-center gap-3 py-3.5 border-b border-bdo-border flex-shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-bdo-surface border border-bdo-border flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-4 h-4 text-bdo-gold" strokeWidth={1.75} />
         </div>
-        <span className="ml-auto text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 rounded-full px-2 py-0.5">Gemini 2.5 Flash</span>
+        <div className="min-w-0">
+          <h1 className="text-[13px] font-bold text-bdo-text-primary leading-tight">AI Asistan</h1>
+          <p className="text-[11px] text-bdo-text-secondary leading-tight">Klan verilerini doğal dilde sorgula</p>
+        </div>
+        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          {messages.length > 0 && (
+            <button
+              onClick={() => setMessages([])}
+              className="p-1.5 rounded-lg text-bdo-text-secondary hover:text-red-400 hover:bg-red-400/8 transition-colors"
+              title="Sohbeti temizle"
+            >
+              <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+            </button>
+          )}
+          <span className="text-[10px] bg-bdo-surface border border-bdo-border text-bdo-text-secondary rounded-md px-2 py-1">
+            Gemini 2.5 Flash
+          </span>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+      <div className="flex-1 overflow-y-auto py-4 space-y-4 max-w-3xl w-full mx-auto">
         {messages.length === 0 && (
-          <div className="space-y-4">
-            <p className="text-sm text-bdo-text-muted text-center mt-4">
-              Klan verileriniz hakkında herhangi bir şey sorun.
+          <div className="pt-6">
+            <p className="text-[13px] text-bdo-text-muted text-center mb-5">
+              Klan verilerin hakkında herhangi bir şey sor.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SUGGESTED.map((s) => (
                 <button
                   key={s}
                   onClick={() => sendMessage(s)}
-                  className="text-left text-xs text-bdo-text-secondary bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2.5 hover:border-bdo-gold/40 hover:text-bdo-gold transition-colors"
+                  className="text-left text-[12px] text-bdo-text-muted bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2.5 hover:border-bdo-gold/30 hover:text-bdo-text-primary transition-colors"
                 >
                   {s}
                 </button>
@@ -119,26 +127,29 @@ export default function AiAsistanPage() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-            <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
+          <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+            <div className={`w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5 ${
               msg.role === "user"
-                ? "bg-bdo-gold text-bdo-bg"
-                : "bg-bdo-gold/15 text-bdo-gold border border-bdo-gold/25"
+                ? "bg-bdo-gold text-bdo-bg text-[11px] font-bold"
+                : "bg-bdo-surface border border-bdo-border"
             }`}>
-              {msg.role === "user" ? (session?.user?.name?.[0]?.toUpperCase() ?? "U") : "✦"}
+              {msg.role === "user"
+                ? (session?.user?.name?.[0]?.toUpperCase() ?? "U")
+                : <Sparkles className="w-3 h-3 text-bdo-gold" strokeWidth={2} />
+              }
             </div>
-            <div className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${
+            <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-[13px] ${
               msg.role === "user"
-                ? "bg-bdo-gold/10 border border-bdo-gold/20 text-bdo-text-primary"
+                ? "bg-bdo-surface-2 border border-bdo-border text-bdo-text-primary"
                 : "bg-bdo-surface border border-bdo-border text-bdo-text-primary"
             }`}>
               {msg.role === "model" ? (
-                <div className="ai-markdown text-sm leading-relaxed">
+                <div className="ai-markdown leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       table: ({ children }) => (
-                        <div className="overflow-x-auto rounded-lg border border-[#1e2030] my-2">
+                        <div className="overflow-x-auto rounded-lg border border-bdo-border my-2">
                           <table className="!m-0">{children}</table>
                         </div>
                       ),
@@ -153,13 +164,15 @@ export default function AiAsistanPage() {
         ))}
 
         {loading && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full flex-shrink-0 bg-bdo-gold/15 text-bdo-gold border border-bdo-gold/25 flex items-center justify-center text-xs font-bold mt-0.5">✦</div>
-            <div className="bg-bdo-surface border border-bdo-border rounded-xl px-4 py-3">
-              <div className="flex gap-1.5 items-center h-4">
-                <span className="w-1.5 h-1.5 bg-bdo-gold/60 rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 bg-bdo-gold/60 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 bg-bdo-gold/60 rounded-full animate-bounce [animation-delay:300ms]" />
+          <div className="flex gap-2.5">
+            <div className="w-6 h-6 rounded-lg flex-shrink-0 bg-bdo-surface border border-bdo-border flex items-center justify-center mt-0.5">
+              <Sparkles className="w-3 h-3 text-bdo-gold" strokeWidth={2} />
+            </div>
+            <div className="bg-bdo-surface border border-bdo-border rounded-xl px-3.5 py-3">
+              <div className="flex gap-1.5 items-center h-3">
+                <span className="w-1.5 h-1.5 bg-bdo-gold/50 rounded-full animate-bounce [animation-delay:0ms]" />
+                <span className="w-1.5 h-1.5 bg-bdo-gold/50 rounded-full animate-bounce [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 bg-bdo-gold/50 rounded-full animate-bounce [animation-delay:300ms]" />
               </div>
             </div>
           </div>
@@ -169,14 +182,14 @@ export default function AiAsistanPage() {
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 border-t border-bdo-border pt-3 pb-1">
+      <div className="flex-shrink-0 border-t border-bdo-border pt-3 pb-3 max-w-3xl w-full mx-auto">
         {messages.length > 0 && (
-          <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
             {SUGGESTED.slice(0, 4).map((s) => (
               <button
                 key={s}
                 onClick={() => sendMessage(s)}
-                className="flex-shrink-0 text-[11px] text-bdo-text-muted bg-bdo-surface border border-bdo-border rounded-full px-3 py-1 hover:border-bdo-gold/40 hover:text-bdo-gold transition-colors"
+                className="flex-shrink-0 text-[11px] text-bdo-text-secondary bg-bdo-surface border border-bdo-border rounded-full px-2.5 py-1 hover:border-bdo-gold/30 hover:text-bdo-text-muted transition-colors"
               >
                 {s}
               </button>
@@ -189,10 +202,9 @@ export default function AiAsistanPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Bir şey sor... (Enter ile gönder, Shift+Enter yeni satır)"
+            placeholder="Bir şey sor..."
             rows={1}
-            className="flex-1 bg-bdo-surface border border-bdo-border rounded-xl px-4 py-3 text-sm text-bdo-text-primary placeholder-bdo-text-muted resize-none focus:outline-none focus:border-bdo-gold/50 transition-colors min-h-[48px] max-h-32"
-            style={{ height: "auto" }}
+            className="flex-1 bg-bdo-surface border border-bdo-border rounded-xl px-3.5 py-2.5 text-[13px] text-bdo-text-primary placeholder-bdo-text-secondary resize-none focus:outline-none focus:border-bdo-gold/40 transition-colors min-h-[42px] max-h-32"
             onInput={(e) => {
               const t = e.currentTarget;
               t.style.height = "auto";
@@ -203,16 +215,11 @@ export default function AiAsistanPage() {
           <button
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
-            className="w-11 h-11 rounded-xl bg-bdo-gold text-bdo-bg flex items-center justify-center disabled:opacity-40 hover:bg-bdo-gold-dim transition-colors flex-shrink-0"
+            className="w-[42px] h-[42px] rounded-xl bg-bdo-gold text-bdo-bg flex items-center justify-center disabled:opacity-30 hover:bg-bdo-gold-dim transition-colors flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5" />
-            </svg>
+            <Send className="w-4 h-4" strokeWidth={2} />
           </button>
         </div>
-        <p className="text-[10px] text-bdo-text-muted/50 text-center mt-2">
-          Veriler anlık olarak veritabanından çekilir · Gemini 2.5 Flash
-        </p>
       </div>
     </div>
   );

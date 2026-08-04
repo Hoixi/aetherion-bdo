@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#d4a853",
+  themeColor: "#0c0f15",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -45,9 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Sidebar />
           <div className="md:ml-56 min-h-screen flex flex-col">
-            <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 pb-20 md:pb-6">{children}</main>
-            <footer className="hidden md:block text-center py-4 text-xs text-bdo-text-muted/50 select-none">
-              Made by <span className="text-bdo-gold/70">Hoixi</span> with <span className="text-red-400">♥</span> · 2026
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-5 pb-20 md:pb-6">{children}</main>
+            <footer className="hidden md:block text-center py-4 text-[11px] text-bdo-text-secondary/50 select-none">
+              Made by <span className="text-bdo-gold/50">Hoixi</span> · Aetherion 2026
             </footer>
           </div>
           <MobileNav />
