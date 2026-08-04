@@ -12,7 +12,7 @@ import type { MapMarker } from "@/components/bdo-leaflet-map";
 import {
   Settings, Swords, Megaphone, Users, Shield, BarChart3, Wrench, Map as MapIcon,
   Plus, Trash2, Pencil, Send, CalendarClock, RefreshCw, Bot, UserCog, Database,
-  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star,
+  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star, Search, Check,
 } from "lucide-react";
 import { PageHeader, Button, Card, CardHeader, Empty, Avatar } from "@/components/ui";
 
@@ -63,6 +63,9 @@ interface GuildRow {
   discordRoleIds: string;
   _count: { members: number };
 }
+
+interface DiscordRoleOption { id: string; name: string; color: string }
+interface DiscordServer { id: string; name: string; icon: string | null; roles: DiscordRoleOption[] }
 
 interface Member {
   id: number;
@@ -170,8 +173,14 @@ export default function AdminPage() {
   const [gName, setGName] = useState("");
   const [gTag, setGTag] = useState("");
   const [gColor, setGColor] = useState("#4a7cf5");
-  const [gRoleIds, setGRoleIds] = useState("");
+  const [gRoleIds, setGRoleIds] = useState<string[]>([]);
   const [gSaving, setGSaving] = useState(false);
+
+  // Discord sunucu/rol listesi (klan ↔ rol eşleştirmesi için)
+  const [discordServers, setDiscordServers] = useState<DiscordServer[]>([]);
+  const [dcLoading, setDcLoading] = useState(false);
+  const [dcError, setDcError] = useState<string | null>(null);
+  const [roleSearch, setRoleSearch] = useState("");
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
@@ -279,6 +288,14 @@ export default function AdminPage() {
     if (session && !session.user.isAdmin) router.push("/dashboard");
   }, [session, router]);
 
+  // Klanlar sekmesi ilk açıldığında Discord rollerini çek
+  useEffect(() => {
+    if (tab === "guilds" && discordServers.length === 0 && !dcLoading && !dcError) {
+      fetchDiscordRoles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   useEffect(() => {
     fetchWars();
     fetchMembers();
@@ -301,9 +318,47 @@ export default function AdminPage() {
     if (res.ok) setGuilds(await res.json());
   }
 
+  async function fetchDiscordRoles() {
+    setDcLoading(true);
+    setDcError(null);
+    const res = await fetch("/api/discord/roles");
+    const data = await res.json();
+    if (res.ok) setDiscordServers(data);
+    else setDcError(data.error ?? "Roller çekilemedi.");
+    setDcLoading(false);
+  }
+
+  /** Tüm sunuculardaki rolleri id → {rol, sunucu} olarak düzleştirir */
+  function findRole(roleId: string) {
+    for (const s of discordServers) {
+      const r = s.roles.find((x) => x.id === roleId);
+      if (r) return { role: r, server: s };
+    }
+    return null;
+  }
+
+  /** Bir rolün başka bir klana bağlı olup olmadığını döner */
+  function roleOwner(roleId: string): GuildRow | null {
+    for (const g of guilds) {
+      if (editingGuild && g.id === editingGuild.id) continue;
+      try {
+        const ids = JSON.parse(g.discordRoleIds || "[]") as string[];
+        if (ids.includes(roleId)) return g;
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+
+  function toggleRoleId(roleId: string) {
+    setGRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((x) => x !== roleId) : [...prev, roleId]
+    );
+  }
+
   function resetGuildForm() {
     setEditingGuild(null);
-    setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds("");
+    setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds([]);
+    setRoleSearch("");
   }
 
   function startEditGuild(g: GuildRow) {
@@ -311,17 +366,19 @@ export default function AdminPage() {
     setGName(g.name);
     setGTag(g.tag);
     setGColor(g.color);
+    setRoleSearch("");
     try {
-      setGRoleIds((JSON.parse(g.discordRoleIds || "[]") as string[]).join(", "));
+      setGRoleIds(JSON.parse(g.discordRoleIds || "[]") as string[]);
     } catch {
-      setGRoleIds("");
+      setGRoleIds([]);
     }
+    if (discordServers.length === 0 && !dcLoading) fetchDiscordRoles();
   }
 
   async function saveGuild(e: React.FormEvent) {
     e.preventDefault();
     setGSaving(true);
-    const payload = { name: gName, tag: gTag, color: gColor, discordRoleIds: gRoleIds };
+    const payload = { name: gName, tag: gTag, color: gColor, discordRoleIds: gRoleIds.join(",") };
     const res = await fetch("/api/guilds", {
       method: editingGuild ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -1508,15 +1565,126 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Discord rol eşleştirme */}
               <div>
-                <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">
-                  Discord Rol ID&apos;leri <span className="normal-case opacity-60">(virgülle ayır — giriş yapanlar otomatik bu klana atanır)</span>
-                </label>
-                <input
-                  value={gRoleIds} onChange={(e) => setGRoleIds(e.target.value)}
-                  placeholder="1234567890, 9876543210"
-                  className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] font-mono text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
-                />
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider">
+                    Discord Rolleri
+                    <span className="normal-case opacity-60"> — bu rollere sahip olanlar girişte otomatik bu klana atanır</span>
+                  </label>
+                  <Button
+                    variant="ghost" size="xs" icon={RefreshCw}
+                    onClick={fetchDiscordRoles} disabled={dcLoading}
+                  >
+                    {dcLoading ? "Çekiliyor..." : discordServers.length ? "Yenile" : "Rolleri Çek"}
+                  </Button>
+                </div>
+
+                {dcError && (
+                  <p className="text-[11px] text-red-400 mb-2">{dcError}</p>
+                )}
+
+                {/* Seçili roller */}
+                {gRoleIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {gRoleIds.map((rid) => {
+                      const found = findRole(rid);
+                      return (
+                        <span
+                          key={rid}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-md border"
+                          style={found
+                            ? { color: found.role.color, borderColor: `${found.role.color}40`, backgroundColor: `${found.role.color}15` }
+                            : { color: "#7a8ba3", borderColor: "#1e2a3c", backgroundColor: "#1a2233" }}
+                        >
+                          {found ? found.role.name : rid}
+                          <button
+                            type="button"
+                            onClick={() => toggleRoleId(rid)}
+                            className="hover:opacity-60 transition-opacity"
+                          >
+                            <X className="w-3 h-3" strokeWidth={2.5} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {discordServers.length === 0 ? (
+                  <div className="bg-bdo-bg border border-dashed border-bdo-border rounded-lg px-3 py-4 text-center">
+                    <p className="text-[12px] text-bdo-text-secondary">
+                      {dcLoading ? "Discord sunucuları yükleniyor..." : "Rolleri listelemek için \"Rolleri Çek\"e bas."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-bdo-bg border border-bdo-border rounded-lg overflow-hidden">
+                    <div className="p-2 border-b border-bdo-border">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-bdo-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.75} />
+                        <input
+                          value={roleSearch}
+                          onChange={(e) => setRoleSearch(e.target.value)}
+                          placeholder="Rol ara..."
+                          className="w-full bg-bdo-surface border border-bdo-border rounded-md pl-8 pr-2 py-1.5 text-[12px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto">
+                      {discordServers.map((server) => {
+                        const visible = server.roles.filter((r) =>
+                          r.name.toLowerCase().includes(roleSearch.toLowerCase())
+                        );
+                        if (visible.length === 0) return null;
+                        return (
+                          <div key={server.id}>
+                            <div className="px-3 py-1.5 bg-bdo-surface/60 border-y border-bdo-border sticky top-0 z-10">
+                              <p className="text-[10px] uppercase tracking-widest text-bdo-text-secondary font-semibold">
+                                {server.name}
+                              </p>
+                            </div>
+                            {visible.map((role) => {
+                              const selected = gRoleIds.includes(role.id);
+                              const owner = roleOwner(role.id);
+                              return (
+                                <button
+                                  key={role.id}
+                                  type="button"
+                                  onClick={() => toggleRoleId(role.id)}
+                                  disabled={!!owner}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors border-b border-bdo-border/40 last:border-0 ${
+                                    owner
+                                      ? "opacity-40 cursor-not-allowed"
+                                      : selected
+                                      ? "bg-bdo-gold/[0.08]"
+                                      : "hover:bg-bdo-surface-2/60"
+                                  }`}
+                                >
+                                  <span
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: role.color }}
+                                  />
+                                  <span className={`text-[12px] flex-1 truncate ${selected ? "text-bdo-text-primary font-medium" : "text-bdo-text-muted"}`}>
+                                    {role.name}
+                                  </span>
+                                  {owner && (
+                                    <span className="text-[10px] text-bdo-text-secondary flex-shrink-0">
+                                      {owner.tag}&apos;a bağlı
+                                    </span>
+                                  )}
+                                  {selected && !owner && (
+                                    <Check className="w-3.5 h-3.5 text-bdo-gold flex-shrink-0" strokeWidth={2.5} />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-1">
@@ -1537,17 +1705,17 @@ export default function AdminPage() {
               <Empty icon={Flag} text="Henüz klan yok." />
             ) : (
               guilds.map((g) => {
-                let roleCount = 0;
-                try { roleCount = (JSON.parse(g.discordRoleIds || "[]") as string[]).length; } catch { /* ignore */ }
+                let roleIds: string[] = [];
+                try { roleIds = JSON.parse(g.discordRoleIds || "[]"); } catch { /* ignore */ }
                 return (
-                  <div key={g.id} className={`card-row gap-3 ${g.isPrimary ? "card-row-active" : ""}`}>
+                  <div key={g.id} className={`card-row gap-3 flex-wrap ${g.isPrimary ? "card-row-active" : ""}`}>
                     <span
                       className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded border flex-shrink-0 font-mono"
                       style={{ color: g.color, borderColor: `${g.color}40`, backgroundColor: `${g.color}15` }}
                     >
                       {g.tag}
                     </span>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[160px]">
                       <div className="flex items-center gap-1.5">
                         <p className="text-[13px] font-medium text-bdo-text-primary truncate">{g.name}</p>
                         {g.isPrimary && (
@@ -1556,9 +1724,30 @@ export default function AdminPage() {
                       </div>
                       <p className="text-[11px] text-bdo-text-secondary mt-0.5">
                         {g._count.members} üye
-                        {roleCount > 0 && ` · ${roleCount} Discord rolü bağlı`}
-                        {g.isPrimary && " · ana klan"}
+                        {g.isPrimary && " · ana klan (eşleşmeyenler buraya düşer)"}
                       </p>
+                      {roleIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {roleIds.map((rid) => {
+                            const found = findRole(rid);
+                            return (
+                              <span
+                                key={rid}
+                                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border"
+                                style={found
+                                  ? { color: found.role.color, borderColor: `${found.role.color}30`, backgroundColor: `${found.role.color}12` }
+                                  : { color: "#4d5c73", borderColor: "#1e2a3c", backgroundColor: "#131820" }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: found?.role.color ?? "#4d5c73" }}
+                                />
+                                {found ? found.role.name : `ID: ${rid}`}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <Button variant="ghost" size="xs" icon={Pencil} onClick={() => startEditGuild(g)} />
