@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BDO_CLASSES } from "@/lib/classes";
+import { Users, Shield, Trophy, Swords, Timer } from "lucide-react";
+import { StatTile, Card, CardHeader } from "./ui";
 
 interface WarReportAverage {
   warId: number;
@@ -77,18 +79,10 @@ export function GuildStats() {
     <div className="space-y-4">
       {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Toplam Üye", value: stats.totalMembers, sub: "kayıtlı" },
-          { label: "Ortalama GS", value: stats.avgGs, sub: "klan ort." },
-          { label: "Win Rate", value: `%${winRate}`, sub: `${stats.warStats.wins}G ${stats.warStats.losses}M` },
-          { label: "Toplam Savaş", value: stats.warStats.totalWars, sub: "tüm zamanlar" },
-        ].map((tile) => (
-          <div key={tile.label} className="card px-4 py-3">
-            <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider mb-1">{tile.label}</p>
-            <p className="text-xl font-bold text-bdo-text-primary font-mono">{tile.value}</p>
-            <p className="text-[10px] text-bdo-text-secondary mt-0.5">{tile.sub}</p>
-          </div>
-        ))}
+        <StatTile label="Toplam Üye" value={stats.totalMembers} sub="kayıtlı" icon={Users} />
+        <StatTile label="Ortalama GS" value={stats.avgGs} sub="klan ort." icon={Shield} tone="text-bdo-gold" />
+        <StatTile label="Win Rate" value={`%${winRate}`} sub={`${stats.warStats.wins}G ${stats.warStats.losses}M`} icon={Trophy} tone={winRate >= 50 ? "text-emerald-400" : "text-bdo-text-primary"} />
+        <StatTile label="Toplam Savaş" value={stats.warStats.totalWars} sub="tüm zamanlar" icon={Swords} />
       </div>
 
       {/* Upcoming war */}
@@ -97,15 +91,21 @@ export function GuildStats() {
           <div className="card p-4 hover:border-bdo-gold/30 transition-colors border-bdo-gold/15">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-bdo-gold animate-pulse flex-shrink-0" />
+                <span className="relative flex h-2 w-2 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bdo-gold opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-bdo-gold" />
+                </span>
                 <div>
                   <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Yaklaşan Savaş</p>
                   <p className="text-sm font-semibold text-bdo-text-primary mt-0.5">{stats.upcomingWar.title}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Kalan Süre</p>
-                <p className="text-lg font-bold font-mono text-bdo-gold mt-0.5">{countdown || "..."}</p>
+              <div className="text-right flex items-center gap-2.5">
+                <Timer className="w-4 h-4 text-bdo-text-secondary/50" strokeWidth={1.75} />
+                <div>
+                  <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Kalan Süre</p>
+                  <p className="text-lg font-bold font-mono text-bdo-gold mt-0.5 leading-none">{countdown || "..."}</p>
+                </div>
               </div>
             </div>
           </div>

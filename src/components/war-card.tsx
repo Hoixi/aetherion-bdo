@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getTypeName } from "@/lib/classes";
+import { Swords, Castle, Skull, Pin, Check, X, LucideIcon } from "lucide-react";
 
 interface WarCardProps {
   war: {
@@ -16,11 +17,11 @@ interface WarCardProps {
   };
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  NODE_WAR: "⚔️",
-  SIEGE: "🏰",
-  KARA_TAPINAK: "🕳️",
-  OTHER: "📌",
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  NODE_WAR: Swords,
+  SIEGE: Castle,
+  KARA_TAPINAK: Skull,
+  OTHER: Pin,
 };
 
 export function WarCard({ war }: WarCardProps) {
@@ -32,6 +33,7 @@ export function WarCard({ war }: WarCardProps) {
   const warDate = new Date(war.date);
   const isPast = warDate < new Date();
   const attending = war._count.participants;
+  const TypeIcon = TYPE_ICONS[war.type] ?? Pin;
 
   async function handleParticipate(newStatus: string) {
     setLoading(true);
@@ -60,8 +62,8 @@ export function WarCard({ war }: WarCardProps) {
       </div>
 
       {/* Icon */}
-      <div className="w-8 h-8 rounded-lg bg-bdo-surface-2 border border-bdo-border flex items-center justify-center flex-shrink-0 text-sm mt-0.5">
-        {TYPE_ICONS[war.type] ?? "📌"}
+      <div className="w-8 h-8 rounded-lg bg-bdo-surface-2 border border-bdo-border flex items-center justify-center flex-shrink-0 mt-0.5">
+        <TypeIcon className="w-3.5 h-3.5 text-bdo-gold/70" strokeWidth={1.75} />
       </div>
 
       {/* Info */}
@@ -90,7 +92,7 @@ export function WarCard({ war }: WarCardProps) {
                 : "bg-bdo-surface-2 text-bdo-text-muted border border-bdo-border hover:text-emerald-400 hover:border-emerald-500/30"
             } disabled:opacity-50`}
           >
-            ✓
+            <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
           </button>
           <button
             onClick={() => handleParticipate("DECLINED")}
@@ -101,7 +103,7 @@ export function WarCard({ war }: WarCardProps) {
                 : "bg-bdo-surface-2 text-bdo-text-muted border border-bdo-border hover:text-red-400 hover:border-red-500/30"
             } disabled:opacity-50`}
           >
-            ✕
+            <X className="w-3.5 h-3.5" strokeWidth={2.5} />
           </button>
         </div>
       )}
