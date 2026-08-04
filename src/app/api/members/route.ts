@@ -3,18 +3,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGuildScope } from "@/lib/guild-scope";
 
+/**
+ * Üye listesi — tüm klanlar görünür.
+ *
+ * Kadro bilgisi (isim, class, GS) zaten oyun içinde görünür ve müttefikler
+ * birlikte savaştığı için ortak tutulur. Gizli kalan şey toplu performans
+ * verisi: dashboard istatistikleri, hasar raporu ve AI asistanı hâlâ
+ * kullanıcının kendi klanına filtrelidir.
+ *
+ * ?guild=<id> ile tek bir klana daraltılabilir.
+ */
 export async function GET(req: Request) {
   const scope = await getGuildScope();
   if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Adminler ?all=1 ile tüm klanları çekebilir (parti kurma, ally savaşı yönetimi)
-  const all = new URL(req.url).searchParams.get("all") === "1" && scope.isAdmin;
+  const guildParam = new URL(req.url).searchParams.get("guild");
+  const guildId = guildParam ? Number(guildParam) : null;
 
   const members = await prisma.user.findMany({
     where: {
       familyName: { not: "" },
       deletedAt: null,
-      ...(all ? {} : { guildId: scope.guildId }),
+      ...(guildId ? { guildId } : {}),
     },
     orderBy: [{ ap: "desc" }, { dp: "desc" }],
     include: {

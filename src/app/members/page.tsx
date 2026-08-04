@@ -16,6 +16,7 @@ interface Member {
   dp: number;
   avatarUrl: string;
   siteRole?: { name: string; color: string } | null;
+  guild?: { id: number; name: string; tag: string; color: string } | null;
   _count?: { participations: number };
 }
 
@@ -43,15 +44,20 @@ export default function MembersPage() {
   if (status === "loading" || loading) return <Loading />;
   if (!session) return null;
 
+  const guildCount = new Set(members.map((m) => m.guild?.id).filter(Boolean)).size;
+
   return (
     <div>
       <PageHeader
         title="Üyeler"
-        desc="Klan üyelerinin gear score, class ve savaş katılım istatistikleri."
+        desc="Tüm klanların kadrosu — gear score, class ve savaş katılımı."
         icon={Users}
         action={
           <span className="text-[11px] text-bdo-text-secondary">
-            <span className="text-bdo-text-primary font-semibold font-mono">{members.length}</span> kayıtlı üye
+            <span className="text-bdo-text-primary font-semibold font-mono">{members.length}</span> üye
+            {guildCount > 1 && (
+              <> · <span className="text-bdo-text-primary font-semibold font-mono">{guildCount}</span> klan</>
+            )}
           </span>
         }
       />

@@ -93,8 +93,7 @@ export default function WarDetailPage() {
       setLoading(true);
       const [warRes, membersRes, perfRes, statsRes, historyRes] = await Promise.all([
         fetch(`/api/wars/${warId}`),
-        // Savaş sayfası ortak alan: admin tüm klanları görür, üye kendi klanını
-        fetch(session?.user?.isAdmin ? "/api/members?all=1" : "/api/members"),
+        fetch("/api/members"),
         fetch(`/api/wars/${warId}/performance`),
         fetch("/api/performances/user-averages"),
         fetch("/api/wars/attendance-history"),
@@ -119,7 +118,7 @@ export default function WarDetailPage() {
     }
 
     fetchWar();
-  }, [status, warId, router, session?.user?.id, session?.user?.isAdmin]);
+  }, [status, warId, router, session?.user?.id]);
 
   async function handleParticipate(newStatus: string) {
     if (!war) return;

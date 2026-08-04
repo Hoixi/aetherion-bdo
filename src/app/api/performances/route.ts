@@ -4,9 +4,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGuildScope } from "@/lib/guild-scope";
 
 /**
- * Hasar raporu — SADECE oturum sahibinin klanı.
- * Siteye kayıtlı olmayan (eşleşmemiş) oyuncular hiçbir klana ait olmadığı için gizlenir.
- * Klanlar arası ortak rapor için /api/ally/performances kullanılır.
+ * Hasar raporu.
+ *
+ * Toplu rapor (warId veya filtresiz) SADECE oturum sahibinin klanını döner —
+ * bir klan diğerinin performans tablosunu göremez.
+ *
+ * Tek kişilik sorgu (?userId=) her klana açıktır: üye profilleri ortak
+ * olduğu için kişinin kendi istatistikleri profilinde görünür.
  */
 export async function GET(req: NextRequest) {
   const scope = await getGuildScope();
@@ -22,15 +26,10 @@ export async function GET(req: NextRequest) {
   });
   const memberIds = guildMembers.map((m) => m.id);
 
-  const where: { warId?: number; userId: number | { in: number[] } } = {
-    userId: { in: memberIds },
-  };
+  const where: { warId?: number; userId: number | { in: number[] } } = userId
+    ? { userId: parseInt(userId) }          // bireysel profil — klan sınırı yok
+    : { userId: { in: memberIds } };        // toplu rapor — kendi klanı
   if (warId) where.warId = parseInt(warId);
-  if (userId) {
-    const uid = parseInt(userId);
-    // Başka klandan bir üyenin verisi istenirse boş döner
-    where.userId = memberIds.includes(uid) ? uid : -1;
-  }
 
   const performances = await prisma.warPerformance.findMany({
     where,

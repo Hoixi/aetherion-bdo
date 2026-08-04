@@ -474,8 +474,7 @@ export default function AdminPage() {
   }
 
   async function fetchMembers() {
-    // Site admin tüm klanları, klan yöneticisi sadece kendi klanını görür
-    const res = await fetch(session?.user.isAdmin ? "/api/members?all=1" : "/api/members");
+    const res = await fetch("/api/members");
     if (res.ok) setMembers(await res.json());
   }
 

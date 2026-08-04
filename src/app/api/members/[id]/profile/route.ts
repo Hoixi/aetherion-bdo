@@ -28,10 +28,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Başka klanın üyesi görüntülenemez (admin hariç)
-  if (!scope.isAdmin && user.guildId !== scope.guildId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // Profiller tüm klanlara açık — kadro bilgisi ortak tutulur.
 
   // İlk "ATTENDING" savaşından itibaren hesapla
   const firstAttend = await prisma.warParticipant.findFirst({
