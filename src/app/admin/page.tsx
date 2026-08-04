@@ -62,11 +62,13 @@ interface GuildRow {
   isPrimary: boolean;
   discordServerId: string | null;
   discordRoleIds: string;
+  warChannelId: string | null;
   _count: { members: number };
 }
 
 interface DiscordRoleOption { id: string; name: string; color: string }
 interface DiscordServer { id: string; name: string; icon: string | null; roles: DiscordRoleOption[] }
+interface DiscordChannel { id: string; name: string; category: string | null; isAnnouncement: boolean }
 
 interface Member {
   id: number;
@@ -117,6 +119,7 @@ interface SiteRole {
   id: number;
   name: string;
   isAdmin: boolean;
+  isGuildAdmin: boolean;
   color: string;
   discordRoleIds: string;
   priority: number;
@@ -183,6 +186,9 @@ export default function AdminPage() {
   const [dcError, setDcError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
   const [selectedServerId, setSelectedServerId] = useState<string>("");
+  const [gWarChannel, setGWarChannel] = useState<string>("");
+  const [channels, setChannels] = useState<DiscordChannel[]>([]);
+  const [chLoading, setChLoading] = useState(false);
   const [annTitle, setAnnTitle] = useState("");
   const [annContent, setAnnContent] = useState("");
   const [annTarget, setAnnTarget] = useState<AnnouncementTarget>("all");
@@ -210,6 +216,7 @@ export default function AdminPage() {
   // Role form state
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleIsAdmin, setNewRoleIsAdmin] = useState(false);
+  const [newRoleIsGuildAdmin, setNewRoleIsGuildAdmin] = useState(false);
   const [newRoleColor, setNewRoleColor] = useState("#d4a853");
   const [newRoleDiscordIds, setNewRoleDiscordIds] = useState("");
   const [newRolePriority, setNewRolePriority] = useState(0);
@@ -218,7 +225,16 @@ export default function AdminPage() {
   const [publishing, setPublishing] = useState<number | null>(null);
   const [settingResult, setSettingResult] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ softDeleted: number; restored: number; created: number; totalWithRole: number; incomplete: { id: number; discordId: string; familyName: string; avatarUrl: string; ap: number; dp: number; class: string; discordUsername: string }[] } | null>(null);
+  const [syncResult, setSyncResult] = useState<{
+    softDeleted: number; restored: number; created: number; guildUpdated: number;
+    totalWithRole: number; serversRead: number; serverErrors: string[];
+    perGuild: { tag: string; name: string; count: number }[];
+    incomplete: {
+      id: number; discordId: string; familyName: string; avatarUrl: string;
+      ap: number; dp: number; class: string; discordUsername: string;
+      guild?: { tag: string; color: string } | null;
+    }[];
+  } | null>(null);
   const [dmSending, setDmSending] = useState<number | null>(null);
   const [dmSendingAll, setDmSendingAll] = useState(false);
   const [dmAllResult, setDmAllResult] = useState<{ sent: number; failed: number } | null>(null);
@@ -286,9 +302,20 @@ export default function AdminPage() {
     setPreviewLoading(false);
   }
 
+  const isSiteAdmin = session?.user.isAdmin ?? false;
+  const isGuildAdmin = session?.user.isGuildAdmin ?? false;
+
   useEffect(() => {
-    if (session && !session.user.isAdmin) router.push("/dashboard");
+    // Klan yöneticileri de girebilir ama sınırlı sekmelerle
+    if (session && !session.user.isAdmin && !session.user.isGuildAdmin) router.push("/dashboard");
   }, [session, router]);
+
+  // Klan yöneticisi site-admin sekmesindeyse savaşlara döndür
+  useEffect(() => {
+    if (!session || isSiteAdmin) return;
+    if (!["wars", "members", "hasar"].includes(tab)) setTab("wars");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, isSiteAdmin, tab]);
 
   // Klanlar sekmesi ilk açıldığında Discord rollerini çek
   useEffect(() => {
@@ -335,6 +362,14 @@ export default function AdminPage() {
     setDcLoading(false);
   }
 
+  async function fetchChannels(serverId: string) {
+    if (!serverId) { setChannels([]); return; }
+    setChLoading(true);
+    const res = await fetch(`/api/discord/channels?serverId=${serverId}`);
+    setChannels(res.ok ? await res.json() : []);
+    setChLoading(false);
+  }
+
   /** Tüm sunuculardaki rolleri id → {rol, sunucu} olarak düzleştirir */
   function findRole(roleId: string) {
     for (const s of discordServers) {
@@ -367,6 +402,7 @@ export default function AdminPage() {
     setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds([]);
     setRoleSearch("");
     setSelectedServerId(discordServers.length === 1 ? discordServers[0].id : "");
+    setGWarChannel("");
   }
 
   function startEditGuild(g: GuildRow) {
@@ -376,6 +412,8 @@ export default function AdminPage() {
     setGColor(g.color);
     setRoleSearch("");
     setSelectedServerId(g.discordServerId ?? "");
+    setGWarChannel(g.warChannelId ?? "");
+    if (g.discordServerId) fetchChannels(g.discordServerId);
     try {
       setGRoleIds(JSON.parse(g.discordRoleIds || "[]") as string[]);
     } catch {
@@ -391,6 +429,7 @@ export default function AdminPage() {
       name: gName, tag: gTag, color: gColor,
       discordRoleIds: gRoleIds.join(","),
       discordServerId: selectedServerId || null,
+      warChannelId: gWarChannel || null,
     };
     const res = await fetch("/api/guilds", {
       method: editingGuild ? "PUT" : "POST",
@@ -435,8 +474,8 @@ export default function AdminPage() {
   }
 
   async function fetchMembers() {
-    // Admin paneli tüm klanları yönetir
-    const res = await fetch("/api/members?all=1");
+    // Site admin tüm klanları, klan yöneticisi sadece kendi klanını görür
+    const res = await fetch(session?.user.isAdmin ? "/api/members?all=1" : "/api/members");
     if (res.ok) setMembers(await res.json());
   }
 
@@ -726,6 +765,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           name: newRoleName,
           isAdmin: newRoleIsAdmin,
+          isGuildAdmin: newRoleIsGuildAdmin,
           color: newRoleColor,
           discordRoleIds: discordIds,
           priority: newRolePriority,
@@ -739,6 +779,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           name: newRoleName,
           isAdmin: newRoleIsAdmin,
+          isGuildAdmin: newRoleIsGuildAdmin,
           color: newRoleColor,
           discordRoleIds: discordIds,
           priority: newRolePriority,
@@ -764,6 +805,7 @@ export default function AdminPage() {
     setEditingRole(role);
     setNewRoleName(role.name);
     setNewRoleIsAdmin(role.isAdmin);
+    setNewRoleIsGuildAdmin(role.isGuildAdmin ?? false);
     setNewRoleColor(role.color);
     setNewRolePriority(role.priority ?? 0);
     const ids: string[] = JSON.parse(role.discordRoleIds || "[]");
@@ -774,30 +816,48 @@ export default function AdminPage() {
     setEditingRole(null);
     setNewRoleName("");
     setNewRoleIsAdmin(false);
+    setNewRoleIsGuildAdmin(false);
     setNewRoleColor("#d4a853");
     setNewRoleDiscordIds("");
     setNewRolePriority(0);
   }
 
-  if (!session?.user.isAdmin) return null;
+  if (!isSiteAdmin && !isGuildAdmin) return null;
 
-  const TAB_ITEMS = [
-    { key: "wars",          label: "Savaşlar",     icon: Swords },
-    { key: "announcements", label: "Duyurular",    icon: Megaphone },
-    { key: "members",       label: "Üyeler",       icon: Users },
-    { key: "guilds",        label: "Klanlar",      icon: Flag },
-    { key: "roles",         label: "Roller",       icon: Shield },
-    { key: "hasar",         label: "Hasar Raporu", icon: BarChart3 },
-    { key: "araçlar",       label: "Araçlar",      icon: Wrench },
-    { key: "geo",           label: "GeoGuessr",    icon: MapIcon },
+  const ALL_TABS = [
+    { key: "wars",          label: "Savaşlar",     icon: Swords,     guildAdmin: true },
+    { key: "announcements", label: "Duyurular",    icon: Megaphone,  guildAdmin: false },
+    { key: "members",       label: "Üyeler",       icon: Users,      guildAdmin: true },
+    { key: "guilds",        label: "Klanlar",      icon: Flag,       guildAdmin: false },
+    { key: "roles",         label: "Roller",       icon: Shield,     guildAdmin: false },
+    { key: "hasar",         label: "Hasar Raporu", icon: BarChart3,  guildAdmin: true },
+    { key: "araçlar",       label: "Araçlar",      icon: Wrench,     guildAdmin: false },
+    { key: "geo",           label: "GeoGuessr",    icon: MapIcon,    guildAdmin: false },
   ] as const;
+
+  const TAB_ITEMS = isSiteAdmin ? ALL_TABS : ALL_TABS.filter((t) => t.guildAdmin);
+  const myGuild = session?.user.guild;
 
   return (
     <div>
       <PageHeader
-        title="Admin Panel"
-        desc="Savaş, duyuru, üye ve rol yönetimi."
+        title={isSiteAdmin ? "Admin Panel" : "Klan Yönetimi"}
+        desc={isSiteAdmin
+          ? "Savaş, duyuru, üye ve rol yönetimi."
+          : "Savaş aç, parti kur ve klan üyelerini yönet."}
         icon={Settings}
+        action={!isSiteAdmin && myGuild && (
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border"
+            style={{
+              color: myGuild.color,
+              borderColor: `${myGuild.color}38`,
+              backgroundColor: `${myGuild.color}14`,
+            }}
+          >
+            {myGuild.tag}
+          </span>
+        )}
       />
 
       {message && (
@@ -1291,7 +1351,7 @@ export default function AdminPage() {
                     { label: "Yeni üye", value: syncResult.created, tone: "text-emerald-400" },
                     { label: "Geri döndü", value: syncResult.restored, tone: "text-[#6b93ff]" },
                     { label: "Gizlendi", value: syncResult.softDeleted, tone: "text-red-400" },
-                    { label: "Guild üyesi", value: syncResult.totalWithRole, tone: "text-bdo-gold" },
+                    { label: "Toplam üye", value: syncResult.totalWithRole, tone: "text-bdo-gold" },
                   ].map((s) => (
                     <div key={s.label} className="bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2">
                       <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">{s.label}</p>
@@ -1299,6 +1359,41 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Klan bazlı dağılım */}
+                {syncResult.perGuild?.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] text-bdo-text-secondary">
+                      {syncResult.serversRead} sunucu tarandı:
+                    </span>
+                    {syncResult.perGuild.map((g) => (
+                      <span
+                        key={g.tag}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-md border border-bdo-border bg-bdo-bg text-bdo-text-muted"
+                        title={g.name}
+                      >
+                        {g.tag}
+                        <span className="font-mono text-bdo-text-primary">{g.count}</span>
+                      </span>
+                    ))}
+                    {syncResult.guildUpdated > 0 && (
+                      <span className="text-[11px] text-[#6b93ff]">
+                        {syncResult.guildUpdated} üyenin klanı güncellendi
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {syncResult.serverErrors?.length > 0 && (
+                  <div className="bg-red-500/8 border border-red-500/20 rounded-lg px-3 py-2">
+                    {syncResult.serverErrors.map((err, i) => (
+                      <p key={i} className="text-[11px] text-red-400 flex items-start gap-1.5">
+                        <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                        {err}
+                      </p>
+                    ))}
+                  </div>
+                )}
 
                 {syncResult.incomplete.length > 0 ? (
                   <div className="space-y-2">
@@ -1323,6 +1418,18 @@ export default function AdminPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-[13px] text-bdo-text-primary truncate">{u.familyName || u.discordUsername}</span>
+                              {u.guild && (
+                                <span
+                                  className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
+                                  style={{
+                                    color: u.guild.color,
+                                    borderColor: `${u.guild.color}38`,
+                                    backgroundColor: `${u.guild.color}14`,
+                                  }}
+                                >
+                                  {u.guild.tag}
+                                </span>
+                              )}
                               <span className="text-[10px] text-bdo-text-secondary font-mono">{u.discordId}</span>
                             </div>
                             <p className="text-[11px] text-bdo-text-secondary">
@@ -1504,28 +1611,36 @@ export default function AdminPage() {
                   </div>
                 </Link>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <select
-                    value={member.guild?.id ?? ""}
-                    onChange={(e) => setMemberGuild(member.id, e.target.value)}
-                    className="text-[11px] bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1 text-bdo-text-muted focus:border-bdo-gold/40 focus:outline-none"
-                  >
-                    <option value="">Klansız</option>
-                    {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                  <Button
-                    variant={member.isAdmin ? "primary" : "ghost"}
-                    size="xs"
-                    icon={Shield}
-                    onClick={() => toggleAdmin(member.id, !member.isAdmin)}
-                  >
-                    {member.isAdmin ? "Admin" : "Admin Yap"}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="xs"
-                    icon={Trash2}
-                    onClick={() => deleteMember(member.id, member.familyName || "İsimsiz")}
-                  />
+                  {isSiteAdmin ? (
+                    <>
+                      <select
+                        value={member.guild?.id ?? ""}
+                        onChange={(e) => setMemberGuild(member.id, e.target.value)}
+                        className="text-[11px] bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1 text-bdo-text-muted focus:border-bdo-gold/40 focus:outline-none"
+                      >
+                        <option value="">Klansız</option>
+                        {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                      <Button
+                        variant={member.isAdmin ? "primary" : "ghost"}
+                        size="xs"
+                        icon={Shield}
+                        onClick={() => toggleAdmin(member.id, !member.isAdmin)}
+                      >
+                        {member.isAdmin ? "Admin" : "Admin Yap"}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="xs"
+                        icon={Trash2}
+                        onClick={() => deleteMember(member.id, member.familyName || "İsimsiz")}
+                      />
+                    </>
+                  ) : (
+                    <Link href={`/members/${member.id}`}>
+                      <Button variant="ghost" size="xs">Profil</Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             ))
@@ -1652,6 +1767,8 @@ export default function AdminPage() {
                               setGRoleIds((prev) => prev.filter((id) => valid.has(id)));
                             }
                             setSelectedServerId(next);
+                            setGWarChannel("");
+                            fetchChannels(next);
                           }}
                           className="w-full bg-bdo-surface border border-bdo-border rounded-md px-2 py-1.5 text-[12px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors"
                         >
@@ -1740,6 +1857,48 @@ export default function AdminPage() {
                     })()}
                   </div>
                 )}
+              </div>
+
+              {/* Savaş duyuru kanalı */}
+              <div>
+                <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">
+                  Savaş Duyuru Kanalı
+                  <span className="normal-case opacity-60"> — savaş açıldığında duyuru buraya gider</span>
+                </label>
+
+                {!selectedServerId ? (
+                  <div className="bg-bdo-bg border border-dashed border-bdo-border rounded-lg px-3 py-3 text-center">
+                    <p className="text-[12px] text-bdo-text-secondary">Önce yukarıdan sunucu seç.</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={gWarChannel}
+                      onChange={(e) => setGWarChannel(e.target.value)}
+                      disabled={chLoading}
+                      className="flex-1 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors disabled:opacity-50"
+                    >
+                      <option value="">
+                        {chLoading ? "Kanallar yükleniyor..." : "Kanal seçilmedi (varsayılan kanal kullanılır)"}
+                      </option>
+                      {channels.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.category ? `${c.category} / ` : ""}#{c.name}{c.isAnnouncement ? " (duyuru)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="ghost" icon={RefreshCw}
+                      onClick={() => fetchChannels(selectedServerId)}
+                      disabled={chLoading}
+                    />
+                  </div>
+                )}
+
+                <p className="text-[11px] text-bdo-text-secondary mt-1.5">
+                  Her klan kendi kanalını seçebilir — savaş duyurusu tüm klanların kanallarına ayrı ayrı
+                  gönderilir ve katılım sayıları hepsinde birlikte güncellenir.
+                </p>
               </div>
 
               <div className="flex items-center gap-2 pt-1">
@@ -1890,16 +2049,43 @@ export default function AdminPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
+              </div>
+
+              {/* Yetki seviyesi */}
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase text-bdo-text-secondary tracking-wider">Yetki Seviyesi</p>
+
+                <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg border border-bdo-border bg-bdo-bg hover:border-bdo-border-2 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={newRoleIsGuildAdmin}
+                    onChange={(e) => { setNewRoleIsGuildAdmin(e.target.checked); if (e.target.checked) setNewRoleIsAdmin(false); }}
+                    className="w-4 h-4 rounded border-bdo-border accent-bdo-gold mt-0.5 flex-shrink-0"
+                  />
+                  <div>
+                    <p className="text-[13px] text-bdo-text-primary font-medium">Klan Yöneticisi</p>
+                    <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-relaxed">
+                      Savaş açabilir, parti kurabilir, hasar raporu girebilir.
+                      Sadece kendi klanının üyelerini görür — başka klanların verisine erişemez.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg border border-red-500/20 bg-red-500/5 hover:border-red-500/30 transition-colors">
                   <input
                     type="checkbox"
                     checked={newRoleIsAdmin}
-                    onChange={(e) => setNewRoleIsAdmin(e.target.checked)}
-                    className="w-4 h-4 rounded border-bdo-border accent-bdo-gold"
+                    onChange={(e) => { setNewRoleIsAdmin(e.target.checked); if (e.target.checked) setNewRoleIsGuildAdmin(false); }}
+                    className="w-4 h-4 rounded border-bdo-border accent-red-400 mt-0.5 flex-shrink-0"
                   />
-                  <span className="text-sm text-bdo-text-secondary">Admin yetkisi ver</span>
+                  <div>
+                    <p className="text-[13px] text-red-400 font-medium">Site Admini</p>
+                    <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-relaxed">
+                      Tam yetki — <span className="text-red-400/80">tüm klanların</span> verisini görür ve düzenler,
+                      üye silebilir, klan ve rol yönetir. Müttefiklere verme.
+                    </p>
+                  </div>
                 </label>
-                <span className="text-[11px] text-bdo-text-muted">(Etkinlik/Parti/Duyuru yönetimi)</span>
               </div>
               <div className="flex gap-2">
                 <button
@@ -1936,8 +2122,13 @@ export default function AdminPage() {
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />
                       <span className="text-bdo-text-primary font-semibold">{role.name}</span>
                       {role.isAdmin && (
-                        <span className="text-[10px] bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded font-bold uppercase">
-                          Admin
+                        <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded font-bold uppercase">
+                          Site Admin
+                        </span>
+                      )}
+                      {role.isGuildAdmin && !role.isAdmin && (
+                        <span className="text-[10px] bg-bdo-gold/10 text-bdo-gold border border-bdo-gold/20 px-2 py-0.5 rounded font-bold uppercase">
+                          Klan Yön.
                         </span>
                       )}
                       <span className="text-xs text-bdo-text-muted">

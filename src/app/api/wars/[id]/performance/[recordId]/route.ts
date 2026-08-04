@@ -18,7 +18,7 @@ export async function PATCH(
   { params }: { params: { id: string; recordId: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.isAdmin) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+  if (!session?.user?.canManageWars) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
 
   const warId = parseInt(params.id);
   const recordId = parseInt(params.recordId);

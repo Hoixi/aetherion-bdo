@@ -153,7 +153,7 @@ function mergeRows(allRows: GeminiRow[]): GeminiRow[] {
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+    if (!session?.user?.canManageWars) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
 
     const warId = parseInt(params.id);
     if (isNaN(warId)) return NextResponse.json({ error: "Geçersiz savaş ID" }, { status: 400 });
@@ -262,7 +262,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+    if (!session?.user?.canManageWars) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
 
     const warId = parseInt(params.id);
     if (isNaN(warId)) return NextResponse.json({ error: "Geçersiz savaş ID" }, { status: 400 });

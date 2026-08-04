@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { name } = await req.json();
   const warId = Number(params.id);

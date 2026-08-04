@@ -97,10 +97,10 @@ export function Sidebar() {
               Profil
               {pathname === "/profile" && <span className="ml-auto w-1 h-1 rounded-full bg-bdo-gold flex-shrink-0" />}
             </Link>
-            {session.user.isAdmin && (
+            {(session.user.isAdmin || session.user.isGuildAdmin) && (
               <Link href="/admin" className={linkCls(pathname === "/admin")}>
                 <Settings className={iconCls(pathname === "/admin")} strokeWidth={1.75} />
-                Admin
+                {session.user.isAdmin ? "Admin" : "Klan Yönetimi"}
                 {pathname === "/admin" && <span className="ml-auto w-1 h-1 rounded-full bg-bdo-gold flex-shrink-0" />}
               </Link>
             )}

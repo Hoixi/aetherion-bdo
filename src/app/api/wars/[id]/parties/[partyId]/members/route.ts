@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(req: Request, { params }: { params: { id: string; partyId: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { memberIds } = await req.json() as { memberIds: number[] };
   const partyId = Number(params.partyId);

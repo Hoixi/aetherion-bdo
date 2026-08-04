@@ -33,7 +33,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const { title, type, date, notes, deadline, result, maxParticipants } = body;
@@ -68,7 +68,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await prisma.war.delete({ where: { id: Number(params.id) } });
   return NextResponse.json({ ok: true });

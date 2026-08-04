@@ -99,10 +99,16 @@ export async function GET(req: NextRequest) {
 
     // Optionally send to Discord
     if (schedule.sendToDiscord) {
-      const msgId = await sendWarToDiscord(war);
-      if (msgId) {
-        await prisma.war.update({ where: { id: war.id }, data: { discordMessageId: msgId } });
-      }
+      const sent = await sendWarToDiscord(war);
+    if (sent.length > 0) {
+      await prisma.war.update({
+        where: { id: war.id },
+        data: {
+          discordMessageId: sent[0].messageId,
+          discordMessages: JSON.stringify(sent),
+        },
+      });
+    }
 
       // Extra plain-text follow-up message
       const dayName = DAY_NAMES_TR[schedule.dayOfWeek];

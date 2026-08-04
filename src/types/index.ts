@@ -6,6 +6,10 @@ declare module "next-auth" {
       id: number;
       discordId: string;
       isAdmin: boolean;
+      isGuildAdmin: boolean;
+      /** Savaş açma / parti düzenleme yetkisi (isAdmin || isGuildAdmin) */
+      canManageWars: boolean;
+      guild: { id: number; name: string; tag: string; color: string } | null;
       familyName: string;
       role: string;
       name?: string | null;

@@ -1,7 +1,9 @@
 import { getTypeName } from "./classes";
+import { prisma } from "./prisma";
 
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const CHANNEL_ID = process.env.DISCORD_CHANNEL_ID!;
+
 const SITE_URL = process.env.NEXTAUTH_URL || "https://aetherion-bdo.vercel.app";
 const GOLD = 0xd4a853;
 
@@ -49,11 +51,12 @@ async function sendMessage(
 export async function editMessage(
   messageId: string,
   embeds: DiscordEmbed[],
-  components?: unknown[]
+  components?: unknown[],
+  channelId: string = CHANNEL_ID
 ) {
-  if (!BOT_TOKEN || !CHANNEL_ID) return;
+  if (!BOT_TOKEN || !channelId) return;
 
-  await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages/${messageId}`, {
+  await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -75,6 +78,51 @@ export async function deleteMessage(messageId: string) {
   });
 }
 
+/** Savaş duyurusunun gideceği kanallar — klanların ayarı, yoksa env'deki varsayılan */
+export async function getWarChannels(): Promise<string[]> {
+  const guilds = await prisma.guild.findMany({
+    where: { warChannelId: { not: null } },
+    select: { warChannelId: true },
+  });
+  const ids = guilds.map((g) => g.warChannelId!).filter(Boolean);
+  // Hiçbir klanda kanal ayarlanmamışsa eski davranışa düş
+  if (ids.length === 0 && CHANNEL_ID) return [CHANNEL_ID];
+  return Array.from(new Set(ids));
+}
+
+/** Aynı mesajı birden fazla kanala gönderir, dönen mesaj ID'lerini toplar */
+async function sendToChannels(
+  channelIds: string[],
+  content: string | null,
+  embeds: DiscordEmbed[],
+  components?: unknown[],
+): Promise<{ channelId: string; messageId: string }[]> {
+  if (!BOT_TOKEN) return [];
+
+  const results = await Promise.all(
+    channelIds.map(async (channelId) => {
+      try {
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+          body: JSON.stringify({ content, embeds, components }),
+        });
+        if (!res.ok) {
+          console.error(`[discord] ${channelId} kanalına gönderilemedi: ${res.status}`);
+          return null;
+        }
+        const data = await res.json();
+        return { channelId, messageId: data.id as string };
+      } catch (e) {
+        console.error(`[discord] ${channelId} kanalı hatası:`, e);
+        return null;
+      }
+    }),
+  );
+
+  return results.filter((r): r is { channelId: string; messageId: string } => r !== null);
+}
+
 const TYPE_EMOJI: Record<string, string> = {
   NODE_WAR: "⚔️",
   SIEGE: "🏰",
@@ -89,7 +137,7 @@ export async function sendWarToDiscord(war: {
   date: Date | string;
   notes?: string | null;
   deadline?: Date | string | null;
-}): Promise<string | null> {
+}): Promise<{ channelId: string; messageId: string }[]> {
   const date = new Date(war.date);
   const dateStr = date.toLocaleDateString("tr-TR", {
     day: "numeric",
@@ -165,7 +213,26 @@ export async function sendWarToDiscord(war: {
     },
   ];
 
-  return await sendMessage("@everyone", embeds, components);
+  const channels = await getWarChannels();
+  return await sendToChannels(channels, "@everyone", embeds, components);
+}
+
+/**
+ * Savaş duyurusunu tüm gönderildiği kanallarda günceller.
+ * `messages` boşsa eski tek-kanal davranışına düşer.
+ */
+export async function updateWarEmbedAll(
+  messages: { channelId: string; messageId: string }[],
+  war: Parameters<typeof updateWarEmbed>[1],
+  attendCount: number,
+  declineCount: number,
+) {
+  if (messages.length === 0) return;
+  await Promise.all(
+    messages.map(({ channelId, messageId }) =>
+      updateWarEmbed(messageId, war, attendCount, declineCount, channelId),
+    ),
+  );
 }
 
 export async function sendPartiesToDiscord(war: {
@@ -298,7 +365,8 @@ export async function updateWarEmbed(
     deadline?: Date | string | null;
   },
   attendCount: number,
-  declineCount: number
+  declineCount: number,
+  channelId: string = CHANNEL_ID
 ) {
   const date = new Date(war.date);
   const dateStr = date.toLocaleDateString("tr-TR", {
@@ -375,5 +443,5 @@ export async function updateWarEmbed(
     },
   ];
 
-  await editMessage(messageId, embeds, components);
+  await editMessage(messageId, embeds, components, channelId);
 }

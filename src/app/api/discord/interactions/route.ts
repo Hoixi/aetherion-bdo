@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { updateWarEmbed, sendWarToDiscord } from "@/lib/discord-bot";
+import { updateWarEmbed, updateWarEmbedAll, sendWarToDiscord } from "@/lib/discord-bot";
 import { getClassByID } from "@/lib/classes";
 import { buildActivityEmbed, updateActivityMessage } from "@/lib/activity-discord";
 import { createMobileLoginLink } from "@/lib/mobile-login-token";
@@ -137,8 +137,11 @@ async function handleWarButton(customId: string, discordUserId: string) {
     await prisma.partyMember.deleteMany({ where: { userId: user.id, party: { warId } } });
   }
 
-  // Update embed with new counts
-  if (war.discordMessageId) {
+  // Duyuru gönderilen tüm kanallardaki embed'i güncelle
+  let sentMessages: { channelId: string; messageId: string }[] = [];
+  try { sentMessages = JSON.parse(war.discordMessages || "[]"); } catch { /* bozuk JSON */ }
+
+  if (sentMessages.length > 0 || war.discordMessageId) {
     const counts = await prisma.warParticipant.groupBy({
       by: ["status"],
       where: { warId },
@@ -146,7 +149,13 @@ async function handleWarButton(customId: string, discordUserId: string) {
     });
     const attendCount = counts.find((c) => c.status === "ATTENDING")?._count ?? 0;
     const declineCount = counts.find((c) => c.status === "DECLINED")?._count ?? 0;
-    await updateWarEmbed(war.discordMessageId, war, attendCount, declineCount);
+
+    if (sentMessages.length > 0) {
+      await updateWarEmbedAll(sentMessages, war, attendCount, declineCount);
+    } else if (war.discordMessageId) {
+      // Eski kayıtlar — tek kanal
+      await updateWarEmbed(war.discordMessageId, war, attendCount, declineCount);
+    }
   }
 
   const emoji = status === "ATTENDING" ? "✅" : "❌";
@@ -881,9 +890,15 @@ async function handleCommand(
     });
 
     // Send war announcement with buttons
-    const messageId = await sendWarToDiscord(war);
-    if (messageId) {
-      await prisma.war.update({ where: { id: war.id }, data: { discordMessageId: messageId } });
+    const sent = await sendWarToDiscord(war);
+    if (sent.length > 0) {
+      await prisma.war.update({
+        where: { id: war.id },
+        data: {
+          discordMessageId: sent[0].messageId,
+          discordMessages: JSON.stringify(sent),
+        },
+      });
     }
 
     const maxText = maxPart ? ` (Maks: ${maxPart} kişi)` : "";

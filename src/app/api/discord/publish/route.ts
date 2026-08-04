@@ -10,7 +10,7 @@ const db = prisma as any;
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { type, id } = await req.json();
 
@@ -18,13 +18,16 @@ export async function POST(req: Request) {
     const war = await prisma.war.findUnique({ where: { id: Number(id) } });
     if (!war) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const messageId = await sendWarToDiscord(war);
+    const sent = await sendWarToDiscord(war);
 
-    // Save Discord message ID for future updates
-    if (messageId) {
+    // Gönderilen tüm kanalların mesaj ID'lerini sakla
+    if (sent.length > 0) {
       await prisma.war.update({
         where: { id: war.id },
-        data: { discordMessageId: messageId },
+        data: {
+          discordMessageId: sent[0].messageId,
+          discordMessages: JSON.stringify(sent),
+        },
       });
     }
 

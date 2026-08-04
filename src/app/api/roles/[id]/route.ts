@@ -9,13 +9,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { name, isAdmin, color, discordRoleIds, priority } = body;
+  const { name, isAdmin, isGuildAdmin, color, discordRoleIds, priority } = body;
 
   const role = await prisma.siteRole.update({
     where: { id: Number(params.id) },
     data: {
       name: name ?? undefined,
       isAdmin: isAdmin !== undefined ? isAdmin : undefined,
+      isGuildAdmin: isGuildAdmin !== undefined ? isGuildAdmin : undefined,
       color: color ?? undefined,
       discordRoleIds: discordRoleIds !== undefined ? JSON.stringify(discordRoleIds) : undefined,
       priority: priority !== undefined ? priority : undefined,

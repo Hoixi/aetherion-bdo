@@ -114,8 +114,9 @@ export const authOptions: NextAuthOptions = {
         where: { discordId: user.id },
       });
 
-      // isAdmin = true if role says admin OR user was already manually set as admin
+      // Yetkiler role'den gelir; elle verilmiş yetki korunur
       const newIsAdmin = matchedRole?.isAdmin || existingUser?.isAdmin || false;
+      const newIsGuildAdmin = matchedRole?.isGuildAdmin || existingUser?.isGuildAdmin || false;
 
       // Klan: rol eşleşmesi → mevcut klanı koru → ana klana düş
       const primaryGuild = await prisma.guild.findFirst({ where: { isPrimary: true } });
@@ -126,6 +127,7 @@ export const authOptions: NextAuthOptions = {
         update: {
           avatarUrl: user.image ?? "",
           isAdmin: newIsAdmin,
+          isGuildAdmin: newIsGuildAdmin,
           siteRoleId: matchedRole?.id ?? existingUser?.siteRoleId ?? null,
           guildId,
         },
@@ -133,6 +135,7 @@ export const authOptions: NextAuthOptions = {
           discordId: user.id,
           avatarUrl: user.image ?? "",
           isAdmin: newIsAdmin,
+          isGuildAdmin: newIsGuildAdmin,
           siteRoleId: matchedRole?.id ?? null,
           guildId,
         },
@@ -144,12 +147,18 @@ export const authOptions: NextAuthOptions = {
       if (token.sub) {
         const dbUser = await prisma.user.findUnique({
           where: { discordId: token.sub },
-          include: { siteRole: true },
+          include: {
+            siteRole: true,
+            guild: { select: { id: true, name: true, tag: true, color: true } },
+          },
         });
         if (dbUser) {
           session.user.id = dbUser.id;
           session.user.discordId = dbUser.discordId;
           session.user.isAdmin = dbUser.isAdmin;
+          session.user.isGuildAdmin = dbUser.isGuildAdmin;
+          session.user.canManageWars = dbUser.isAdmin || dbUser.isGuildAdmin;
+          session.user.guild = dbUser.guild;
           session.user.familyName = dbUser.familyName;
           session.user.role = dbUser.siteRole?.name ?? "Üye";
         }

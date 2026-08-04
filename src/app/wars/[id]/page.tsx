@@ -312,7 +312,7 @@ export default function WarDetailPage() {
       </div>
 
       {/* Party builder (admin) */}
-      {session.user.isAdmin && (
+      {session.user.canManageWars && (
         <div className="mb-4">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <div>
@@ -432,7 +432,7 @@ export default function WarDetailPage() {
       )}
 
       {/* Parties (non-admin view) */}
-      {war.parties.length > 0 && !session.user.isAdmin && (
+      {war.parties.length > 0 && !session.user.canManageWars && (
         <div>
           <h2 className="text-[15px] font-bold text-bdo-text-primary mb-3">Partiler</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

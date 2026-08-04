@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const schedules = await prisma.warSchedule.findMany({ orderBy: { dayOfWeek: "asc" } });
   return NextResponse.json(schedules);
@@ -14,7 +14,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const { name, type, dayOfWeek, hour, minute, createDaysBefore, deadlineHours, maxParticipants, notes, sendToDiscord } = body;

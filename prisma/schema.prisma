@@ -18,6 +18,7 @@ model Guild {
   isPrimary   Boolean  @default(false)            // true = kendi klanımız
   discordServerId String?                         // rollerin bulunduğu Discord sunucusu
   discordRoleIds String @default("[]") @db.Text   // JSON: bu guild'e ait Discord rol ID'leri
+  warChannelId    String?                         // savaş duyurularının gideceği kanal
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -35,7 +36,8 @@ model User {
   class       String   @default("")
   spec        String   @default("awakening")
   avatarUrl   String   @default("")
-  isAdmin     Boolean   @default(false)
+  isAdmin     Boolean   @default(false)   // site geneli tam yetki
+  isGuildAdmin Boolean  @default(false)   // sadece kendi klanını yönetir
   siteRoleId  Int?
   guildId     Int?
   absenceCount Int     @default(0)
@@ -118,7 +120,8 @@ model GeoRound {
 model SiteRole {
   id             Int      @id @default(autoincrement())
   name           String   @unique
-  isAdmin        Boolean  @default(false)
+  isAdmin        Boolean  @default(false)   // site geneli tam yetki
+  isGuildAdmin   Boolean  @default(false)   // sadece kendi klanını yönetir
   color          String   @default("#d4a853")
   discordRoleIds String   @db.Text
   priority       Int      @default(0)
@@ -157,6 +160,8 @@ model War {
   result           WarResult?
   maxParticipants  Int?
   discordMessageId    String?
+  /** JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse */
+  discordMessages     String   @default("[]") @db.Text
   reminder10hSent     Boolean  @default(false)
   reminder4hSent      Boolean  @default(false)
   reminder10hMsgId    String?

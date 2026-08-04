@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const { title, type, date, notes, deadline, maxParticipants } = body;
