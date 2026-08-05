@@ -94,8 +94,8 @@ interface Announcement {
 
 const TARGET_LABELS: Record<string, string> = {
   all: "Tüm Klan (kanal)",
-  no_login: "Siteye giriş yapmamışlar (DM)",
-  no_gear: "Gear doldurmamışlar (DM)",
+  no_login: "Siteye hiç girmemişler (DM)",
+  no_gear: "GS bilgisi olmayanlar (DM)",
   pvp: "PvP'ciler — savaşa girenler (DM)",
 };
 
@@ -203,7 +203,7 @@ export default function AdminPage() {
   const [formPreviewData, setFormPreviewData] = useState<{
     mode: "channel" | "dm";
     count: number | null;
-    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string }[];
+    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null }[];
   } | null>(null);
 
   // List preview state: which announcement ID is being previewed, and the fetched user list
@@ -212,7 +212,7 @@ export default function AdminPage() {
   const [previewData, setPreviewData] = useState<{
     mode: "channel" | "dm";
     count: number | null;
-    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string }[];
+    users: { id: number; discordId: string; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null }[];
   } | null>(null);
 
   // Role form state
@@ -1217,7 +1217,17 @@ export default function AdminPage() {
                                 : <div className="w-7 h-7 rounded-full bg-bdo-border flex items-center justify-center text-bdo-text-muted shrink-0">?</div>
                               }
                               <div className="min-w-0">
-                                <div className="font-semibold text-bdo-text-primary truncate">{u.familyName || <span className="italic text-bdo-text-muted">İsimsiz</span>}</div>
+                                <div className="font-semibold text-bdo-text-primary truncate flex items-center gap-1.5">
+                                  {u.familyName || <span className="italic text-bdo-text-muted">Siteye girmemiş</span>}
+                                  {u.guild && (
+                                    <span
+                                      className="text-[8px] font-bold uppercase tracking-wider px-1 py-px rounded border flex-shrink-0 leading-none"
+                                      style={{ color: u.guild.color, borderColor: `${u.guild.color}38`, backgroundColor: `${u.guild.color}14` }}
+                                    >
+                                      {u.guild.tag}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-bdo-text-muted truncate">{u.class || <span className="font-mono text-[10px]">{u.discordId}</span>}</div>
                                 {(u.ap > 0 || u.dp > 0) && <div className="text-bdo-gold font-mono">{u.ap}/{u.dp}</div>}
                               </div>

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     if (target.startsWith("guild:")) {
       users = await prisma.user.findMany({
-        where: { deletedAt: null, familyName: { not: "" }, guildId: Number(target.slice(6)) },
+        where: { deletedAt: null, guildId: Number(target.slice(6)) },
         select: { id: true, discordId: true },
       });
     } else if (target === "no_login") {
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       });
     } else if (target === "no_gear") {
       users = await prisma.user.findMany({
-        where: { deletedAt: null, familyName: { not: "" }, ap: 0, dp: 0 },
+        where: { deletedAt: null, ap: 0, dp: 0 },
         select: { id: true, discordId: true },
       });
     } else if (target === "pvp") {

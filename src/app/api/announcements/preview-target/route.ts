@@ -33,9 +33,9 @@ export async function GET(req: Request) {
   // Bir klanın tüm üyeleri
   if (target.startsWith("guild:")) {
     users = await prisma.user.findMany({
-      where: { deletedAt: null, familyName: { not: "" }, guildId },
+      where: { deletedAt: null, guildId },
       select,
-      orderBy: { familyName: "asc" },
+      orderBy: [{ familyName: "asc" }, { discordId: "asc" }],
     });
     return NextResponse.json({ mode: "dm", count: users.length, users });
   }
@@ -48,9 +48,9 @@ export async function GET(req: Request) {
     });
   } else if (target === "no_gear") {
     users = await prisma.user.findMany({
-      where: { deletedAt: null, familyName: { not: "" }, ap: 0, dp: 0, ...guildWhere },
+      where: { deletedAt: null, ap: 0, dp: 0, ...guildWhere },
       select,
-      orderBy: { familyName: "asc" },
+      orderBy: [{ familyName: "asc" }, { discordId: "asc" }],
     });
   } else if (target === "pvp") {
     const pvpRows = await prisma.warParticipant.findMany({
