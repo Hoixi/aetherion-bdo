@@ -18,7 +18,8 @@ model Guild {
   isPrimary   Boolean  @default(false)            // true = kendi klanımız
   discordServerId String?                         // rollerin bulunduğu Discord sunucusu
   discordRoleIds String @default("[]") @db.Text   // JSON: bu guild'e ait Discord rol ID'leri
-  warChannelId    String?                         // savaş duyurularının gideceği kanal
+  warChannelId    String?                         // klan içi savaş duyuruları
+  allyWarChannelId String?                        // ortak (ally) savaş duyuruları — boşsa warChannelId kullanılır
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -159,6 +160,8 @@ model War {
   deadline         DateTime?
   result           WarResult?
   maxParticipants  Int?
+  /** true = müttefikler de katılır ve görür; false = sadece ana klan */
+  isAllyWar        Boolean    @default(true)
   discordMessageId    String?
   /** JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse */
   discordMessages     String   @default("[]") @db.Text

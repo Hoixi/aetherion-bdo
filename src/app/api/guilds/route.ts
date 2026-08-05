@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { name, tag, color, discordRoleIds, discordServerId, warChannelId } = await req.json();
+  const { name, tag, color, discordRoleIds, discordServerId, warChannelId, allyWarChannelId } = await req.json();
   if (!name?.trim() || !tag?.trim()) {
     return NextResponse.json({ error: "İsim ve tag zorunlu." }, { status: 400 });
   }
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         isPrimary: false,
         discordServerId: discordServerId || null,
         warChannelId: warChannelId || null,
+        allyWarChannelId: allyWarChannelId || null,
         discordRoleIds: JSON.stringify(roleIds),
       },
     });
@@ -52,7 +53,7 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { id, name, tag, color, discordRoleIds, discordServerId, warChannelId } = await req.json();
+  const { id, name, tag, color, discordRoleIds, discordServerId, warChannelId, allyWarChannelId } = await req.json();
   if (!id) return NextResponse.json({ error: "id gerekli." }, { status: 400 });
 
   const roleIds = discordRoleIds !== undefined
@@ -68,6 +69,7 @@ export async function PUT(req: Request) {
         color: color ?? undefined,
         discordServerId: discordServerId !== undefined ? (discordServerId || null) : undefined,
         warChannelId: warChannelId !== undefined ? (warChannelId || null) : undefined,
+        allyWarChannelId: allyWarChannelId !== undefined ? (allyWarChannelId || null) : undefined,
         discordRoleIds: roleIds,
       },
     });

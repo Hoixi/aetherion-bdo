@@ -14,14 +14,25 @@ export async function createNotification(
   });
 }
 
+/**
+ * Bildirim gönderir.
+ * `primaryOnly` true ise sadece ana klan üyelerine gider (klan içi savaşlar için).
+ */
 export async function notifyAllMembers(
   type: NotifType,
   title: string,
   message: string,
-  link?: string
+  link?: string,
+  primaryOnly = false
 ) {
+  let guildFilter = {};
+  if (primaryOnly) {
+    const primary = await prisma.guild.findFirst({ where: { isPrimary: true }, select: { id: true } });
+    if (primary) guildFilter = { guildId: primary.id };
+  }
+
   const members = await prisma.user.findMany({
-    where: { familyName: { not: "" } },
+    where: { familyName: { not: "" }, deletedAt: null, ...guildFilter },
     select: { id: true },
   });
 

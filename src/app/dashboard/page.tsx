@@ -7,6 +7,7 @@ import { WarCard } from "@/components/war-card";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { GuildStats } from "@/components/guild-stats";
 import Link from "next/link";
+import { Swords } from "lucide-react";
 
 interface War {
   id: number;
@@ -105,37 +106,37 @@ export default function DashboardPage() {
         guildColor={user.guild?.color}
       />
 
+      {/* Savaşlar en üstte — giren ilk bunu görsün */}
+      <div className="card mb-4">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <Swords className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+            <div>
+              <p className="card-title">Yaklaşan Savaşlar</p>
+              <p className="text-[11px] text-bdo-text-secondary mt-0.5">Katılım durumunu bildir</p>
+            </div>
+          </div>
+          <Link href="/wars" className="card-meta hover:text-bdo-gold transition-colors">Tümü →</Link>
+        </div>
+        {upcomingWars.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <p className="text-[13px] text-bdo-text-muted">Yaklaşan savaş yok.</p>
+            {pastWars.length > 0 && (
+              <Link href="/wars" className="text-[11px] text-bdo-gold hover:underline mt-1.5 inline-block">
+                Geçmiş savaşlara bak →
+              </Link>
+            )}
+          </div>
+        ) : (
+          upcomingWars.slice(0, 5).map((war) => <WarCard key={war.id} war={war} />)
+        )}
+      </div>
+
       <GuildStats />
 
-      {/* Savaşlar + Etkinlikler + Duyurular */}
+      {/* Duyurular + Etkinlikler */}
       <div className="grid md:grid-cols-3 gap-4 mt-4">
-        {/* Savaşlar */}
-        <div className="card md:col-span-2">
-          <div className="card-header">
-            <div>
-              <p className="card-title">Savaşlar ve Etkinlikler</p>
-              <p className="text-[11px] text-bdo-text-secondary mt-0.5">Yaklaşan savaşları takip et, katılım durumunu belirt</p>
-            </div>
-            <Link href="/wars" className="card-meta hover:text-bdo-gold transition-colors text-xs">Tümü →</Link>
-          </div>
-          {upcomingWars.length === 0 && pastWars.length === 0 ? (
-            <div className="px-4 py-8 text-center text-bdo-text-muted text-sm">
-              Yaklaşan savaş yok.
-            </div>
-          ) : (
-            <>
-              {upcomingWars.slice(0, 4).map((war) => (
-                <WarCard key={war.id} war={war} />
-              ))}
-              {pastWars.length > 0 && upcomingWars.length === 0 && pastWars.map((war) => (
-                <WarCard key={war.id} war={war} />
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Duyurular + Etkinlikler */}
-        <div className="space-y-4">
+        <div className="md:col-span-2 space-y-4">
           {announcements.length > 0 && (
             <div className="card">
               <div className="card-header">

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationBell } from "./notification-bell";
 import {
   LayoutGrid, Users, Zap, MessageSquare, ListOrdered, BarChart3,
-  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake,
+  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake, CalendarDays,
 } from "lucide-react";
 
 const navGroups = [
@@ -14,9 +14,11 @@ const navGroups = [
     label: "Genel",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+      { href: "/wars", label: "Savaşlar", icon: Swords },
       { href: "/members", label: "Üyeler", icon: Users },
+      { href: "/hasar-raporu", label: "Hasar Raporu", icon: BarChart3 },
       { href: "/etkinlikler", label: "Etkinlikler", icon: Zap },
-      { href: "/calendar", label: "Takvim", icon: Swords },
+      { href: "/calendar", label: "Takvim", icon: CalendarDays },
       { href: "/ally", label: "Ally", icon: Handshake },
     ],
   },
@@ -25,7 +27,6 @@ const navGroups = [
     items: [
       { href: "/forum", label: "Forum", icon: MessageSquare },
       { href: "/tier-list", label: "Tier List", icon: ListOrdered },
-      { href: "/hasar-raporu", label: "Hasar Raporu", icon: BarChart3 },
       { href: "/ai-asistan", label: "AI Asistan", icon: Sparkles },
       { href: "/geo", label: "GeoGuessr", icon: Globe2 },
     ],

@@ -78,14 +78,25 @@ export async function deleteMessage(messageId: string) {
   });
 }
 
-/** Savaş duyurusunun gideceği kanallar — klanların ayarı, yoksa env'deki varsayılan */
-export async function getWarChannels(): Promise<string[]> {
+/**
+ * Savaş duyurusunun gideceği kanallar.
+ *
+ * Ortak savaş  → her klanın ally kanalı (yoksa klan içi kanalı)
+ * Klan içi savaş → sadece ana klanın kanalı
+ *
+ * Hiçbir kanal ayarlı değilse env'deki varsayılana düşer.
+ */
+export async function getWarChannels(isAllyWar: boolean = true): Promise<string[]> {
   const guilds = await prisma.guild.findMany({
-    where: { warChannelId: { not: null } },
-    select: { warChannelId: true },
+    select: { isPrimary: true, warChannelId: true, allyWarChannelId: true },
   });
-  const ids = guilds.map((g) => g.warChannelId!).filter(Boolean);
-  // Hiçbir klanda kanal ayarlanmamışsa eski davranışa düş
+
+  const targets = isAllyWar ? guilds : guilds.filter((g) => g.isPrimary);
+
+  const ids = targets
+    .map((g) => (isAllyWar ? g.allyWarChannelId || g.warChannelId : g.warChannelId))
+    .filter((id): id is string => !!id);
+
   if (ids.length === 0 && CHANNEL_ID) return [CHANNEL_ID];
   return Array.from(new Set(ids));
 }
@@ -137,6 +148,7 @@ export async function sendWarToDiscord(war: {
   date: Date | string;
   notes?: string | null;
   deadline?: Date | string | null;
+  isAllyWar?: boolean;
 }): Promise<{ channelId: string; messageId: string }[]> {
   const date = new Date(war.date);
   const dateStr = date.toLocaleDateString("tr-TR", {
@@ -213,7 +225,7 @@ export async function sendWarToDiscord(war: {
     },
   ];
 
-  const channels = await getWarChannels();
+  const channels = await getWarChannels(war.isAllyWar ?? true);
   return await sendToChannels(channels, "@everyone", embeds, components);
 }
 

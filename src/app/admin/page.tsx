@@ -12,7 +12,7 @@ import type { MapMarker } from "@/components/bdo-leaflet-map";
 import {
   Settings, Swords, Megaphone, Users, Shield, BarChart3, Wrench, Map as MapIcon,
   Plus, Trash2, Pencil, Send, CalendarClock, RefreshCw, Bot, UserCog, Database,
-  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star, Search, Check,
+  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star, Search, Check, Lock,
 } from "lucide-react";
 import { PageHeader, Button, Card, CardHeader, Empty, Avatar } from "@/components/ui";
 
@@ -63,6 +63,7 @@ interface GuildRow {
   discordServerId: string | null;
   discordRoleIds: string;
   warChannelId: string | null;
+  allyWarChannelId: string | null;
   _count: { members: number };
 }
 
@@ -80,7 +81,7 @@ interface Member {
   guild: { id: number; name: string; tag: string; color: string } | null;
 }
 
-type AnnouncementTarget = "all" | "no_login" | "no_gear" | "pvp";
+type AnnouncementTarget = "all" | "no_login" | "no_gear" | "pvp" | `guild:${number}`;
 
 interface Announcement {
   id: number;
@@ -91,11 +92,11 @@ interface Announcement {
   creator: { familyName: string; avatarUrl: string };
 }
 
-const TARGET_LABELS: Record<AnnouncementTarget, string> = {
+const TARGET_LABELS: Record<string, string> = {
   all: "Tüm Klan (kanal)",
-  no_login: "👤 Siteye giriş yapmamışlar (DM)",
+  no_login: "Siteye giriş yapmamışlar (DM)",
   no_gear: "Gear doldurmamışlar (DM)",
-  pvp: "🗡️ PvP'ciler — savaşa girenler (DM)",
+  pvp: "PvP'ciler — savaşa girenler (DM)",
 };
 
 interface WarSchedule {
@@ -187,6 +188,7 @@ export default function AdminPage() {
   const [roleSearch, setRoleSearch] = useState("");
   const [selectedServerId, setSelectedServerId] = useState<string>("");
   const [gWarChannel, setGWarChannel] = useState<string>("");
+  const [gAllyChannel, setGAllyChannel] = useState<string>("");
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [chLoading, setChLoading] = useState(false);
   const [annTitle, setAnnTitle] = useState("");
@@ -402,7 +404,7 @@ export default function AdminPage() {
     setGName(""); setGTag(""); setGColor("#4a7cf5"); setGRoleIds([]);
     setRoleSearch("");
     setSelectedServerId(discordServers.length === 1 ? discordServers[0].id : "");
-    setGWarChannel("");
+    setGWarChannel(""); setGAllyChannel("");
   }
 
   function startEditGuild(g: GuildRow) {
@@ -413,6 +415,7 @@ export default function AdminPage() {
     setRoleSearch("");
     setSelectedServerId(g.discordServerId ?? "");
     setGWarChannel(g.warChannelId ?? "");
+    setGAllyChannel(g.allyWarChannelId ?? "");
     if (g.discordServerId) fetchChannels(g.discordServerId);
     try {
       setGRoleIds(JSON.parse(g.discordRoleIds || "[]") as string[]);
@@ -430,6 +433,7 @@ export default function AdminPage() {
       discordRoleIds: gRoleIds.join(","),
       discordServerId: selectedServerId || null,
       warChannelId: gWarChannel || null,
+      allyWarChannelId: gAllyChannel || null,
     };
     const res = await fetch("/api/guilds", {
       method: editingGuild ? "PUT" : "POST",
@@ -1142,6 +1146,49 @@ export default function AdminPage() {
                     </label>
                   ))}
                 </div>
+
+                {/* Klan bazlı toplu DM */}
+                {guilds.length > 0 && (
+                  <>
+                    <p className="text-[10px] uppercase text-bdo-text-secondary tracking-wider mt-3 mb-1.5">
+                      Klan Bazlı Toplu DM
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {guilds.map((g) => {
+                        const val = `guild:${g.id}` as AnnouncementTarget;
+                        const active = annTarget === val;
+                        return (
+                          <label
+                            key={g.id}
+                            onClick={() => setFormPreviewData(null)}
+                            className={`flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 border transition-colors ${
+                              active ? "bg-bdo-gold/10" : "border-bdo-border bg-bdo-bg hover:border-bdo-gold/40"
+                            }`}
+                            style={active ? { borderColor: `${g.color}60` } : undefined}
+                          >
+                            <input
+                              type="radio"
+                              name="annTarget"
+                              value={val}
+                              checked={active}
+                              onChange={() => setAnnTarget(val)}
+                              className="accent-bdo-gold"
+                            />
+                            <span
+                              className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
+                              style={{ color: g.color, borderColor: `${g.color}38`, backgroundColor: `${g.color}14` }}
+                            >
+                              {g.tag}
+                            </span>
+                            <span className="text-sm text-bdo-text-muted truncate">
+                              {g.name} <span className="text-bdo-text-secondary">({g._count.members})</span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Preview result */}
@@ -1221,7 +1268,10 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-bdo-gold font-semibold">{a.title}</span>
                       <span className="text-[10px] bg-bdo-bg border border-bdo-border text-bdo-text-muted px-2 py-0.5 rounded-full">
-                        {TARGET_LABELS[a.target] ?? a.target}
+                        {TARGET_LABELS[a.target]
+                          ?? (a.target.startsWith("guild:")
+                            ? `${guilds.find((g) => String(g.id) === a.target.slice(6))?.name ?? "Klan"} (DM)`
+                            : a.target)}
                       </span>
                     </div>
                     <p className="text-sm text-bdo-text-secondary mt-1">{a.content}</p>
@@ -1766,7 +1816,7 @@ export default function AdminPage() {
                               setGRoleIds((prev) => prev.filter((id) => valid.has(id)));
                             }
                             setSelectedServerId(next);
-                            setGWarChannel("");
+                            setGWarChannel(""); setGAllyChannel("");
                             fetchChannels(next);
                           }}
                           className="w-full bg-bdo-surface border border-bdo-border rounded-md px-2 py-1.5 text-[12px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors"
@@ -1861,8 +1911,7 @@ export default function AdminPage() {
               {/* Savaş duyuru kanalı */}
               <div>
                 <label className="block text-[10px] uppercase text-bdo-text-secondary tracking-wider mb-1.5">
-                  Savaş Duyuru Kanalı
-                  <span className="normal-case opacity-60"> — savaş açıldığında duyuru buraya gider</span>
+                  Savaş Duyuru Kanalları
                 </label>
 
                 {!selectedServerId ? (
@@ -1870,33 +1919,67 @@ export default function AdminPage() {
                     <p className="text-[12px] text-bdo-text-secondary">Önce yukarıdan sunucu seç.</p>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={gWarChannel}
-                      onChange={(e) => setGWarChannel(e.target.value)}
-                      disabled={chLoading}
-                      className="flex-1 bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-[13px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors disabled:opacity-50"
-                    >
-                      <option value="">
-                        {chLoading ? "Kanallar yükleniyor..." : "Kanal seçilmedi (varsayılan kanal kullanılır)"}
-                      </option>
-                      {channels.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.category ? `${c.category} / ` : ""}#{c.name}{c.isAnnouncement ? " (duyuru)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-2">
+                    {([
+                      {
+                        key: "ally" as const,
+                        label: "Ortak (Ally) savaşlar",
+                        hint: "Müttefiklerin de katıldığı savaşlar buraya duyurulur",
+                        value: gAllyChannel,
+                        set: setGAllyChannel,
+                        empty: "Ayarlanmadı — klan içi kanal kullanılır",
+                      },
+                      {
+                        key: "own" as const,
+                        label: "Klan içi savaşlar",
+                        hint: "Sadece bu klanın katıldığı savaşlar",
+                        value: gWarChannel,
+                        set: setGWarChannel,
+                        empty: "Ayarlanmadı — varsayılan kanal kullanılır",
+                      },
+                    ]).map((row) => (
+                      <div key={row.key} className="bg-bdo-bg border border-bdo-border rounded-lg p-2.5">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div>
+                            <p className="text-[12px] font-medium text-bdo-text-primary">{row.label}</p>
+                            <p className="text-[10px] text-bdo-text-secondary leading-tight">{row.hint}</p>
+                          </div>
+                          {row.key === "ally" && (
+                            <Handshake className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                          )}
+                          {row.key === "own" && (
+                            <Lock className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+                          )}
+                        </div>
+                        <select
+                          value={row.value}
+                          onChange={(e) => row.set(e.target.value)}
+                          disabled={chLoading}
+                          className="w-full bg-bdo-surface border border-bdo-border rounded-md px-2 py-1.5 text-[12px] text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none transition-colors disabled:opacity-50"
+                        >
+                          <option value="">{chLoading ? "Yükleniyor..." : row.empty}</option>
+                          {channels.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.category ? `${c.category} / ` : ""}#{c.name}{c.isAnnouncement ? " (duyuru)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+
                     <Button
-                      variant="ghost" icon={RefreshCw}
+                      variant="ghost" size="xs" icon={RefreshCw}
                       onClick={() => fetchChannels(selectedServerId)}
                       disabled={chLoading}
-                    />
+                    >
+                      Kanalları yenile
+                    </Button>
                   </div>
                 )}
 
                 <p className="text-[11px] text-bdo-text-secondary mt-1.5">
-                  Her klan kendi kanalını seçebilir — savaş duyurusu tüm klanların kanallarına ayrı ayrı
-                  gönderilir ve katılım sayıları hepsinde birlikte güncellenir.
+                  Ortak savaş duyurusu tüm klanların ally kanallarına gider ve katılım sayıları hepsinde
+                  birlikte güncellenir. Klan içi savaş sadece ana klanın kanalına gider.
                 </p>
               </div>
 

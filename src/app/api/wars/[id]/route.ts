@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { title, type, date, notes, deadline, result, maxParticipants } = body;
+  const { title, type, date, notes, deadline, result, maxParticipants, isAllyWar } = body;
 
   const war = await prisma.war.update({
     where: { id: Number(params.id) },
@@ -48,6 +48,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       deadline: deadline !== undefined ? (deadline ? new Date(deadline) : null) : undefined,
       result: result !== undefined ? result : undefined,
       maxParticipants: maxParticipants !== undefined ? (maxParticipants ? parseInt(maxParticipants) : null) : undefined,
+      isAllyWar: isAllyWar !== undefined ? isAllyWar : undefined,
     },
   });
 

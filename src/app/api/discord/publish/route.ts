@@ -74,7 +74,12 @@ export async function POST(req: Request) {
     // DM targets — fetch matching users
     let users: { id: number; discordId: string }[] = [];
 
-    if (target === "no_login") {
+    if (target.startsWith("guild:")) {
+      users = await prisma.user.findMany({
+        where: { deletedAt: null, familyName: { not: "" }, guildId: Number(target.slice(6)) },
+        select: { id: true, discordId: true },
+      });
+    } else if (target === "no_login") {
       // familyName is String @default("") — non-nullable, check for empty string
       users = await prisma.user.findMany({
         where: { deletedAt: null, familyName: "" },

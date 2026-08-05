@@ -23,8 +23,10 @@ export async function POST(req: Request) {
 
   const { title, content, target } = await req.json();
 
+  // "guild:<id>" = tek bir klanın tüm üyelerine DM
   const validTargets = ["all", "no_login", "no_gear", "pvp"];
-  const resolvedTarget = validTargets.includes(target) ? target : "all";
+  const isGuildTarget = typeof target === "string" && /^guild:\d+$/.test(target);
+  const resolvedTarget = isGuildTarget || validTargets.includes(target) ? target : "all";
 
   const announcement = await prisma.announcement.create({
     data: { title, content, target: resolvedTarget, createdBy: session.user.id },

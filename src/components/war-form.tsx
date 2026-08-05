@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Handshake, Lock } from "lucide-react";
 
 interface WarFormProps {
   onSubmit: () => void;
-  initial?: { id: number; title: string; type: string; date: string; notes: string; deadline: string | null; maxParticipants?: number | null };
+  initial?: { id: number; title: string; type: string; date: string; notes: string; deadline: string | null; maxParticipants?: number | null; isAllyWar?: boolean };
 }
 
 // UTC ISO string'i local datetime-local input formatına çevir
@@ -21,6 +22,7 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [deadline, setDeadline] = useState(initial?.deadline ? toLocalDatetimeValue(initial.deadline) : "");
   const [maxParticipants, setMaxParticipants] = useState(initial?.maxParticipants?.toString() ?? "");
+  const [isAllyWar, setIsAllyWar] = useState(initial?.isAllyWar ?? true);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,6 +47,7 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
         notes,
         deadline: deadline ? toISO(deadline) : null,
         maxParticipants: maxParticipants || null,
+        isAllyWar,
       }),
     });
 
@@ -107,6 +110,48 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
           className="w-full bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none"
         />
       </div>
+      {/* Kapsam */}
+      <div>
+        <label className="block text-sm text-bdo-text-muted mb-1.5">Kimler Katılabilir?</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAllyWar(true)}
+            className={`flex items-start gap-2.5 p-3 rounded-lg border text-left transition-colors ${
+              isAllyWar
+                ? "border-bdo-gold/40 bg-bdo-gold/5"
+                : "border-bdo-border bg-bdo-bg hover:border-bdo-border-2"
+            }`}
+          >
+            <Handshake className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isAllyWar ? "text-bdo-gold" : "text-bdo-text-secondary"}`} strokeWidth={1.75} />
+            <div>
+              <p className="text-[13px] font-medium text-bdo-text-primary">Ortak Savaş</p>
+              <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-snug">
+                Müttefikler de görür ve katılır
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsAllyWar(false)}
+            className={`flex items-start gap-2.5 p-3 rounded-lg border text-left transition-colors ${
+              !isAllyWar
+                ? "border-bdo-gold/40 bg-bdo-gold/5"
+                : "border-bdo-border bg-bdo-bg hover:border-bdo-border-2"
+            }`}
+          >
+            <Lock className={`w-4 h-4 flex-shrink-0 mt-0.5 ${!isAllyWar ? "text-bdo-gold" : "text-bdo-text-secondary"}`} strokeWidth={1.75} />
+            <div>
+              <p className="text-[13px] font-medium text-bdo-text-primary">Sadece Aetherion</p>
+              <p className="text-[11px] text-bdo-text-secondary mt-0.5 leading-snug">
+                Müttefikler görmez, duyuru gitmez
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm text-bdo-text-muted mb-1">Notlar</label>
         <textarea
