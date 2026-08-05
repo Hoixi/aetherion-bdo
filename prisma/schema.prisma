@@ -334,6 +334,9 @@ model WarPerformance {
   warId          Int
   userId         Int?
   inGameName     String
+  /** Rapor girildiği andaki class/spec — üye sonradan class değiştirse de savaş kaydı bozulmaz */
+  class          String   @default("")
+  spec           String   @default("")
   kills          Int      @default(0)
   deaths         Int      @default(0)
   killStreak     Int      @default(0)

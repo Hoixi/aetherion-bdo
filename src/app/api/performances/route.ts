@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
           guild: { select: { id: true, name: true, tag: true, color: true } },
         },
       },
-      war: { select: { id: true, title: true, date: true } },
+      war: { select: { id: true, title: true, date: true, type: true } },
     },
   });
 

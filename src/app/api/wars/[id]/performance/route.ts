@@ -164,9 +164,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const shouldClear = formData.get("clear") === "1";
 
-    const allUsers = await prisma.user.findMany({ select: { id: true, familyName: true } });
+    const allUsers = await prisma.user.findMany({ select: { id: true, familyName: true, class: true, spec: true } });
     const siteNames = allUsers.map((u) => u.familyName).filter(Boolean);
     const nameMap = new Map(allUsers.map((u) => [u.familyName.toLowerCase().trim(), u.id]));
+    const classMap = new Map(allUsers.map((u) => [u.id, { cls: u.class, spec: u.spec }]));
 
     const arrayBuffer = await file.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
@@ -181,10 +182,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const savedRows = [];
     for (const row of rows) {
       const userId = nameMap.get(row.familyName.toLowerCase().trim()) ?? null;
+      // Rapor anındaki class'ı sabitle — üye sonradan değiştirse de savaş kaydı bozulmaz
+      const snap = userId ? classMap.get(userId) : undefined;
       const record = await prisma.warPerformance.upsert({
         where: { warId_inGameName: { warId, inGameName: row.familyName } },
         update: {
           userId,
+          class: snap?.cls ?? "",
+          spec: snap?.spec ?? "",
           kills: row.kills,
           deaths: row.deaths,
           killStreak: row.killStreak,
@@ -203,6 +208,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           warId,
           userId,
           inGameName: row.familyName,
+          class: snap?.cls ?? "",
+          spec: snap?.spec ?? "",
           kills: row.kills,
           deaths: row.deaths,
           killStreak: row.killStreak,

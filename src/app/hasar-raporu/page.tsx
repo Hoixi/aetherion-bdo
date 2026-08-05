@@ -2,58 +2,57 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { BarChart3, ChevronUp, ChevronDown, AlertTriangle, SlidersHorizontal, FileX } from "lucide-react";
-import { PageHeader, Empty, Loading, Avatar } from "@/components/ui";
+import {
+  BarChart3, Swords, Skull, Flame, Shield, Lock, Heart, HandHeart,
+  Castle, Crosshair, Bomb, Ruler, Zap, AlertTriangle, FileX,
+  ArrowUpDown, LayoutGrid, LayoutList, Trophy, LucideIcon,
+} from "lucide-react";
+import { PageHeader, Empty, Loading, Avatar, GuildTag, type GuildInfo } from "@/components/ui";
+import { getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
 
 interface War { id: number; title: string; date: string }
 
 interface Performance {
   id: number;
   inGameName: string;
+  class: string;
+  spec: string;
   kills: number; deaths: number; killStreak: number;
   damageDealt: number; damageTaken: number; ccCount: number;
   hpHeal: number; allyHpHeal: number; castleDamage: number;
   cannonHits: number; cannonDestroys: number; cannonMaxRange: number;
   trapExplosions: number;
-  user: { id: number; familyName: string; avatarUrl: string; class: string } | null;
+  user: { id: number; familyName: string; avatarUrl: string; class: string; guild?: GuildInfo | null } | null;
   war: { id: number; title: string; date: string };
 }
 
-interface DisplayRow {
+interface Row {
   key: string;
-  inGameName: string;
-  user: { id: number; familyName: string; avatarUrl: string; class: string } | null;
+  name: string;
+  classId: string;
+  spec: string;
+  user: Performance["user"];
   kills: number; deaths: number; killStreak: number;
   damageDealt: number; damageTaken: number; ccCount: number;
   hpHeal: number; allyHpHeal: number; castleDamage: number;
   cannonHits: number; cannonDestroys: number; cannonMaxRange: number;
   trapExplosions: number;
-  warId?: number; warTitle?: string; warCount?: number;
+  warCount: number;
+  warId?: number;
+  warTitle?: string;
 }
 
-type SortDir = "asc" | "desc";
+type SortKey = "damageDealt" | "kills" | "deaths" | "ccCount" | "hpHeal" | "castleDamage" | "killStreak";
 
-const COLUMNS = [
-  { key: "inGameName", label: "Aile Adı", group: "" },
-  { key: "kills", label: "Kill", group: "Savaş" },
-  { key: "deaths", label: "Ölüm", group: "Savaş" },
-  { key: "killStreak", label: "Seri", group: "Savaş" },
-  { key: "damageDealt", label: "Ver. Hasar", group: "Hasar" },
-  { key: "damageTaken", label: "Al. Hasar", group: "Hasar" },
-  { key: "ccCount", label: "CC", group: "Savaş" },
-  { key: "hpHeal", label: "HP Yenile", group: "Destek" },
-  { key: "allyHpHeal", label: "Mütt. HP", group: "Destek" },
-  { key: "castleDamage", label: "Kale Hasar", group: "Kuşatma" },
-  { key: "cannonHits", label: "Top İsabet", group: "Kuşatma" },
-  { key: "cannonDestroys", label: "Top Yok", group: "Kuşatma" },
-  { key: "cannonMaxRange", label: "Top Mesafe", group: "Kuşatma" },
-  { key: "trapExplosions", label: "Tuzak", group: "Kuşatma" },
-] as const;
-
-type ColKey = (typeof COLUMNS)[number]["key"];
-
-const MAX_COLS: ColKey[] = ["killStreak", "cannonMaxRange"];
-const DEFAULT_VISIBLE: ColKey[] = ["inGameName", "kills", "deaths", "damageDealt", "damageTaken", "ccCount", "castleDamage"];
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "damageDealt", label: "Hasar" },
+  { key: "kills", label: "Kill" },
+  { key: "deaths", label: "Ölüm" },
+  { key: "ccCount", label: "CC" },
+  { key: "hpHeal", label: "İyileştirme" },
+  { key: "castleDamage", label: "Kale" },
+  { key: "killStreak", label: "Seri" },
+];
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -61,29 +60,28 @@ function fmt(n: number): string {
   return String(Math.round(n));
 }
 
-function fmtVal(key: ColKey, val: number | string): string {
-  if (typeof val === "string") return val;
-  const numericFmt: ColKey[] = ["damageDealt", "damageTaken", "hpHeal", "allyHpHeal", "castleDamage"];
-  return numericFmt.includes(key) ? fmt(val) : String(Math.round(val));
+/** Kartta gösterilen istatistik satırı */
+function Stat({
+  icon: Icon, label, value, tone = "text-bdo-text-primary", big,
+}: { icon: LucideIcon; label: string; value: string | number; tone?: string; big?: boolean }) {
+  return (
+    <div className={`flex items-center gap-1.5 ${big ? "" : "min-w-0"}`}>
+      <Icon className="w-3 h-3 text-bdo-text-secondary/70 flex-shrink-0" strokeWidth={1.75} />
+      <span className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">{label}</span>
+      <span className={`ml-auto font-mono font-semibold ${big ? "text-[15px]" : "text-[12px]"} ${tone}`}>
+        {value}
+      </span>
+    </div>
+  );
 }
-
-const COL_TONE: Partial<Record<ColKey, string>> = {
-  damageDealt: "text-bdo-gold font-semibold",
-  damageTaken: "text-red-400/70",
-  hpHeal: "text-emerald-400/70",
-  allyHpHeal: "text-emerald-400/70",
-  castleDamage: "text-orange-400/70",
-};
 
 export default function HasarRaporuPage() {
   const [wars, setWars] = useState<War[]>([]);
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [selectedWarId, setSelectedWarId] = useState<number | "">("");
   const [loading, setLoading] = useState(true);
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(DEFAULT_VISIBLE));
-  const [sortCol, setSortCol] = useState<ColKey>("damageDealt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [showCols, setShowCols] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("damageDealt");
+  const [dense, setDense] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -101,89 +99,79 @@ export default function HasarRaporuPage() {
     const url = selectedWarId === "" ? "/api/performances" : `/api/performances?warId=${selectedWarId}`;
     fetch(url)
       .then((r) => r.json())
-      .then((data) => setPerformances(data.performances ?? []))
+      .then((d) => setPerformances(d.performances ?? []))
       .finally(() => setLoading(false));
   }, [selectedWarId]);
 
-  const isAggregateMode = selectedWarId === "";
+  const isAggregate = selectedWarId === "";
 
-  const displayRows = useMemo((): DisplayRow[] => {
-    if (!isAggregateMode) {
+  const rows = useMemo((): Row[] => {
+    if (!isAggregate) {
       return performances.map((p) => ({
-        key: String(p.id), inGameName: p.inGameName, user: p.user,
+        key: String(p.id),
+        name: p.user?.familyName || p.inGameName,
+        classId: p.class || p.user?.class || "",
+        spec: p.spec || "awakening",
+        user: p.user,
         kills: p.kills, deaths: p.deaths, killStreak: p.killStreak,
         damageDealt: p.damageDealt, damageTaken: p.damageTaken, ccCount: p.ccCount,
         hpHeal: p.hpHeal, allyHpHeal: p.allyHpHeal, castleDamage: p.castleDamage,
         cannonHits: p.cannonHits, cannonDestroys: p.cannonDestroys,
         cannonMaxRange: p.cannonMaxRange, trapExplosions: p.trapExplosions,
-        warId: p.war.id, warTitle: p.war.title,
+        warCount: 1, warId: p.war.id, warTitle: p.war.title,
       }));
     }
 
     const groups = new Map<string, Performance[]>();
     for (const p of performances) {
-      const groupKey = p.user ? `user_${p.user.id}` : `name_${p.inGameName.toLowerCase().trim()}`;
-      if (!groups.has(groupKey)) groups.set(groupKey, []);
-      groups.get(groupKey)!.push(p);
+      const k = p.user ? `u${p.user.id}` : `n${p.inGameName.toLowerCase().trim()}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(p);
     }
 
-    return Array.from(groups.entries()).map(([groupKey, rows]) => {
-      const count = rows.length;
-      const first = rows[0];
-      const avg = (key: keyof Performance) => rows.reduce((s, r) => s + (r[key] as number), 0) / count;
-      const max = (key: keyof Performance) => Math.max(...rows.map((r) => r[key] as number));
-
+    return Array.from(groups.entries()).map(([k, list]) => {
+      const n = list.length;
+      const first = list[0];
+      const avg = (f: (p: Performance) => number) => list.reduce((s, p) => s + f(p), 0) / n;
+      const max = (f: (p: Performance) => number) => Math.max(...list.map(f));
       return {
-        key: groupKey,
-        inGameName: first.user?.familyName ?? first.inGameName,
+        key: k,
+        name: first.user?.familyName || first.inGameName,
+        classId: first.class || first.user?.class || "",
+        spec: first.spec || "awakening",
         user: first.user,
-        kills: avg("kills"), deaths: avg("deaths"), killStreak: max("killStreak"),
-        damageDealt: avg("damageDealt"), damageTaken: avg("damageTaken"), ccCount: avg("ccCount"),
-        hpHeal: avg("hpHeal"), allyHpHeal: avg("allyHpHeal"), castleDamage: avg("castleDamage"),
-        cannonHits: avg("cannonHits"), cannonDestroys: avg("cannonDestroys"),
-        cannonMaxRange: max("cannonMaxRange"), trapExplosions: avg("trapExplosions"),
-        warCount: count,
+        kills: avg((p) => p.kills), deaths: avg((p) => p.deaths), killStreak: max((p) => p.killStreak),
+        damageDealt: avg((p) => p.damageDealt), damageTaken: avg((p) => p.damageTaken),
+        ccCount: avg((p) => p.ccCount), hpHeal: avg((p) => p.hpHeal),
+        allyHpHeal: avg((p) => p.allyHpHeal), castleDamage: avg((p) => p.castleDamage),
+        cannonHits: avg((p) => p.cannonHits), cannonDestroys: avg((p) => p.cannonDestroys),
+        cannonMaxRange: max((p) => p.cannonMaxRange), trapExplosions: avg((p) => p.trapExplosions),
+        warCount: n,
       };
     });
-  }, [performances, isAggregateMode]);
+  }, [performances, isAggregate]);
 
-  const sorted = useMemo(() => {
-    return [...displayRows].sort((a, b) => {
-      const av = a[sortCol as keyof DisplayRow] as number | string;
-      const bv = b[sortCol as keyof DisplayRow] as number | string;
-      if (typeof av === "string" && typeof bv === "string") {
-        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
-    });
-  }, [displayRows, sortCol, sortDir]);
+  const sorted = useMemo(
+    () => [...rows].sort((a, b) => b[sortKey] - a[sortKey]),
+    [rows, sortKey],
+  );
 
-  function toggleCol(key: ColKey) {
-    if (key === "inGameName") return;
-    setVisibleCols((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }
+  const topValue = sorted[0]?.[sortKey] ?? 0;
 
-  function handleSort(key: ColKey) {
-    if (sortCol === key) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    else { setSortCol(key); setSortDir("desc"); }
-  }
-
-  const visibleColDefs = COLUMNS.filter((c) => visibleCols.has(c.key));
+  if (loading) return <Loading />;
 
   return (
     <div>
       <PageHeader
         title="Hasar Raporu"
-        desc="Savaş performans verileri — hasar, kill, CC ve kuşatma istatistikleri."
+        desc={isAggregate
+          ? "Tüm savaşların ortalaması — oyuncu bazlı performans kartları."
+          : "Seçili savaşın performans kartları."}
         icon={BarChart3}
       />
 
-      {/* Controls */}
-      <div className="card p-3 mb-3">
+      {/* Kontroller */}
+      <div className="card p-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={selectedWarId}
@@ -198,145 +186,176 @@ export default function HasarRaporuPage() {
             ))}
           </select>
 
-          <button
-            onClick={() => setShowCols(!showCols)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] border transition-colors ${
-              showCols
-                ? "bg-bdo-surface-2 border-bdo-border-2 text-bdo-text-primary"
-                : "bg-bdo-bg border-bdo-border text-bdo-text-muted hover:text-bdo-text-primary"
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" strokeWidth={1.75} />
-            Sütunlar
-            <span className="text-[10px] text-bdo-text-secondary font-mono">{visibleCols.size}</span>
-          </button>
-
-          <span className="ml-auto text-[11px] text-bdo-text-secondary">
-            {sorted.length} oyuncu
-          </span>
-        </div>
-
-        {showCols && (
-          <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-bdo-border">
-            {COLUMNS.map((col) => (
+          <div className="flex items-center gap-0.5 bg-bdo-bg border border-bdo-border rounded-lg p-0.5">
+            <ArrowUpDown className="w-3 h-3 text-bdo-text-secondary ml-1.5 mr-0.5" strokeWidth={1.75} />
+            {SORTS.map((s) => (
               <button
-                key={col.key}
-                onClick={() => toggleCol(col.key)}
-                disabled={col.key === "inGameName"}
-                className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
-                  visibleCols.has(col.key)
-                    ? "bg-bdo-gold/10 border-bdo-gold/25 text-bdo-gold"
-                    : "bg-bdo-bg border-bdo-border text-bdo-text-secondary hover:text-bdo-text-muted"
-                } disabled:opacity-40 disabled:cursor-default`}
+                key={s.key}
+                onClick={() => setSortKey(s.key)}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  sortKey === s.key ? "bg-bdo-surface-2 text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"
+                }`}
               >
-                {col.label}
-                {isAggregateMode && MAX_COLS.includes(col.key) && visibleCols.has(col.key) && (
-                  <span className="ml-1 text-[9px] opacity-60">max</span>
-                )}
+                {s.label}
               </button>
             ))}
           </div>
-        )}
 
-        {isAggregateMode && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-[11px] text-bdo-text-secondary">{sorted.length} oyuncu</span>
+            <div className="flex gap-0.5 bg-bdo-bg border border-bdo-border rounded-lg p-0.5">
+              {([[false, LayoutGrid], [true, LayoutList]] as const).map(([d, Icon]) => (
+                <button
+                  key={String(d)}
+                  onClick={() => setDense(d)}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    dense === d ? "bg-bdo-surface-2 text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {isAggregate && (
           <p className="text-[11px] text-bdo-text-secondary mt-2">
-            Değerler oyuncunun katıldığı savaş sayısı üzerinden ortalamadır ·
+            Değerler oyuncunun katıldığı savaş sayısına göre ortalamadır ·
             <span className="text-bdo-text-muted"> Seri ve Top Mesafe en yüksek değeri gösterir</span>
           </p>
         )}
       </div>
 
-      {loading ? (
-        <Loading />
-      ) : sorted.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="card"><Empty icon={FileX} text="Henüz hasar raporu verisi yok." /></div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="border-b border-bdo-border bg-bdo-bg/40">
-                  {visibleColDefs.map((col) => {
-                    const isActive = sortCol === col.key;
-                    return (
-                      <th
-                        key={col.key}
-                        onClick={() => handleSort(col.key)}
-                        className={`py-2.5 px-3 cursor-pointer transition-colors whitespace-nowrap select-none text-[10px] uppercase tracking-wider font-medium ${
-                          col.key === "inGameName" ? "text-left" : "text-right"
-                        } ${isActive ? "text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"}`}
-                      >
-                        <span className="inline-flex items-center gap-0.5">
-                          {col.key !== "inGameName" && isActive && (
-                            sortDir === "desc"
-                              ? <ChevronDown className="w-3 h-3" strokeWidth={2.5} />
-                              : <ChevronUp className="w-3 h-3" strokeWidth={2.5} />
-                          )}
-                          {col.label}
-                          {isAggregateMode && MAX_COLS.includes(col.key) && (
-                            <span className="text-[8px] opacity-50 ml-0.5">max</span>
-                          )}
-                          {col.key === "inGameName" && isActive && (
-                            sortDir === "desc"
-                              ? <ChevronDown className="w-3 h-3" strokeWidth={2.5} />
-                              : <ChevronUp className="w-3 h-3" strokeWidth={2.5} />
-                          )}
+        <div className={dense
+          ? "grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"}>
+          {sorted.map((r, i) => {
+            const cls = getClassByID(r.classId);
+            const portrait = r.classId ? getPortraitUrl(r.classId, r.spec) : "";
+            const icon = r.classId ? getClassIconUrl(r.classId) : "";
+            const rank = i + 1;
+            const pct = topValue > 0 ? Math.round((r[sortKey] / topValue) * 100) : 0;
+            const medal = rank === 1 ? "text-yellow-400" : rank === 2 ? "text-gray-300" : rank === 3 ? "text-amber-600" : "text-bdo-text-secondary";
+
+            return (
+              <div key={r.key} className={`card relative overflow-hidden ${rank <= 3 ? "card-accent" : ""}`}>
+                {/* Class portresi — sağda fon */}
+                {portrait && (
+                  <div className="absolute right-0 top-0 bottom-0 w-1/2 pointer-events-none select-none">
+                    <img src={portrait} alt="" className="w-full h-full object-cover object-top opacity-[0.13]" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#131820] via-[#131820]/70 to-transparent" />
+                  </div>
+                )}
+
+                <div className="relative p-3">
+                  {/* Başlık */}
+                  <div className="flex items-start gap-2.5 mb-3">
+                    <span className={`text-[13px] font-bold font-mono w-5 flex-shrink-0 pt-0.5 ${medal}`}>
+                      {rank}
+                    </span>
+
+                    {portrait ? (
+                      <img
+                        src={portrait}
+                        alt=""
+                        className="w-11 h-11 rounded-lg object-cover object-top ring-1 ring-bdo-border flex-shrink-0"
+                      />
+                    ) : (
+                      <Avatar src={r.user?.avatarUrl} size={44} />
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {r.user ? (
+                          <Link href={`/members/${r.user.id}`} className="text-[14px] font-bold text-bdo-text-primary hover:text-bdo-gold transition-colors truncate">
+                            {r.name}
+                          </Link>
+                        ) : (
+                          <span className="text-[14px] font-bold text-bdo-text-muted truncate">{r.name}</span>
+                        )}
+                        <GuildTag guild={r.user?.guild} size="xs" />
+                        {!r.user && (
+                          <AlertTriangle className="w-3 h-3 text-yellow-500/70 flex-shrink-0" strokeWidth={2} />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {icon && <img src={icon} alt="" className="w-3.5 h-3.5 opacity-50 flex-shrink-0" />}
+                        <span className="text-[11px] text-bdo-text-muted truncate">
+                          {cls?.name ?? "—"}
                         </span>
-                      </th>
-                    );
-                  })}
-                  <th className="text-right py-2.5 px-3 text-[10px] uppercase tracking-wider font-medium text-bdo-text-secondary whitespace-nowrap">
-                    {isAggregateMode ? "Rapor" : "Savaş"}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((row) => (
-                  <tr key={row.key} className="border-b border-bdo-border/40 last:border-0 hover:bg-bdo-surface-2/60 transition-colors">
-                    {visibleColDefs.map((col) => {
-                      if (col.key === "inGameName") {
-                        return (
-                          <td key="inGameName" className="py-2 px-3">
-                            <div className="flex items-center gap-2">
-                              <Avatar src={row.user?.avatarUrl} size={20} ring={false} />
-                              {row.user ? (
-                                <Link href={`/members/${row.user.id}`} className="text-bdo-text-primary hover:text-bdo-gold transition-colors font-medium">
-                                  {row.inGameName}
-                                </Link>
-                              ) : (
-                                <span className="text-bdo-text-muted">{row.inGameName}</span>
-                              )}
-                              {!row.user && (
-                                <AlertTriangle
-                                  className="w-3 h-3 text-yellow-500/70 flex-shrink-0"
-                                  strokeWidth={2}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        );
-                      }
-                      const val = row[col.key as keyof DisplayRow] as number;
-                      return (
-                        <td key={col.key} className={`py-2 px-3 text-right font-mono ${COL_TONE[col.key] ?? "text-bdo-text-muted"}`}>
-                          {fmtVal(col.key, val)}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 px-3 text-right">
-                      {isAggregateMode ? (
-                        <span className="text-[11px] text-bdo-text-secondary font-mono">{row.warCount} savaş</span>
-                      ) : (
-                        <Link href={`/wars/${row.warId}`} className="text-[11px] text-bdo-text-secondary hover:text-bdo-gold transition-colors">
-                          {row.warTitle}
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        {cls && (
+                          <span className="text-[9px] font-bold uppercase text-bdo-text-secondary border border-bdo-border rounded px-1 py-px leading-none">
+                            {r.spec === "succession" ? "SUC" : "AWK"}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-bdo-text-secondary mt-0.5">
+                        {isAggregate
+                          ? `${r.warCount} savaş ortalaması`
+                          : r.warTitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Sıralama metriği — büyük */}
+                  <div className="bg-bdo-bg/60 border border-bdo-border rounded-lg px-3 py-2 mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary">
+                        {SORTS.find((s) => s.key === sortKey)?.label}
+                      </span>
+                      <span className="text-[18px] font-bold font-mono text-bdo-gold leading-none">
+                        {sortKey === "damageDealt" || sortKey === "hpHeal" || sortKey === "castleDamage"
+                          ? fmt(r[sortKey])
+                          : Math.round(r[sortKey] * 10) / 10}
+                      </span>
+                    </div>
+                    <div className="h-1 bg-bdo-bg rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-bdo-gold/70" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Ana istatistikler */}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <Stat icon={Swords} label="Kill" value={Math.round(r.kills * 10) / 10} />
+                    <Stat icon={Skull} label="Ölüm" value={Math.round(r.deaths * 10) / 10} tone="text-bdo-text-muted" />
+                    <Stat icon={Shield} label="Al. Hasar" value={fmt(r.damageTaken)} tone="text-red-400/80" />
+                    <Stat icon={Lock} label="CC" value={Math.round(r.ccCount * 10) / 10} />
+                    <Stat icon={Flame} label="Seri" value={Math.round(r.killStreak)} />
+                    <Stat icon={Castle} label="Kale" value={fmt(r.castleDamage)} tone="text-orange-400/80" />
+                  </div>
+
+                  {/* Detaylar */}
+                  {!dense && (
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2 pt-2 border-t border-bdo-border">
+                      <Stat icon={Heart} label="HP Yenile" value={fmt(r.hpHeal)} tone="text-emerald-400/80" />
+                      <Stat icon={HandHeart} label="Mütt. HP" value={fmt(r.allyHpHeal)} tone="text-emerald-400/70" />
+                      <Stat icon={Crosshair} label="Top İsabet" value={Math.round(r.cannonHits * 10) / 10} />
+                      <Stat icon={Bomb} label="Top Yok" value={Math.round(r.cannonDestroys * 10) / 10} />
+                      <Stat icon={Ruler} label="Top Mesafe" value={Math.round(r.cannonMaxRange)} />
+                      <Stat icon={Zap} label="Tuzak" value={Math.round(r.trapExplosions * 10) / 10} />
+                    </div>
+                  )}
+
+                  {/* Savaş linki */}
+                  {!isAggregate && r.warId && (
+                    <Link
+                      href={`/wars/${r.warId}`}
+                      className="flex items-center gap-1.5 mt-2 pt-2 border-t border-bdo-border text-[11px] text-bdo-text-secondary hover:text-bdo-gold transition-colors"
+                    >
+                      <Trophy className="w-3 h-3" strokeWidth={1.75} />
+                      Savaş detayına git
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
