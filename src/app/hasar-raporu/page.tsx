@@ -243,11 +243,14 @@ export default function HasarRaporuPage() {
 
             return (
               <div key={r.key} className={`card relative overflow-hidden ${rank <= 3 ? "card-accent" : ""}`}>
-                {/* Class portresi — sağda fon */}
+                {/* Class portresi — sağda yumuşak geçişli fon */}
                 {portrait && (
-                  <div className="absolute right-0 top-0 bottom-0 w-1/2 pointer-events-none select-none">
-                    <img src={portrait} alt="" className="w-full h-full object-cover object-top opacity-[0.13]" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#131820] via-[#131820]/70 to-transparent" />
+                  <div className="absolute right-0 top-0 bottom-0 w-[72%] pointer-events-none select-none">
+                    <img
+                      src={portrait}
+                      alt=""
+                      className="card-portrait w-full h-full object-cover object-top opacity-[0.16]"
+                    />
                   </div>
                 )}
 
