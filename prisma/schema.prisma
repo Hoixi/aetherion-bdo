@@ -23,9 +23,45 @@ model Guild {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members User[]
+  members      User[]
+  applications Application[]
 
   @@map("guilds")
+}
+
+enum ApplicationStatus {
+  NEW        // yeni geldi
+  REVIEW     // subay inceliyor
+  ACCEPTED   // kabul edildi, rol atandı
+  REJECTED   // reddedildi
+}
+
+/// Klana katılmak isteyenlerin başvuruları. Giriş gerektirmez —
+/// başvuran henüz Discord rolüne sahip olmadığı için siteye giremez.
+model Application {
+  id              Int      @id @default(autoincrement())
+  guildId         Int?                        // hangi klana başvurdu
+  familyName      String
+  discordUsername String                      // rol atarken sunucuda aranır
+  discordId       String?                     // kabul sırasında çözülür
+  class           String   @default("")
+  spec            String   @default("awakening")
+  ap              Int      @default(0)
+  dp              Int      @default(0)
+  experience      String?  @db.Text           // PvP tecrübesi, önceki klanlar
+  note            String?  @db.Text           // başvuranın eklemek istediği
+  status          ApplicationStatus @default(NEW)
+  reviewNote      String?  @db.Text           // subayın notu
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  guild    Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  reviewer User?  @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("applications")
 }
 
 model User {
@@ -67,6 +103,7 @@ model User {
   geoImages         GeoImage[]
   tierLists         TierList[]     @relation("TierListCreator")
   tierVotes         TierVote[]
+  reviewedApplications Application[] @relation("ApplicationReviewer")
 
   @@map("users")
 }

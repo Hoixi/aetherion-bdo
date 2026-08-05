@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, ArrowLeft } from "lucide-react";
+import { ShieldAlert, ArrowLeft, UserPlus } from "lucide-react";
 
 export default function DeniedPage() {
   return (
@@ -15,12 +15,22 @@ export default function DeniedPage() {
         </p>
 
         <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-[13px] text-bdo-text-secondary hover:text-bdo-gold transition-colors"
+          href="/basvuru"
+          className="inline-flex items-center gap-2 bg-gradient-to-b from-[#e0b040] to-[#c29328] text-bdo-bg font-semibold px-4 py-2 rounded-lg text-[13px] hover:from-[#e8bb4d] hover:to-[#cc9c2c] transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
-          Giriş sayfasına dön
+          <UserPlus className="w-3.5 h-3.5" strokeWidth={2} />
+          Klana Başvur
         </Link>
+
+        <div className="mt-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-[13px] text-bdo-text-secondary hover:text-bdo-gold transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
+            Giriş sayfasına dön
+          </Link>
+        </div>
       </div>
     </div>
   );

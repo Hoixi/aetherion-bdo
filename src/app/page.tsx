@@ -3,6 +3,7 @@
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
 import { Users, Swords, BarChart3, Sparkles } from "lucide-react";
 
 const FEATURES = [
@@ -61,7 +62,13 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <p className="text-[10px] text-bdo-text-secondary/60 mt-8">
+        <p className="text-[11px] text-bdo-text-secondary mt-8">
+          Klanda değil misin?{" "}
+          <Link href="/basvuru" className="text-bdo-gold hover:underline font-medium">
+            Başvuru yap
+          </Link>
+        </p>
+        <p className="text-[10px] text-bdo-text-secondary/60 mt-2">
           Giriş için Aetherion Discord sunucusunda üye olman gerekir.
         </p>
       </div>

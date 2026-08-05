@@ -7,12 +7,12 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { WarForm } from "@/components/war-form";
 import { WarPerformanceTab } from "@/components/war-performance-tab";
-import { getTypeName } from "@/lib/classes";
+import { getTypeName, getClassByID, getClassIconUrl } from "@/lib/classes";
 import type { MapMarker } from "@/components/bdo-leaflet-map";
 import {
   Settings, Swords, Megaphone, Users, Shield, BarChart3, Wrench, Map as MapIcon,
   Plus, Trash2, Pencil, Send, CalendarClock, RefreshCw, Bot, UserCog, Database,
-  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star, Search, Check, Lock,
+  AlertTriangle, Trophy, Skull, Handshake, X, Info, Flag, Star, Search, Check, Lock, UserPlus, Clock,
 } from "lucide-react";
 import { PageHeader, Button, Card, CardHeader, Empty, Avatar } from "@/components/ui";
 
@@ -65,6 +65,25 @@ interface GuildRow {
   warChannelId: string | null;
   allyWarChannelId: string | null;
   _count: { members: number };
+}
+
+interface ApplicationRow {
+  id: number;
+  familyName: string;
+  discordUsername: string;
+  discordId: string | null;
+  class: string;
+  spec: string;
+  ap: number;
+  dp: number;
+  experience: string | null;
+  note: string | null;
+  status: "NEW" | "REVIEW" | "ACCEPTED" | "REJECTED";
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  guild: { id: number; name: string; tag: string; color: string } | null;
+  reviewer: { familyName: string } | null;
 }
 
 interface DiscordRoleOption { id: string; name: string; color: string }
@@ -170,7 +189,7 @@ export default function AdminPage() {
   const [schedSaving, setSchedSaving] = useState(false);
   const [showWarForm, setShowWarForm] = useState(false);
   const [editingWar, setEditingWar] = useState<War | null>(null);
-  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "guilds" | "hasar" | "araçlar" | "geo">("wars");
+  const [tab, setTab] = useState<"wars" | "members" | "announcements" | "roles" | "guilds" | "basvurular" | "hasar" | "araçlar" | "geo">("wars");
 
   // ── Klanlar ──
   const [guilds, setGuilds] = useState<GuildRow[]>([]);
@@ -187,6 +206,11 @@ export default function AdminPage() {
   const [dcError, setDcError] = useState<string | null>(null);
   const [roleSearch, setRoleSearch] = useState("");
   const [selectedServerId, setSelectedServerId] = useState<string>("");
+
+  // ── Başvurular ──
+  const [applications, setApplications] = useState<ApplicationRow[]>([]);
+  const [appBusy, setAppBusy] = useState<number | null>(null);
+  const [appOpen, setAppOpen] = useState<number | null>(null);
   const [gWarChannel, setGWarChannel] = useState<string>("");
   const [gAllyChannel, setGAllyChannel] = useState<string>("");
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
@@ -335,11 +359,43 @@ export default function AdminPage() {
     fetchWarSchedules();
     fetchGeoImages();
     fetchGuilds();
+    fetchApplications();
   }, []);
 
   async function fetchWars() {
     const res = await fetch("/api/wars");
     if (res.ok) setWars(await res.json());
+  }
+
+  async function fetchApplications() {
+    const res = await fetch("/api/applications");
+    if (res.ok) setApplications(await res.json());
+  }
+
+  async function setAppStatus(id: number, status: ApplicationRow["status"]) {
+    setAppBusy(id);
+    const res = await fetch(`/api/applications/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setMessage(data.roleWarning ?? (status === "ACCEPTED" ? "Başvuru kabul edildi, rol atandı." : "Başvuru güncellendi."));
+      await fetchApplications();
+    } else {
+      setMessage(data.error ?? "Güncellenemedi.");
+    }
+    setAppBusy(null);
+    setTimeout(() => setMessage(null), 5000);
+  }
+
+  async function deleteApplication(id: number) {
+    if (!confirm("Bu başvuruyu silmek istediğine emin misin?")) return;
+    setAppBusy(id);
+    await fetch(`/api/applications/${id}`, { method: "DELETE" });
+    await fetchApplications();
+    setAppBusy(null);
   }
 
   // ── Klan işlemleri ──
@@ -832,6 +888,7 @@ export default function AdminPage() {
     { key: "announcements", label: "Duyurular",    icon: Megaphone,  guildAdmin: false },
     { key: "members",       label: "Üyeler",       icon: Users,      guildAdmin: true },
     { key: "guilds",        label: "Klanlar",      icon: Flag,       guildAdmin: false },
+    { key: "basvurular",    label: "Başvurular",   icon: UserPlus,   guildAdmin: true },
     { key: "roles",         label: "Roller",       icon: Shield,     guildAdmin: false },
     { key: "hasar",         label: "Hasar Raporu", icon: BarChart3,  guildAdmin: true },
     { key: "araçlar",       label: "Araçlar",      icon: Wrench,     guildAdmin: false },
@@ -1706,6 +1763,146 @@ export default function AdminPage() {
           )}
         </Card>
       )}
+
+      {tab === "basvurular" && (() => {
+        const COLS = [
+          { key: "NEW" as const,      label: "Yeni",     icon: Clock,  tone: "text-bdo-gold" },
+          { key: "REVIEW" as const,   label: "İnceleme", icon: Search, tone: "text-[#6b93ff]" },
+          { key: "ACCEPTED" as const, label: "Kabul",    icon: Check,  tone: "text-emerald-400" },
+          { key: "REJECTED" as const, label: "Red",      icon: X,      tone: "text-red-400" },
+        ];
+
+        return (
+          <div className="space-y-4">
+            {/* Özet */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {COLS.map((c) => {
+                const n = applications.filter((a) => a.status === c.key).length;
+                return (
+                  <div key={c.key} className="card px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <c.icon className={`w-3 h-3 ${c.tone}`} strokeWidth={2} />
+                      <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary">{c.label}</span>
+                    </div>
+                    <p className={`text-lg font-bold font-mono ${c.tone}`}>{n}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {COLS.map((col) => {
+              const list = applications.filter((a) => a.status === col.key);
+              if (list.length === 0) return null;
+
+              return (
+                <Card key={col.key}>
+                  <CardHeader title={col.label} icon={col.icon} meta={`${list.length} başvuru`} />
+                  {list.map((a) => {
+                    const cls = getClassByID(a.class);
+                    const icon = a.class ? getClassIconUrl(a.class) : "";
+                    const open = appOpen === a.id;
+                    const busy = appBusy === a.id;
+
+                    return (
+                      <div key={a.id} className="border-b border-bdo-border/40 last:border-0">
+                        <div className="card-row gap-3 flex-wrap border-0">
+                          <button
+                            onClick={() => setAppOpen(open ? null : a.id)}
+                            className="flex items-center gap-2.5 flex-1 min-w-[180px] text-left"
+                          >
+                            {icon
+                              ? <img src={icon} alt="" className="w-7 h-7 opacity-70 flex-shrink-0" />
+                              : <div className="w-7 h-7 rounded bg-bdo-surface-2 flex-shrink-0" />}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[13px] font-medium text-bdo-text-primary truncate">
+                                  {a.familyName}
+                                </span>
+                                {a.guild && (
+                                  <span
+                                    className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded border flex-shrink-0"
+                                    style={{ color: a.guild.color, borderColor: `${a.guild.color}38`, backgroundColor: `${a.guild.color}14` }}
+                                  >
+                                    {a.guild.tag}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-bdo-text-secondary mt-0.5">
+                                {cls?.name ?? "—"}
+                                {cls && ` · ${a.spec === "succession" ? "SUC" : "AWK"}`}
+                                {" · "}
+                                <span className="font-mono text-bdo-gold">{a.ap + a.dp} GS</span>
+                                {" · @"}{a.discordUsername}
+                              </p>
+                            </div>
+                          </button>
+
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[10px] text-bdo-text-secondary mr-1">
+                              {new Date(a.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                            </span>
+                            {a.status !== "REVIEW" && a.status !== "ACCEPTED" && (
+                              <Button variant="ghost" size="xs" icon={Search} onClick={() => setAppStatus(a.id, "REVIEW")} disabled={busy}>
+                                İncele
+                              </Button>
+                            )}
+                            {a.status !== "ACCEPTED" && (
+                              <Button variant="success" size="xs" icon={Check} onClick={() => setAppStatus(a.id, "ACCEPTED")} disabled={busy}>
+                                Kabul
+                              </Button>
+                            )}
+                            {a.status !== "REJECTED" && (
+                              <Button variant="danger" size="xs" icon={X} onClick={() => setAppStatus(a.id, "REJECTED")} disabled={busy} />
+                            )}
+                            <Button variant="ghost" size="xs" icon={Trash2} onClick={() => deleteApplication(a.id)} disabled={busy} />
+                          </div>
+                        </div>
+
+                        {open && (
+                          <div className="px-4 pb-3 space-y-2 bg-bdo-bg/40">
+                            {a.experience && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-bdo-text-secondary mb-1">PvP Tecrübesi</p>
+                                <p className="text-[12px] text-bdo-text-muted leading-relaxed whitespace-pre-wrap">{a.experience}</p>
+                              </div>
+                            )}
+                            {a.note && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-bdo-text-secondary mb-1">Notu</p>
+                                <p className="text-[12px] text-bdo-text-muted leading-relaxed whitespace-pre-wrap">{a.note}</p>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-bdo-text-secondary pt-1">
+                              <span>AP <span className="font-mono text-red-400/80">{a.ap}</span></span>
+                              <span>DP <span className="font-mono text-[#6b93ff]/80">{a.dp}</span></span>
+                              {a.discordId && <span>Discord ID <span className="font-mono">{a.discordId}</span></span>}
+                              {a.reviewer && <span>İnceleyen: {a.reviewer.familyName}</span>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Card>
+              );
+            })}
+
+            {applications.length === 0 && (
+              <Card><Empty icon={UserPlus} text="Henüz başvuru yok." /></Card>
+            )}
+
+            <div className="card px-4 py-2.5">
+              <p className="text-[11px] text-bdo-text-secondary">
+                Başvuru formu:{" "}
+                <a href="/basvuru" target="_blank" rel="noreferrer" className="text-bdo-gold hover:underline">
+                  aetheri.online/basvuru
+                </a>
+                {" — "}giriş gerektirmez, klana katılmak isteyenlerle paylaşabilirsin.
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === "guilds" && (
         <div className="space-y-4">
