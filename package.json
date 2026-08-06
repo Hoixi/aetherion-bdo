@@ -36,6 +36,7 @@
     "react-leaflet": "^4.2.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "sharp": "^0.35.3",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {

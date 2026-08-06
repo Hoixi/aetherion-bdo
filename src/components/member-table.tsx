@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { BDO_CLASSES, getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
 import { Search, LayoutList, LayoutGrid, Swords, ArrowUpDown, UserX } from "lucide-react";
 import { Avatar, Empty, GuildTag, type GuildInfo as Guild } from "./ui";
@@ -202,10 +203,12 @@ export function MemberTable({ members }: { members: Member[] }) {
               >
                 <div className="relative overflow-hidden bg-bdo-surface-2" style={{ height: "150px" }}>
                   {portraitUrl && (
-                    <img
+                    <Image
                       src={portraitUrl}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                      className="object-cover object-top group-hover:scale-[1.04] transition-transform duration-500"
                     />
                   )}
                   <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-bdo-surface to-transparent" />

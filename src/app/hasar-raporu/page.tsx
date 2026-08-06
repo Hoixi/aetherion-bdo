@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   BarChart3, Swords, Skull, Flame, Shield, Lock, Heart, HandHeart,
   Castle, Crosshair, Bomb, Ruler, Zap, AlertTriangle, FileX,
@@ -246,10 +247,12 @@ export default function HasarRaporuPage() {
                 {/* Class portresi — sağda yumuşak geçişli fon */}
                 {portrait && (
                   <div className="absolute right-0 top-0 bottom-0 w-[72%] pointer-events-none select-none">
-                    <img
+                    <Image
                       src={portrait}
                       alt=""
-                      className="card-portrait w-full h-full object-cover object-top opacity-[0.16]"
+                      fill
+                      sizes="(max-width: 640px) 100vw, 33vw"
+                      className="card-portrait object-cover object-top opacity-[0.16]"
                     />
                   </div>
                 )}
@@ -262,9 +265,11 @@ export default function HasarRaporuPage() {
                     </span>
 
                     {portrait ? (
-                      <img
+                      <Image
                         src={portrait}
                         alt=""
+                        width={44}
+                        height={44}
                         className="w-11 h-11 rounded-lg object-cover object-top ring-1 ring-bdo-border flex-shrink-0"
                       />
                     ) : (

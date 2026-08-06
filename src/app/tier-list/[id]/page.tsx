@@ -16,6 +16,7 @@ import {
   useDraggable,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import Image from "next/image";
 import { BDO_CLASSES, getPortraitUrl } from "@/lib/classes";
 import { ArrowLeft, Vote, Trash2, X, Plus, MoveVertical } from "lucide-react";
 import { Loading, Empty, Button, Avatar } from "@/components/ui";
@@ -76,7 +77,7 @@ function DraggableCard({
     >
       <div className="relative w-16 h-[72px] bg-bdo-surface-2 overflow-hidden ring-1 ring-bdo-border">
         {imgUrl ? (
-          <img src={imgUrl} alt={name} className="w-full h-full object-cover object-top" />
+          <Image src={imgUrl} alt={name} fill sizes="64px" className="object-cover object-top" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-bdo-text-secondary text-xs">{name[0]}</div>
         )}
@@ -469,7 +470,7 @@ export default function TierListDetailPage({ params }: { params: { id: string } 
                   const s = ALL_SPECS.find((s) => s.classId === noteModal.classId && s.spec === noteModal.spec);
                   const imgUrl = s ? getPortraitUrl(s.classId, s.spec) : "";
                   return imgUrl
-                    ? <img src={imgUrl} className="w-12 h-16 object-cover object-top rounded-lg ring-1 ring-bdo-border" alt="" />
+                    ? <Image src={imgUrl} width={48} height={64} alt="" className="w-12 h-16 object-cover object-top rounded-lg ring-1 ring-bdo-border" />
                     : <div className="w-12 h-16 rounded-lg bg-bdo-surface-2 ring-1 ring-bdo-border" />;
                 })()}
                 <div>

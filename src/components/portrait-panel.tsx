@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getClassByID, getPortraitUrl, hasClassVariants } from "@/lib/classes";
 import { Swords } from "lucide-react";
+import Image from "next/image";
 
 interface PortraitPanelProps {
   classId: string;
@@ -35,7 +36,14 @@ export function PortraitPanel({
     <div className="card flex flex-col">
       <div className="relative overflow-hidden bg-bdo-surface-2" style={{ height: "330px" }}>
         {portraitSrc ? (
-          <img src={portraitSrc} alt="" className="w-full h-full object-cover object-top" />
+          <Image
+            src={portraitSrc}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 260px"
+            priority
+            className="object-cover object-top"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Swords className="w-10 h-10 text-bdo-text-secondary/20" strokeWidth={1.5} />
