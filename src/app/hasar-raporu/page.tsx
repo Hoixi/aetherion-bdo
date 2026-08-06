@@ -12,6 +12,7 @@ import { PageHeader, Empty, Loading, Avatar, GuildTag, type GuildInfo } from "@/
 import { getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
 
 interface War { id: number; title: string; date: string }
+interface GuildRow { id: number; name: string; tag: string; color: string }
 
 interface Performance {
   id: number;
@@ -33,6 +34,7 @@ interface Row {
   classId: string;
   spec: string;
   user: Performance["user"];
+  guild?: GuildInfo | null;
   kills: number; deaths: number; killStreak: number;
   damageDealt: number; damageTaken: number; ccCount: number;
   hpHeal: number; allyHpHeal: number; castleDamage: number;
@@ -80,6 +82,8 @@ export default function HasarRaporuPage() {
   const [wars, setWars] = useState<War[]>([]);
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [selectedWarId, setSelectedWarId] = useState<number | "">("");
+  const [guilds, setGuilds] = useState<GuildRow[]>([]);
+  const [guildFilter, setGuildFilter] = useState<number | "">("");
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("damageDealt");
   const [dense, setDense] = useState(false);
@@ -90,6 +94,7 @@ export default function HasarRaporuPage() {
       .then((r) => r.json())
       .then((data) => {
         setWars(data.wars ?? []);
+        setGuilds(data.guilds ?? []);
         setPerformances(data.performances ?? []);
       })
       .finally(() => setLoading(false));
@@ -97,12 +102,14 @@ export default function HasarRaporuPage() {
 
   useEffect(() => {
     setLoading(true);
-    const url = selectedWarId === "" ? "/api/performances" : `/api/performances?warId=${selectedWarId}`;
-    fetch(url)
+    const qs = new URLSearchParams();
+    if (selectedWarId !== "") qs.set("warId", String(selectedWarId));
+    if (guildFilter !== "") qs.set("guild", String(guildFilter));
+    fetch(`/api/performances${qs.toString() ? `?${qs}` : ""}`)
       .then((r) => r.json())
       .then((d) => setPerformances(d.performances ?? []))
       .finally(() => setLoading(false));
-  }, [selectedWarId]);
+  }, [selectedWarId, guildFilter]);
 
   const isAggregate = selectedWarId === "";
 
@@ -114,6 +121,7 @@ export default function HasarRaporuPage() {
         classId: p.class || p.user?.class || "",
         spec: p.spec || "awakening",
         user: p.user,
+        guild: p.user?.guild,
         kills: p.kills, deaths: p.deaths, killStreak: p.killStreak,
         damageDealt: p.damageDealt, damageTaken: p.damageTaken, ccCount: p.ccCount,
         hpHeal: p.hpHeal, allyHpHeal: p.allyHpHeal, castleDamage: p.castleDamage,
@@ -141,6 +149,7 @@ export default function HasarRaporuPage() {
         classId: first.class || first.user?.class || "",
         spec: first.spec || "awakening",
         user: first.user,
+        guild: first.user?.guild,
         kills: avg((p) => p.kills), deaths: avg((p) => p.deaths), killStreak: max((p) => p.killStreak),
         damageDealt: avg((p) => p.damageDealt), damageTaken: avg((p) => p.damageTaken),
         ccCount: avg((p) => p.ccCount), hpHeal: avg((p) => p.hpHeal),
@@ -159,6 +168,23 @@ export default function HasarRaporuPage() {
 
   const topValue = sorted[0]?.[sortKey] ?? 0;
 
+  // Klan bazlı özet — sadece birden fazla klan varken anlamlı
+  const guildSummary = useMemo(() => {
+    if (guilds.length < 2) return [];
+    return guilds.map((g) => {
+      const rs = rows.filter((r) => r.guild?.id === g.id);
+      const avg = (f: (r: Row) => number) =>
+        rs.length ? rs.reduce((s, r) => s + f(r), 0) / rs.length : 0;
+      return {
+        ...g,
+        count: rs.length,
+        avgDamage: avg((r) => r.damageDealt),
+        avgKills: avg((r) => r.kills),
+        avgDeaths: avg((r) => r.deaths),
+      };
+    }).filter((g) => g.count > 0);
+  }, [rows, guilds]);
+
   if (loading) return <Loading />;
 
   return (
@@ -166,7 +192,7 @@ export default function HasarRaporuPage() {
       <PageHeader
         title="Hasar Raporu"
         desc={isAggregate
-          ? "Tüm savaşların ortalaması — oyuncu bazlı performans kartları."
+          ? "Tüm klanların savaş ortalamaları — oyuncu bazlı performans kartları."
           : "Seçili savaşın performans kartları."}
         icon={BarChart3}
       />
@@ -186,6 +212,35 @@ export default function HasarRaporuPage() {
               </option>
             ))}
           </select>
+
+          {guilds.length > 1 && (
+            <div className="flex items-center gap-0.5 bg-bdo-bg border border-bdo-border rounded-lg p-0.5">
+              <button
+                onClick={() => setGuildFilter("")}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  guildFilter === "" ? "bg-bdo-surface-2 text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"
+                }`}
+              >
+                Tümü
+              </button>
+              {guilds.map((g) => {
+                const active = guildFilter === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setGuildFilter(g.id)}
+                    title={g.name}
+                    className="px-2 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider transition-colors"
+                    style={active
+                      ? { color: g.color, backgroundColor: `${g.color}18` }
+                      : { color: "#4d5c73" }}
+                  >
+                    {g.tag}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex items-center gap-0.5 bg-bdo-bg border border-bdo-border rounded-lg p-0.5">
             <ArrowUpDown className="w-3 h-3 text-bdo-text-secondary ml-1.5 mr-0.5" strokeWidth={1.75} />
@@ -227,6 +282,40 @@ export default function HasarRaporuPage() {
           </p>
         )}
       </div>
+
+      {/* Klan bazlı özet */}
+      {guildSummary.length > 1 && guildFilter === "" && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+          {guildSummary.map((g) => (
+            <div key={g.id} className="card px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                  style={{ color: g.color, borderColor: `${g.color}38`, backgroundColor: `${g.color}14` }}
+                >
+                  {g.tag}
+                </span>
+                <span className="text-[12px] text-bdo-text-muted truncate">{g.name}</span>
+                <span className="ml-auto text-[11px] font-mono text-bdo-text-secondary">
+                  {g.count} oyuncu
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { l: "Ort. Hasar", v: fmt(g.avgDamage), t: "text-bdo-gold" },
+                  { l: "Ort. Kill", v: Math.round(g.avgKills * 10) / 10, t: "text-bdo-text-primary" },
+                  { l: "Ort. Ölüm", v: Math.round(g.avgDeaths * 10) / 10, t: "text-bdo-text-muted" },
+                ].map((x) => (
+                  <div key={x.l} className="bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1.5">
+                    <p className="text-[9px] uppercase tracking-wider text-bdo-text-secondary">{x.l}</p>
+                    <p className={`text-[14px] font-bold font-mono ${x.t}`}>{x.v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <div className="card"><Empty icon={FileX} text="Henüz hasar raporu verisi yok." /></div>
@@ -285,7 +374,7 @@ export default function HasarRaporuPage() {
                         ) : (
                           <span className="text-[14px] font-bold text-bdo-text-muted truncate">{r.name}</span>
                         )}
-                        <GuildTag guild={r.user?.guild} size="xs" />
+                        <GuildTag guild={r.guild} size="xs" />
                         {!r.user && (
                           <AlertTriangle className="w-3 h-3 text-yellow-500/70 flex-shrink-0" strokeWidth={2} />
                         )}

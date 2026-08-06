@@ -4,13 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGuildScope } from "@/lib/guild-scope";
 
 /**
- * Hasar raporu.
+ * Hasar raporu — tüm klanlar görünür.
  *
- * Toplu rapor (warId veya filtresiz) SADECE oturum sahibinin klanını döner —
- * bir klan diğerinin performans tablosunu göremez.
- *
- * Tek kişilik sorgu (?userId=) her klana açıktır: üye profilleri ortak
- * olduğu için kişinin kendi istatistikleri profilinde görünür.
+ * Müttefikler aynı savaşa birlikte girdiği için performans tablosu ortak
+ * tutulur; kimin ne yaptığı savaş sonunda zaten oyun içi raporda görünüyor.
+ * ?guild=<id> ile tek bir klana daraltılabilir, ?warId= ile tek savaşa,
+ * ?userId= ile tek oyuncuya.
  */
 export async function GET(req: NextRequest) {
   const scope = await getGuildScope();
@@ -19,17 +18,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const warId = searchParams.get("warId");
   const userId = searchParams.get("userId");
+  const guildId = searchParams.get("guild");
 
-  const guildMembers = await prisma.user.findMany({
-    where: { guildId: scope.guildId, deletedAt: null },
-    select: { id: true },
-  });
-  const memberIds = guildMembers.map((m) => m.id);
+  const where: {
+    warId?: number;
+    userId?: number;
+    user?: { guildId: number };
+  } = {};
 
-  const where: { warId?: number; userId: number | { in: number[] } } = userId
-    ? { userId: parseInt(userId) }          // bireysel profil — klan sınırı yok
-    : { userId: { in: memberIds } };        // toplu rapor — kendi klanı
   if (warId) where.warId = parseInt(warId);
+  if (userId) where.userId = parseInt(userId);
+  if (guildId) where.user = { guildId: Number(guildId) };
 
   const performances = await prisma.warPerformance.findMany({
     where,
@@ -46,10 +45,15 @@ export async function GET(req: NextRequest) {
   });
 
   const wars = await prisma.war.findMany({
-    where: { performances: { some: { userId: { in: memberIds } } } },
+    where: { performances: { some: {} } },
     orderBy: { date: "desc" },
     select: { id: true, title: true, date: true },
   });
 
-  return NextResponse.json({ performances, wars });
+  const guilds = await prisma.guild.findMany({
+    orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+    select: { id: true, name: true, tag: true, color: true },
+  });
+
+  return NextResponse.json({ performances, wars, guilds });
 }
