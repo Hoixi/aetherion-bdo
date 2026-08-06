@@ -1,18 +1,23 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getWarChannels } from "@/lib/discord-bot";
 
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
-const CHANNEL_ID = process.env.DISCORD_CHANNEL_ID!;
 const CRON_SECRET = process.env.CRON_SECRET;
 const GOLD = 0xd4a853;
 
-async function deleteMsg(messageId: string) {
-  if (!BOT_TOKEN || !CHANNEL_ID) return;
-  await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages/${messageId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bot ${BOT_TOKEN}` },
-  });
+/** msgId "channelId:messageId,channelId:messageId" formatinda saklanir */
+async function deleteMsg(stored: string) {
+  if (!BOT_TOKEN) return;
+  await Promise.all(stored.split(",").filter(Boolean).map(async (pair) => {
+    const [channelId, messageId] = pair.split(":");
+    if (!channelId || !messageId) return;
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+    }).catch(() => {});
+  }));
 }
 
 async function sendReminder(war: {
@@ -20,6 +25,7 @@ async function sendReminder(war: {
   title: string;
   type: string;
   date: Date;
+  isAllyWar: boolean;
 }, hoursLeft: number): Promise<string | null> {
   const attendCount = await prisma.warParticipant.count({
     where: { warId: war.id, status: "ATTENDING" },
@@ -32,24 +38,32 @@ async function sendReminder(war: {
   });
   const warUrl = `https://www.aetheri.online/wars/${war.id}`;
 
-  const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
-    body: JSON.stringify({
-      content: "@everyone",
-      embeds: [{
-        title: `${emoji} ${urgency} — ${war.title}`,
-        url: warUrl,
-        description: `Savaş **${hoursLeft} saat** içinde başlıyor!\n\n⏰ Saat: **${timeStr}**\n✅ Katılım: **${attendCount}** kişi\n\n🔗 [Savaş sayfasına git](${warUrl})`,
-        color: hoursLeft <= 4 ? 0xe74c3c : GOLD,
-        footer: { text: "Aetherion" },
-      }],
-    }),
+  const body = JSON.stringify({
+    content: "@everyone",
+    embeds: [{
+      title: `${emoji} ${urgency} — ${war.title}`,
+      url: warUrl,
+      description: `Savaş **${hoursLeft} saat** içinde başlıyor!\n\n⏰ Saat: **${timeStr}**\n✅ Katılım: **${attendCount}** kişi\n\n🔗 [Savaş sayfasına git](${warUrl})`,
+      color: hoursLeft <= 4 ? 0xe74c3c : GOLD,
+      footer: { text: "Aetherion" },
+    }],
   });
 
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.id as string;
+  // Savaş kapsamına göre tüm klan kanallarına gönder
+  const channels = await getWarChannels(war.isAllyWar);
+  const sent = await Promise.all(channels.map(async (channelId) => {
+    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+      body,
+    }).catch(() => null);
+    if (!res?.ok) return null;
+    const data = await res.json();
+    return `${channelId}:${data.id}`;
+  }));
+
+  const pairs = sent.filter((x): x is string => !!x);
+  return pairs.length > 0 ? pairs.join(",") : null;
 }
 
 export async function GET(req: NextRequest) {

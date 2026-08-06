@@ -251,6 +251,7 @@ export async function sendPartiesToDiscord(war: {
   id: number;
   title: string;
   type: string;
+  isAllyWar?: boolean;
   parties: {
     name: string;
     members: { user: { familyName: string; ap: number; dp: number; class: string } }[];
@@ -274,7 +275,8 @@ export async function sendPartiesToDiscord(war: {
     };
   });
 
-  await sendMessage("@everyone", [
+  const channels = await getWarChannels(war.isAllyWar ?? true);
+  await sendToChannels(channels, "@everyone", [
     {
       title: `${emoji} ${war.title} — Parti Listesi`,
       description: `Toplam ${war.parties.length} parti, ${war.parties.reduce((s, p) => s + p.members.length, 0)} kişi atandı.`,
@@ -311,14 +313,17 @@ export async function sendAnnouncementToDiscord(announcement: {
   return messageId;
 }
 
-// Send a plain-text message to the configured channel (no embed)
-export async function sendChannelText(content: string): Promise<void> {
-  if (!BOT_TOKEN || !CHANNEL_ID) return;
-  await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
-    body: JSON.stringify({ content }),
-  });
+// Savaş kapsamına göre ilgili klan kanallarına düz metin gönderir
+export async function sendChannelText(content: string, isAllyWar = true): Promise<void> {
+  if (!BOT_TOKEN) return;
+  const channels = await getWarChannels(isAllyWar);
+  await Promise.all(channels.map((channelId) =>
+    fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+      body: JSON.stringify({ content }),
+    }).catch(() => null),
+  ));
 }
 
 // Open a DM channel with a user and return the channel ID

@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
       // Extra plain-text follow-up message
       const dayName = DAY_NAMES_TR[schedule.dayOfWeek];
       const timeStr = `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`;
-      await sendChannelText(`@everyone ${dayName} ${timeStr} savaşı için katılım bildirmeyi unutmayın! ⚔️`);
+      await sendChannelText(`@everyone ${dayName} ${timeStr} savaşı için katılım bildirmeyi unutmayın! ⚔️`, war.isAllyWar);
     }
 
     results.push({ id: schedule.id, name: schedule.name, action: `created war #${war.id}` });
