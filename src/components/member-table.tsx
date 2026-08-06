@@ -31,7 +31,8 @@ export function MemberTable({ members }: { members: Member[] }) {
   const [filterClass, setFilterClass] = useState("");
   const [filterGuild, setFilterGuild] = useState("");
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  // Kart görünümü varsayılan — liste sağ üstteki düğmeden seçilebilir
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
 
   // Guild listesi — sadece birden fazla guild varsa filtre göster
   const guilds = useMemo(() => {
@@ -104,10 +105,14 @@ export function MemberTable({ members }: { members: Member[] }) {
         </div>
 
         <div className="ml-auto flex gap-0.5 bg-bdo-surface border border-bdo-border rounded-lg p-0.5">
-          {([["list", LayoutList], ["card", LayoutGrid]] as const).map(([mode, Icon]) => (
+          {([
+            ["card", LayoutGrid, "Kart görünümü"],
+            ["list", LayoutList, "Liste görünümü"],
+          ] as const).map(([mode, Icon, label]) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
+              title={label}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === mode ? "bg-bdo-surface-2 text-bdo-gold" : "text-bdo-text-secondary hover:text-bdo-text-muted"
               }`}
