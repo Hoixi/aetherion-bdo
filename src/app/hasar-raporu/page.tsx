@@ -423,7 +423,7 @@ export default function HasarRaporuPage() {
                     <Stat icon={Skull} label="Ölüm" value={Math.round(r.deaths * 10) / 10} tone="text-bdo-text-muted" />
                     <Stat icon={Shield} label="Al. Hasar" value={fmt(r.damageTaken)} tone="text-red-400/80" />
                     <Stat icon={Lock} label="CC" value={Math.round(r.ccCount * 10) / 10} />
-                    <Stat icon={Flame} label="Seri" value={Math.round(r.killStreak)} />
+                    <Stat icon={Flame} label="Ver. Hasar" value={fmt(r.damageDealt)} tone="text-bdo-gold" />
                     <Stat icon={Castle} label="Kale" value={fmt(r.castleDamage)} tone="text-orange-400/80" />
                   </div>
 
@@ -436,6 +436,7 @@ export default function HasarRaporuPage() {
                       <Stat icon={Bomb} label="Top Yok" value={Math.round(r.cannonDestroys * 10) / 10} />
                       <Stat icon={Ruler} label="Top Mesafe" value={Math.round(r.cannonMaxRange)} />
                       <Stat icon={Zap} label="Tuzak" value={Math.round(r.trapExplosions * 10) / 10} />
+                      <Stat icon={Flame} label="Seri" value={Math.round(r.killStreak)} />
                     </div>
                   )}
 
