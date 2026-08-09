@@ -12,6 +12,18 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 365,
     formats: ["image/avif", "image/webp"],
   },
+  async redirects() {
+    return [
+      {
+        // Tek kanonik adres: www → apex. Oturum cookie'si her ikisinde de
+        // geçerli ama linklerin tek adrese düşmesi karışıklığı önler.
+        source: "/:path*",
+        has: [{ type: "host", value: "www.aetheri.online" }],
+        destination: "https://aetheri.online/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

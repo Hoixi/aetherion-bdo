@@ -6,9 +6,44 @@ import { checkDiscordMembership } from "./discord";
 
 const useSecure = process.env.NEXTAUTH_URL?.startsWith("https") ?? true;
 
+/**
+ * Oturum cookie'si için alan adı.
+ *
+ * Site hem `aetheri.online` hem `www.aetheri.online` üzerinden açılıyor.
+ * Domain belirtilmezse cookie host'a özel kalır ve iki adres ayrı oturum
+ * sayılır — Discord'dan www linkine tıklayan kullanıcı her seferinde
+ * yeniden giriş yapmak zorunda kalır. Başa nokta koyarak ikisini birleştiriyoruz.
+ */
+function sessionCookieDomain(): string | undefined {
+  const raw = process.env.NEXTAUTH_URL;
+  if (!raw) return undefined;
+  try {
+    const host = new URL(raw).hostname;
+    if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return undefined;
+    return "." + host.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
+}
+
+const COOKIE_DOMAIN = sessionCookieDomain();
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 gün
+
 export const authOptions: NextAuthOptions = {
   useSecureCookies: useSecure,
   cookies: {
+    sessionToken: {
+      // __Host- öneki Domain'e izin vermez; __Secure- ile alan adı paylaşılabilir
+      name: useSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: useSecure,
+        domain: COOKIE_DOMAIN,
+        maxAge: SESSION_MAX_AGE,
+      },
+    },
     state: {
       name: "next-auth.state",
       options: {
@@ -75,11 +110,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 gün
+    maxAge: SESSION_MAX_AGE,
     updateAge: 7 * 24 * 60 * 60, // 7 günde bir yenile (her istekte değil)
   },
   jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 gün
+    maxAge: SESSION_MAX_AGE,
   },
   callbacks: {
     async signIn({ user, account }) {

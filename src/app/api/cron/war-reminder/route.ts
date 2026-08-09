@@ -5,6 +5,7 @@ import { getWarChannels } from "@/lib/discord-bot";
 
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const CRON_SECRET = process.env.CRON_SECRET;
+const SITE_URL = process.env.NEXTAUTH_URL || "https://aetheri.online";
 const GOLD = 0xd4a853;
 
 /** msgId "channelId:messageId,channelId:messageId" formatinda saklanir */
@@ -36,7 +37,7 @@ async function sendReminder(war: {
   const timeStr = new Date(war.date).toLocaleTimeString("tr-TR", {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul",
   });
-  const warUrl = `https://www.aetheri.online/wars/${war.id}`;
+  const warUrl = `${SITE_URL}/wars/${war.id}`;
 
   const body = JSON.stringify({
     content: "@everyone",

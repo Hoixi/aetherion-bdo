@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const SITE_URL = process.env.NEXTAUTH_URL || "https://aetheri.online";
+
 export async function POST(_req: Request, { params }: { params: { userId: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -31,7 +33,7 @@ export async function POST(_req: Request, { params }: { params: { userId: string
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bot ${botToken}` },
     body: JSON.stringify({
-      content: `👋 Merhaba! **Aetherion** guild sitesine kayıtlısın ama profilini henüz doldurmadın.\n\nLütfen aşağıdaki adrese giriş yaparak aile adın, class'ın ve GS bilgilerini doldur:\n🔗 https://www.aetheri.online/profile`,
+      content: `👋 Merhaba! **Aetherion** guild sitesine kayıtlısın ama profilini henüz doldurmadın.\n\nLütfen aşağıdaki adrese giriş yaparak aile adın, class'ın ve GS bilgilerini doldur:\n🔗 ${SITE_URL}/profile`,
     }),
   });
 
