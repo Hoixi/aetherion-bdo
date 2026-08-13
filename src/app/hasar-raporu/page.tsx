@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import {
   BarChart3, Swords, Skull, Flame, Shield, Lock, Heart, HandHeart,
   Castle, Crosshair, Bomb, Ruler, Zap, AlertTriangle, FileX,
-  ArrowUpDown, LayoutGrid, LayoutList, Trophy, LucideIcon,
+  ArrowUpDown, LayoutGrid, LayoutList, Trophy, LucideIcon, Send, ImageIcon,
 } from "lucide-react";
-import { PageHeader, Empty, Loading, Avatar, GuildTag, type GuildInfo } from "@/components/ui";
+import { PageHeader, Empty, Loading, Avatar, GuildTag, Button, type GuildInfo } from "@/components/ui";
 import { getClassByID, getPortraitUrl, getClassIconUrl } from "@/lib/classes";
 
 interface War { id: number; title: string; date: string }
@@ -87,6 +88,10 @@ export default function HasarRaporuPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("damageDealt");
   const [dense, setDense] = useState(false);
+  const { data: session } = useSession();
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -185,6 +190,34 @@ export default function HasarRaporuPage() {
     }).filter((g) => g.count > 0);
   }, [rows, guilds]);
 
+  async function publishReport() {
+    if (selectedWarId === "") return;
+    setPublishing(true);
+    setPublishMsg(null);
+    const res = await fetch(`/api/wars/${selectedWarId}/publish-report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sort: sortKey,
+        limit: 10,
+        guild: guildFilter || undefined,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setPublishMsg(res.ok
+      ? `Gönderildi (${data.sent} kanal).`
+      : data.error ?? "Gönderilemedi.");
+    setPublishing(false);
+    setTimeout(() => setPublishMsg(null), 6000);
+  }
+
+  // Görselde sadece bu dört metrik var
+  const cardSort = ["damageDealt", "kills", "deaths", "castleDamage"].includes(sortKey)
+    ? sortKey : "damageDealt";
+  const cardUrl = selectedWarId === ""
+    ? null
+    : `/api/war-report-card/${selectedWarId}?sort=${cardSort}&limit=10${guildFilter ? `&guild=${guildFilter}` : ""}`;
+
   if (loading) return <Loading />;
 
   return (
@@ -282,6 +315,37 @@ export default function HasarRaporuPage() {
           </p>
         )}
       </div>
+
+      {/* Discord'a gönder — sadece tek savaş seçiliyken */}
+      {cardUrl && session?.user.canManageWars && (
+        <div className="card p-3 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <ImageIcon className="w-3.5 h-3.5 text-bdo-text-secondary flex-shrink-0" strokeWidth={1.75} />
+            <p className="text-[12px] text-bdo-text-muted flex-1 min-w-[180px]">
+              Bu savaşın raporunu görsel olarak Discord&apos;a gönder
+              <span className="text-bdo-text-secondary"> — ilk 10 oyuncu, {SORTS.find((s) => s.key === cardSort)?.label} sıralı</span>
+            </p>
+
+            {publishMsg && (
+              <span className="text-[11px] text-bdo-gold">{publishMsg}</span>
+            )}
+
+            <Button variant="ghost" size="sm" icon={ImageIcon} onClick={() => setPreview(!preview)}>
+              {preview ? "Önizlemeyi kapat" : "Önizle"}
+            </Button>
+            <Button variant="primary" size="sm" icon={Send} onClick={publishReport} disabled={publishing}>
+              {publishing ? "Gönderiliyor..." : "Discord'a Gönder"}
+            </Button>
+          </div>
+
+          {preview && (
+            <div className="mt-3 rounded-lg overflow-hidden border border-bdo-border bg-bdo-bg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={cardUrl} alt="Rapor önizlemesi" className="w-full h-auto" />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Klan bazlı özet */}
       {guildSummary.length > 1 && guildFilter === "" && (
