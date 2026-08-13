@@ -64,6 +64,42 @@ model Application {
   @@map("applications")
 }
 
+/// Haritadaki önemli noktalar — toplanabilirler, node war pozisyonları,
+/// grind spotları. Koordinatlar tüm dünya karosuna göre 0–1 aralığında.
+model MapPoint {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  category    String   @default("other")
+  mapX        Float                       // 0–1, batı → doğu
+  mapY        Float                       // 0–1, kuzey → güney
+  imageUrl    String?  @db.Text           // konumu gösteren ekran görüntüsü
+  createdBy   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator     User               @relation("MapPointCreator", fields: [createdBy], references: [id])
+  completions MapPointDone[]
+
+  @@index([category])
+  @@map("map_points")
+}
+
+/// Kullanıcı başına "topladım" kaydı
+model MapPointDone {
+  id      Int      @id @default(autoincrement())
+  pointId Int
+  userId  Int
+  doneAt  DateTime @default(now())
+
+  point MapPoint @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pointId, userId])
+  @@index([userId])
+  @@map("map_point_done")
+}
+
 model User {
   id          Int      @id @default(autoincrement())
   discordId   String   @unique
@@ -104,6 +140,8 @@ model User {
   tierLists         TierList[]     @relation("TierListCreator")
   tierVotes         TierVote[]
   reviewedApplications Application[] @relation("ApplicationReviewer")
+  mapPoints            MapPoint[]     @relation("MapPointCreator")
+  mapPointsDone        MapPointDone[]
 
   @@map("users")
 }
