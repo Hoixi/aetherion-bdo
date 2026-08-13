@@ -6,16 +6,19 @@ import type { Map as LeafletMap, Marker as LeafletMarker, Polyline } from "leafl
 import "leaflet/dist/leaflet.css";
 
 // ── BDO World tile constants ─────────────────────────────────────────────────
-// Tile URL: https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp
-// Available zoom levels: 1–9
+// Tile URL: https://cdn.questlog.gg/black-desert/map/v13/{z}/{x}/{y}.webp
+// bdocodex artık güncellenmiyordu; questlog (bdolytics) karoları yeni
+// bölgeleri de içeriyor. Piramit aynı: z{n} → 2^n × 2^n karo, z3 = 8×8.
+// Karo boyutu 336px — bdocodex'in 256'sından farklı.
+// Available zoom levels: 0–7
 // At zoom 3 (scale = 2^3 = 8, tileSize = 256):
 //   tile_x = ⌊lng × 8 / 256⌋  →  x=1..5  →  lng ∈ [32, 192)
 //   tile_y = ⌊−lat × 8 / 256⌋ →  y=3..6  →  lat ∈ (−224, −96]
-export const TILE_URL = "https://bdocodex.com/zonemap/main/{z}/{x}/{y}.webp";
+export const TILE_URL = "https://cdn.questlog.gg/black-desert/map/v13/{z}/{x}/{y}.webp";
 
 // Main BDO world bounds in Leaflet CRS.Simple coordinates
 const Z3 = Math.pow(2, 3); // 8
-const T  = 256;             // tile size
+const T  = 336;             // tile size (questlog karoları 336px)
 
 export const SW_LAT = -(7 * T) / Z3; // −224  south edge of tile y=6
 export const NE_LAT = -(3 * T) / Z3; // −96   north edge of tile y=3
@@ -104,8 +107,8 @@ export function BdoLeafletMap({
 
       const map = L.map(containerRef.current!, {
         crs: L.CRS.Simple,
-        minZoom: 1,
-        maxZoom: 9,
+        minZoom: 0,
+        maxZoom: 7,
         zoomSnap: 0.25,
         zoomDelta: 0.5,
         zoomControl: true,
@@ -118,10 +121,10 @@ export function BdoLeafletMap({
 
       // ── Tile layer — NO bounds param so all zoom levels load freely ────────
       L.tileLayer(TILE_URL, {
-        tileSize: 256,
+        tileSize: T,
         noWrap: true,
-        minZoom: 1,
-        maxZoom: 9,
+        minZoom: 0,
+        maxZoom: 7,
         // errorTileUrl: "" keeps failed tiles transparent instead of broken-img
       }).addTo(map);
 
@@ -130,9 +133,9 @@ export function BdoLeafletMap({
         if (!el) return;
 
         const minCoverZoom = Math.max(
-          1,
+          0,
           Math.min(
-            9,
+            7,
             Math.ceil(Math.log2(Math.max(el.clientWidth / PAN_LNG_RANGE, el.clientHeight / PAN_LAT_RANGE)) * 4) / 4,
           ),
         );
