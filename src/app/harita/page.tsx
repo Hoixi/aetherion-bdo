@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
-import { MapPin, Check, Eye, EyeOff, DownloadCloud } from "lucide-react";
+import { MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Card, Loading, Button } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
 import type { EdaniaMarker } from "@/components/edania-map";
@@ -38,6 +38,8 @@ export default function HaritaPage() {
   const [active, setActive] = useState<Set<string>>(new Set(CATEGORY_ORDER));
   const [selected, setSelected] = useState<number | null>(null);
   const [hideDone, setHideDone] = useState(false);
+  // Büyütülmüş görsel: hangi noktanın kaçıncı karesi
+  const [lightbox, setLightbox] = useState<{ shots: string[]; i: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -48,6 +50,23 @@ export default function HaritaPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightbox(null);
+      if (e.key === "ArrowRight") setLightbox((l) => (l ? { ...l, i: (l.i + 1) % l.shots.length } : l));
+      if (e.key === "ArrowLeft") setLightbox((l) => (l ? { ...l, i: (l.i - 1 + l.shots.length) % l.shots.length } : l));
+    }
+    window.addEventListener("keydown", onKey);
+    // Arkadaki sayfa kaymasın
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightbox]);
 
   function flip(prev: Set<number>, id: number) {
     const next = new Set(prev);
@@ -263,14 +282,20 @@ export default function HaritaPage() {
               </div>
 
               {shotsOf(sel).map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <button
                   key={src}
-                  src={src}
-                  alt={sel.title + " konumu " + (i + 1)}
-                  loading="lazy"
-                  className="w-full rounded-lg border border-bdo-border"
-                />
+                  type="button"
+                  onClick={() => setLightbox({ shots: shotsOf(sel), i })}
+                  className="block w-full rounded-lg overflow-hidden border border-bdo-border hover:border-bdo-gold/50 transition-colors cursor-zoom-in"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={sel.title + " konumu " + (i + 1)}
+                    loading="lazy"
+                    className="w-full block"
+                  />
+                </button>
               ))}
 
               {shotsOf(sel).length > 0 && (
@@ -302,6 +327,65 @@ export default function HaritaPage() {
           )}
         </Card>
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            onClick={() => setLightbox(null)}
+            aria-label="Kapat"
+            className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-5 h-5" strokeWidth={2} />
+          </button>
+
+          {lightbox.shots.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Önceki"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightbox((l) => (l ? { ...l, i: (l.i - 1 + l.shots.length) % l.shots.length } : l));
+                }}
+                className="absolute left-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                aria-label="Sonraki"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightbox((l) => (l ? { ...l, i: (l.i + 1) % l.shots.length } : l));
+                }}
+                className="absolute right-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              >
+                <ChevronRight className="w-6 h-6" strokeWidth={2} />
+              </button>
+            </>
+          )}
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightbox.shots[lightbox.i]}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-[90vh] object-contain rounded-lg cursor-default"
+          />
+
+          {lightbox.shots.length > 1 && (
+            <div className="absolute bottom-4 text-[12px] text-white/70">
+              {lightbox.i + 1} / {lightbox.shots.length}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
