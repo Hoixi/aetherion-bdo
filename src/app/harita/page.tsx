@@ -114,6 +114,18 @@ export default function HaritaPage() {
     [visible, done],
   );
 
+  /** imageUrl bir JSON dizisi tutar; tek dize gelen eski kayıtlar da desteklenir */
+  function shotsOf(p: Point): string[] {
+    if (!p.imageUrl) return [];
+    if (!p.imageUrl.startsWith("[")) return [p.imageUrl];
+    try {
+      const arr = JSON.parse(p.imageUrl);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
   const sel = selected != null ? points.find((p) => p.id === selected) ?? null : null;
 
   // İlerleme yalnızca toplanabilir kategorilerden sayılır — NPC ve üs yöneticisi toplanmaz
@@ -244,13 +256,24 @@ export default function HaritaPage() {
                 </div>
               </div>
 
-              {sel.imageUrl && (
+              {shotsOf(sel).map((src, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={sel.imageUrl}
-                  alt={sel.title}
+                  key={src}
+                  src={src}
+                  alt={sel.title + " konumu " + (i + 1)}
+                  loading="lazy"
                   className="w-full rounded-lg border border-bdo-border"
                 />
+              ))}
+
+              {shotsOf(sel).length > 0 && (
+                <p className="text-[10px] text-bdo-text-secondary leading-relaxed">
+                  Görseller{" "}
+                  <a href="https://korbdo.co.kr" target="_blank" rel="noreferrer"
+                     className="text-bdo-gold hover:underline">korbdo.co.kr</a>{" "}
+                  izniyle kullanılıyor.
+                </p>
               )}
 
               {categoryMeta(sel.category).countable && (
