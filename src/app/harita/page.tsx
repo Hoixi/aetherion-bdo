@@ -5,9 +5,9 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Route as RouteIcon,
+  Maximize2, Minimize2, Route as RouteIcon, Search,
 } from "lucide-react";
-import { PageHeader, Card, Loading, Button } from "@/components/ui";
+import { PageHeader, Card, Loading, Button, Input } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
 import { planRoute, routeLength } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
@@ -46,6 +46,7 @@ export default function HaritaPage() {
   const [lightbox, setLightbox] = useState<{ shots: string[]; i: number } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -131,10 +132,20 @@ export default function HaritaPage() {
     }
   }
 
-  const visible = useMemo(
-    () => points.filter((p) => active.has(p.category) && !(hideDone && done.has(p.id))),
-    [points, active, hideDone, done],
-  );
+  const visible = useMemo(() => {
+    // Türkçe büyük/küçük harf eşlemesi doğru olsun diye locale duyarlı karşılaştırma
+    const q = query.trim().toLocaleLowerCase("tr");
+    return points.filter((p) => {
+      if (!active.has(p.category)) return false;
+      if (hideDone && done.has(p.id)) return false;
+      if (!q) return true;
+      return (
+        p.title.toLocaleLowerCase("tr").includes(q) ||
+        (p.description ?? "").toLocaleLowerCase("tr").includes(q) ||
+        categoryMeta(p.category).label.toLocaleLowerCase("tr").includes(q)
+      );
+    });
+  }, [points, active, hideDone, done, query]);
 
   /**
    * Rota yalnızca gerçekten toplanacak duraklardan kurulur: görünür,
@@ -240,6 +251,26 @@ export default function HaritaPage() {
       </Card>
 
       <Card className={fullscreen ? "fixed top-3 left-3 right-3 z-50 p-3 shadow-2xl" : "p-3"}>
+        <div className="flex items-center gap-2 mb-2">
+          <Input
+            value={query}
+            onChange={setQuery}
+            icon={Search}
+            placeholder="Nokta ara — isim, bölge veya kategori"
+            className="flex-1"
+          />
+          {query && (
+            <span className="text-[11px] text-bdo-text-secondary whitespace-nowrap">
+              {visible.length} sonuç
+            </span>
+          )}
+          {query && (
+            <Button variant="ghost" size="sm" icon={X} onClick={() => setQuery("")}>
+              Temizle
+            </Button>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           {CATEGORY_ORDER.map((c) => {
             const meta = categoryMeta(c);
