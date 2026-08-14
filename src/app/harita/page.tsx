@@ -143,13 +143,19 @@ export default function HaritaPage() {
         desc="Tachyon mirasları, izleri ve bilgi noktaları. Topladığını işaretle, ilerlemeni takip et."
       />
 
-      {session?.user?.isAdmin && points.length === 0 && (
+      {session?.user?.isAdmin && (
         <Card className="card-accent p-4">
           <div className="flex items-center gap-3 flex-wrap">
             <p className="text-[13px] text-bdo-text-muted flex-1 min-w-[200px]">
-              Haritada henüz nokta yok. Edania verisini bir kez içeri al —
-              244 nokta eklenecek, tekrar çalıştırmak kopya oluşturmaz.
+              {points.length === 0
+                ? "Haritada henüz nokta yok. Edania verisini içeri al — 244 nokta eklenecek."
+                : "Edania verisini yeniden içeri al. Başlık, açıklama ve konum görselleri güncellenir; kopya oluşmaz."}
             </p>
+            {points.length > 0 && (
+              <span className="text-[11px] text-bdo-text-secondary">
+                {points.filter((p) => shotsOf(p).length > 0).length} noktada görsel var
+              </span>
+            )}
             {seedMsg && <span className="text-[12px] text-bdo-gold">{seedMsg}</span>}
             <Button variant="primary" size="sm" icon={DownloadCloud}
                     onClick={seed} disabled={seeding}>
