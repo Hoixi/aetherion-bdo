@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { MapPin, Check, Eye, EyeOff } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { MapPin, Check, Eye, EyeOff, DownloadCloud } from "lucide-react";
 import { PageHeader, Card, Loading, Button } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
 import type { EdaniaMarker } from "@/components/edania-map";
@@ -28,7 +29,10 @@ type Point = {
 };
 
 export default function HaritaPage() {
+  const { data: session } = useSession();
   const [points, setPoints] = useState<Point[]>([]);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
   const [done, setDone] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Set<string>>(new Set(CATEGORY_ORDER));
@@ -71,6 +75,27 @@ export default function HaritaPage() {
     });
   }
 
+  async function seed() {
+    setSeeding(true);
+    setSeedMsg(null);
+    try {
+      const res = await fetch("/api/map-points/seed", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSeedMsg(data.error ?? "İçeri alınamadı (" + res.status + ")");
+      } else {
+        setSeedMsg(data.created + " nokta eklendi, " + data.updated + " güncellendi.");
+        const fresh = await fetch("/api/map-points").then((r) => r.json());
+        setPoints(fresh.points);
+        setDone(new Set<number>(fresh.done));
+      }
+    } catch {
+      setSeedMsg("İstek başarısız oldu.");
+    } finally {
+      setSeeding(false);
+    }
+  }
+
   const visible = useMemo(
     () => points.filter((p) => active.has(p.category) && !(hideDone && done.has(p.id))),
     [points, active, hideDone, done],
@@ -105,6 +130,22 @@ export default function HaritaPage() {
         title="Edania Haritası"
         desc="Tachyon mirasları, izleri ve bilgi noktaları. Topladığını işaretle, ilerlemeni takip et."
       />
+
+      {session?.user?.isAdmin && points.length === 0 && (
+        <Card className="card-accent p-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-[13px] text-bdo-text-muted flex-1 min-w-[200px]">
+              Haritada henüz nokta yok. Edania verisini bir kez içeri al —
+              244 nokta eklenecek, tekrar çalıştırmak kopya oluşturmaz.
+            </p>
+            {seedMsg && <span className="text-[12px] text-bdo-gold">{seedMsg}</span>}
+            <Button variant="primary" size="sm" icon={DownloadCloud}
+                    onClick={seed} disabled={seeding}>
+              {seeding ? "Alınıyor..." : "Noktaları içeri al"}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
