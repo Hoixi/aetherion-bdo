@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import type { Map as LeafletMap, Marker as LeafletMarker, Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 /**
@@ -42,10 +42,14 @@ export type EdaniaMarker = {
   color: string;
   label: string;
   done?: boolean;
+  /** Rota etkinken kaçıncı durak olduğu */
+  order?: number;
 };
 
 type Props = {
   markers: EdaniaMarker[];
+  /** Duraklar arası çizilecek rota — sırayla */
+  route?: { nx: number; ny: number }[];
   onMarkerClick?: (id: number) => void;
   /** Haritaya tıklayınca konum döner — nokta eklerken kullanılır */
   onMapClick?: (nx: number, ny: number) => void;
@@ -54,11 +58,13 @@ type Props = {
 };
 
 export default function EdaniaMap({
-  markers, onMarkerClick, onMapClick, selectedId, className,
+  markers, route, onMarkerClick, onMapClick, selectedId, className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<Map<number, LeafletMarker>>(new Map());
+  const routeRef = useRef<Polyline | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
   // Kapanış (closure) tazeliği: olay işleyicileri ref üzerinden okur
   const clickRef = useRef(onMarkerClick);
   const mapClickRef = useRef(onMapClick);
@@ -113,11 +119,18 @@ export default function EdaniaMap({
         mapClickRef.current(n.nx, n.ny);
       });
 
+      // Konteyner boyutu değişince (tam ekrana geçiş) Leaflet'in yeniden ölçmesi gerekir
+      const ro = new ResizeObserver(() => map.invalidateSize());
+      ro.observe(containerRef.current);
+      roRef.current = ro;
+
       mapRef.current = map;
     })();
 
     return () => {
       cancelled = true;
+      roRef.current?.disconnect();
+      roRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current.clear();
@@ -138,14 +151,19 @@ export default function EdaniaMap({
         seen.add(m.id);
         const isSel = selectedId === m.id;
         const r = isSel ? 9 : m.done ? 5 : 7;
+        // Rota etkinken durak numarası gösterilir, bu yüzden daire büyür
+        const size = m.order != null ? Math.max(r * 2, 18) : r * 2;
         const html =
-          `<div style="width:${r * 2}px;height:${r * 2}px;border-radius:50%;` +
+          `<div style="width:${size}px;height:${size}px;border-radius:50%;` +
           `background:${m.done ? "transparent" : m.color};` +
           `border:2px solid ${m.color};opacity:${m.done ? 0.45 : 1};` +
-          `box-shadow:0 0 0 1px rgba(0,0,0,.55)${isSel ? `,0 0 12px ${m.color}` : ""};"></div>`;
+          `display:flex;align-items:center;justify-content:center;` +
+          `font:700 10px/1 sans-serif;color:#0c0f15;` +
+          `box-shadow:0 0 0 1px rgba(0,0,0,.55)${isSel ? `,0 0 12px ${m.color}` : ""};">` +
+          `${m.order != null ? m.order : ""}</div>`;
 
         const icon = L.divIcon({
-          html, className: "", iconSize: [r * 2, r * 2], iconAnchor: [r, r],
+          html, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2],
         });
 
         const existing = live.get(m.id);
@@ -165,6 +183,27 @@ export default function EdaniaMap({
       });
     })();
   }, [markers, selectedId]);
+
+  // Rota çizgisi
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    (async () => {
+      const L = (await import("leaflet")).default;
+
+      routeRef.current?.remove();
+      routeRef.current = null;
+      if (!route || route.length < 2) return;
+
+      routeRef.current = L.polyline(
+        route.map((p) => normToLatLng(p.nx, p.ny)),
+        { color: "#e0b040", weight: 2, opacity: 0.7, dashArray: "5 6" },
+      ).addTo(map);
+      // Çizgi işaretçilerin altında kalsın
+      routeRef.current.bringToBack();
+    })();
+  }, [route]);
 
   return <div ref={containerRef} className={className} />;
 }

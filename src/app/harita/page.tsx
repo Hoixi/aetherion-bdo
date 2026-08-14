@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
-import { MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight,
+  Maximize2, Minimize2, Route as RouteIcon,
+} from "lucide-react";
 import { PageHeader, Card, Loading, Button } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
+import { planRoute, routeLength } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
 
 // Leaflet yalnızca tarayıcıda çalışır
@@ -40,6 +44,8 @@ export default function HaritaPage() {
   const [hideDone, setHideDone] = useState(false);
   // Büyütülmüş görsel: hangi noktanın kaçıncı karesi
   const [lightbox, setLightbox] = useState<{ shots: string[]; i: number } | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showRoute, setShowRoute] = useState(false);
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -67,6 +73,16 @@ export default function HaritaPage() {
       document.body.style.overflow = prevOverflow;
     };
   }, [lightbox]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    function onKey(e: KeyboardEvent) {
+      // Lightbox açıkken Esc önce onu kapatsın
+      if (e.key === "Escape") setFullscreen((f) => (lightbox ? f : false));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen, lightbox]);
 
   function flip(prev: Set<number>, id: number) {
     const next = new Set(prev);
@@ -120,6 +136,26 @@ export default function HaritaPage() {
     [points, active, hideDone, done],
   );
 
+  /**
+   * Rota yalnızca gerçekten toplanacak duraklardan kurulur: görünür,
+   * toplanabilir ve henüz işaretlenmemiş olanlar. 173 nokta için
+   * hesap birkaç milisaniye, ama filtre her değiştiğinde tekrarlamasın.
+   */
+  const route = useMemo(() => {
+    if (!showRoute) return null;
+    const stops = visible
+      .filter((p) => categoryMeta(p.category).countable && !done.has(p.id))
+      .map((p) => ({ id: p.id, nx: p.mapX, ny: p.mapY }));
+    if (stops.length < 2) return null;
+    return planRoute(stops);
+  }, [showRoute, visible, done]);
+
+  const orderOf = useMemo(() => {
+    const m = new Map<number, number>();
+    route?.forEach((p, i) => m.set(p.id, i + 1));
+    return m;
+  }, [route]);
+
   const markers: EdaniaMarker[] = useMemo(
     () =>
       visible.map((p) => ({
@@ -129,8 +165,9 @@ export default function HaritaPage() {
         color: categoryMeta(p.category).color,
         label: p.title,
         done: done.has(p.id),
+        order: orderOf.get(p.id),
       })),
-    [visible, done],
+    [visible, done, orderOf],
   );
 
   /** imageUrl bir JSON dizisi tutar; tek dize gelen eski kayıtlar da desteklenir */
@@ -202,7 +239,7 @@ export default function HaritaPage() {
         </div>
       </Card>
 
-      <Card className="p-3">
+      <Card className={fullscreen ? "fixed top-3 left-3 right-3 z-50 p-3 shadow-2xl" : "p-3"}>
         <div className="flex flex-wrap items-center gap-2">
           {CATEGORY_ORDER.map((c) => {
             const meta = categoryMeta(c);
@@ -239,7 +276,20 @@ export default function HaritaPage() {
             );
           })}
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {route && (
+              <span className="text-[11px] text-bdo-text-secondary">
+                {route.length} durak
+              </span>
+            )}
+            <Button
+              variant={showRoute ? "primary" : "ghost"}
+              size="sm"
+              icon={RouteIcon}
+              onClick={() => setShowRoute((v) => !v)}
+            >
+              {showRoute ? "Rota açık" : "Rota çiz"}
+            </Button>
             <Button
               variant={hideDone ? "primary" : "ghost"}
               size="sm"
@@ -248,21 +298,38 @@ export default function HaritaPage() {
             >
               {hideDone ? "Toplananlar gizli" : "Hepsi görünür"}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={fullscreen ? Minimize2 : Maximize2}
+              onClick={() => setFullscreen((v) => !v)}
+            >
+              {fullscreen ? "Küçült" : "Tam ekran"}
+            </Button>
           </div>
         </div>
       </Card>
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-4">
-        <Card className="overflow-hidden p-0">
+        <Card className={
+          fullscreen
+            ? "fixed inset-0 z-40 rounded-none border-0 overflow-hidden p-0"
+            : "overflow-hidden p-0"
+        }>
           <EdaniaMap
             markers={markers}
+            route={route ?? undefined}
             selectedId={selected}
             onMarkerClick={setSelected}
-            className="w-full h-[70vh] min-h-[420px]"
+            className={fullscreen ? "w-full h-full" : "w-full h-[70vh] min-h-[420px]"}
           />
         </Card>
 
-        <Card className="p-4 h-fit lg:sticky lg:top-4">
+        <Card className={
+          fullscreen
+            ? "fixed top-24 right-3 w-[300px] max-h-[calc(100vh-8rem)] overflow-y-auto z-50 p-4 shadow-2xl"
+            : "p-4 h-fit lg:sticky lg:top-4"
+        }>
           {sel ? (
             <div className="space-y-3">
               <div className="flex items-start gap-2">
