@@ -95,7 +95,8 @@ export default function EdaniaMap({
         },
       });
 
-      new (EdaniaTiles as unknown as new (o: object) => ReturnType<typeof L.tileLayer>)({
+      // Kurucu (urlTemplate, options) alır — getTileUrl ezildiği için şablon boş
+      new (EdaniaTiles as unknown as new (u: string, o: object) => ReturnType<typeof L.tileLayer>)("", {
         tileSize: TILE,
         noWrap: true,
         minZoom: MIN_ZOOM,
