@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationBell } from "./notification-bell";
 import {
   LayoutGrid, Users, Zap, MessageSquare, ListOrdered, BarChart3,
-  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake, CalendarDays,
-} from "lucide-react";
+  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake, CalendarDays, MapPin } from "lucide-react";
 
 const navGroups = [
   {
@@ -28,6 +27,7 @@ const navGroups = [
       { href: "/forum", label: "Forum", icon: MessageSquare },
       { href: "/tier-list", label: "Tier List", icon: ListOrdered },
       { href: "/ai-asistan", label: "AI Asistan", icon: Sparkles },
+      { href: "/harita", label: "Harita", icon: MapPin },
       { href: "/geo", label: "GeoGuessr", icon: Globe2 },
     ],
   },
