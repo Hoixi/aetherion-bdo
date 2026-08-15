@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Route as RouteIcon, Search,
+  Maximize2, Minimize2, Route as RouteIcon, Search, RefreshCw,
 } from "lucide-react";
 import { PageHeader, Card, Loading, Button, Input } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
-import { planRoute, routeLength } from "@/lib/route";
+import { planRoute } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
 
 // Leaflet yalnızca tarayıcıda çalışır
@@ -47,6 +47,8 @@ export default function HaritaPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
   const [query, setQuery] = useState("");
+  // Planlanan sıra id olarak tutulur; durak düşünce yeniden çözülmesin diye
+  const [plannedIds, setPlannedIds] = useState<number[] | null>(null);
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -147,19 +149,44 @@ export default function HaritaPage() {
     });
   }, [points, active, hideDone, done, query]);
 
+  /** Rotaya girebilecek duraklar: görünür, toplanabilir, henüz işaretlenmemiş */
+  const eligible = useMemo(
+    () => visible.filter((p) => categoryMeta(p.category).countable && !done.has(p.id)),
+    [visible, done],
+  );
+
+  const solve = useCallback(
+    (stops: Point[]) =>
+      planRoute(stops.map((p) => ({ id: p.id, nx: p.mapX, ny: p.mapY }))).map((p) => p.id),
+    [],
+  );
+
   /**
-   * Rota yalnızca gerçekten toplanacak duraklardan kurulur: görünür,
-   * toplanabilir ve henüz işaretlenmemiş olanlar. 173 nokta için
-   * hesap birkaç milisaniye, ama filtre her değiştiğinde tekrarlamasın.
+   * Sıra yalnızca durak *eklendiğinde* yeniden çözülür. Bir noktayı
+   * topladığında küme küçülür ve mevcut sıra korunur — yoksa her
+   * işaretlemede rota baştan kurulup elindeki plan dağılırdı.
    */
+  useEffect(() => {
+    if (!showRoute) { setPlannedIds(null); return; }
+    setPlannedIds((prev) => {
+      if (prev) {
+        const known = new Set(prev);
+        if (eligible.every((s) => known.has(s.id))) return prev;
+      }
+      return solve(eligible);
+    });
+  }, [showRoute, eligible, solve]);
+
+  /** Planlanan sıra + güncel üyelik */
   const route = useMemo(() => {
-    if (!showRoute) return null;
-    const stops = visible
-      .filter((p) => categoryMeta(p.category).countable && !done.has(p.id))
+    if (!showRoute || !plannedIds) return null;
+    const live = new Map(eligible.map((p) => [p.id, p]));
+    const stops = plannedIds
+      .map((id) => live.get(id))
+      .filter((p): p is Point => !!p)
       .map((p) => ({ id: p.id, nx: p.mapX, ny: p.mapY }));
-    if (stops.length < 2) return null;
-    return planRoute(stops);
-  }, [showRoute, visible, done]);
+    return stops.length >= 2 ? stops : null;
+  }, [showRoute, plannedIds, eligible]);
 
   const orderOf = useMemo(() => {
     const m = new Map<number, number>();
@@ -309,9 +336,19 @@ export default function HaritaPage() {
 
           <div className="ml-auto flex items-center gap-2">
             {route && (
-              <span className="text-[11px] text-bdo-text-secondary">
-                {route.length} durak
-              </span>
+              <>
+                <span className="text-[11px] text-bdo-text-secondary">
+                  {route.length} durak
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={RefreshCw}
+                  onClick={() => setPlannedIds(solve(eligible))}
+                >
+                  Yeniden planla
+                </Button>
+              </>
             )}
             <Button
               variant={showRoute ? "primary" : "ghost"}
