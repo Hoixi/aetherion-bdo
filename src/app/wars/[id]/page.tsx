@@ -7,6 +7,7 @@ import { PartyBuilder } from "@/components/party-builder";
 import { UserPerfStats } from "@/components/member-chip";
 import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { getTypeName } from "@/lib/classes";
+import { classifyAttendance, ATTENDANCE_META, attendanceKnown } from "@/lib/attendance";
 import {
   ArrowLeft, Check, X, HelpCircle, AlertTriangle, Users, Send, Clock, Swords,
 } from "lucide-react";
@@ -153,6 +154,37 @@ export default function WarDetailPage() {
     }, new Map<number, { guild: Guild; count: number }>()).values()
   ).sort((a, b) => b.count - a.count);
 
+  // Bu savaşın kendi durumları — geçmiş savaş geçmişiyle aynı sınıflandırma
+  const selectedIds = new Set(war.parties.flatMap((p) => p.members.map((m) => m.userId)));
+  const cameIds = new Set<number>();
+  {
+    const byName = new Map(allMembers.map((m) => [m.familyName.toLowerCase(), m.id]));
+    for (const perf of performances) {
+      const uid = perf.user
+        ? byName.get(perf.user.familyName.toLowerCase())
+        : byName.get(perf.inGameName.toLowerCase());
+      if (uid) cameIds.add(uid);
+    }
+  }
+  // Rapor yüklenmeden kimin geldiği bilinemez; o ana kadar sadece seçim durumu gösterilir
+  const knowsAttendance = attendanceKnown(performances.length);
+
+  function statusOf(userId: number, participantStatus: string) {
+    return classifyAttendance(
+      participantStatus,
+      selectedIds.has(userId),
+      knowsAttendance ? cameIds.has(userId) : false,
+    );
+  }
+
+  const attendingCounts = war.participants
+    .filter((p) => p.status === "ATTENDING")
+    .reduce((m, p) => {
+      const st = statusOf(p.user.id, "ATTENDING");
+      m.set(st, (m.get(st) ?? 0) + 1);
+      return m;
+    }, new Map<string, number>());
+
   const deadlinePassed = war.deadline ? new Date() > new Date(war.deadline) : false;
   const warDate = new Date(war.date);
   const overCap = war.maxParticipants && attending.length > war.maxParticipants;
@@ -225,6 +257,14 @@ export default function WarDetailPage() {
             </div>
             <span className={`text-[11px] font-mono font-semibold ${overCap ? "text-yellow-400" : "text-bdo-text-secondary"}`}>
               {attending.length}{war.maxParticipants ? ` / ${war.maxParticipants}` : ""}
+              {Array.from(attendingCounts.entries()).map(([st, n]) => {
+                const meta = ATTENDANCE_META[st as keyof typeof ATTENDANCE_META];
+                return (
+                  <span key={st} title={meta.label} className="ml-2 font-normal" style={{ color: meta.color }}>
+                    {meta.mark}{n}
+                  </span>
+                );
+              })}
             </span>
           </div>
           {overCap && (
@@ -253,14 +293,24 @@ export default function WarDetailPage() {
             <Empty text="Henüz katılan yok." />
           ) : (
             <div className="max-h-80 overflow-y-auto">
-              {attending.map((u) => (
-                <div key={u.id} className="card-row gap-2.5">
-                  <Avatar src={u.avatarUrl} size={22} />
-                  <span className="text-[13px] text-bdo-text-primary truncate flex-1">{u.familyName}</span>
-                  <GuildTag guild={u.guild} />
-                  <span className="text-[11px] font-mono font-semibold text-bdo-gold flex-shrink-0">{u.ap + u.dp}</span>
-                </div>
-              ))}
+              {attending.map((u) => {
+                const meta = ATTENDANCE_META[statusOf(u.id, "ATTENDING")];
+                return (
+                  <div key={u.id} className="card-row gap-2.5">
+                    <Avatar src={u.avatarUrl} size={22} />
+                    <span className="text-[13px] text-bdo-text-primary truncate flex-1">{u.familyName}</span>
+                    <span
+                      title={meta.label}
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
+                      style={{ color: meta.color, backgroundColor: meta.bg }}
+                    >
+                      {meta.mark} {meta.short}
+                    </span>
+                    <GuildTag guild={u.guild} />
+                    <span className="text-[11px] font-mono font-semibold text-bdo-gold flex-shrink-0">{u.ap + u.dp}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
