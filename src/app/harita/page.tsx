@@ -12,6 +12,7 @@ import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
 import { planRoute } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
 import { PipGuide, pipSupported } from "@/components/pip-guide";
+import { MiniMap } from "@/components/mini-map";
 
 // Leaflet yalnızca tarayıcıda çalışır
 const EdaniaMap = dynamic(() => import("@/components/edania-map"), {
@@ -481,7 +482,7 @@ export default function HaritaPage() {
       </div>
 
       {/* Oyun modu: her zaman üstte duran küçük rehber penceresi */}
-      <PipGuide open={pipOpen} onClose={() => setPipOpen(false)}>
+      <PipGuide open={pipOpen} onClose={() => setPipOpen(false)} width={340} height={620}>
         {(() => {
           const stops = route ?? [];
           if (stops.length === 0) {
@@ -512,6 +513,24 @@ export default function HaritaPage() {
                   {idx + 1} / {stops.length}
                 </span>
               </div>
+
+              <MiniMap
+                nx={stop.mapX}
+                ny={stop.mapY}
+                width={340}
+                height={170}
+                markers={[
+                  // Hedef durak ortada, halkalı
+                  { nx: stop.mapX, ny: stop.mapY, color: "#e0b040", ring: true, label: stop.title },
+                  // Yakındaki diğer duraklar yön duygusu versin
+                  ...stops
+                    .filter((sp) => sp.id !== stop.id)
+                    .map((sp) => ({
+                      nx: sp.nx, ny: sp.ny,
+                      color: sp.id === stops[idx + 1]?.id ? "#6b93ff" : "#4d5c73",
+                    })),
+                ]}
+              />
 
               <div style={{ flex: 1, overflow: "auto", background: "#080b10" }}>
                 {shots.length > 0 ? (
