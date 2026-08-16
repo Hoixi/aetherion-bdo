@@ -5,12 +5,13 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   MapPin, Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Route as RouteIcon, Search, RefreshCw,
+  Maximize2, Minimize2, Route as RouteIcon, Search, RefreshCw, PictureInPicture2,
 } from "lucide-react";
 import { PageHeader, Card, Loading, Button, Input } from "@/components/ui";
 import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
 import { planRoute } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
+import { PipGuide, pipSupported } from "@/components/pip-guide";
 
 // Leaflet yalnızca tarayıcıda çalışır
 const EdaniaMap = dynamic(() => import("@/components/edania-map"), {
@@ -49,6 +50,12 @@ export default function HaritaPage() {
   const [query, setQuery] = useState("");
   // Planlanan sıra id olarak tutulur; durak düşünce yeniden çözülmesin diye
   const [plannedIds, setPlannedIds] = useState<number[] | null>(null);
+  const [pipOpen, setPipOpen] = useState(false);
+  const [canPip, setCanPip] = useState(false);
+  // Oyun modunda kaçıncı durakta olduğumuz
+  const [stopIdx, setStopIdx] = useState(0);
+
+  useEffect(() => { setCanPip(pipSupported()); }, []);
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -348,6 +355,16 @@ export default function HaritaPage() {
                 >
                   Yeniden planla
                 </Button>
+                {canPip && (
+                  <Button
+                    variant={pipOpen ? "primary" : "ghost"}
+                    size="sm"
+                    icon={PictureInPicture2}
+                    onClick={() => { setStopIdx(0); setPipOpen((v) => !v); }}
+                  >
+                    {pipOpen ? "Oyun modu açık" : "Oyun modu"}
+                  </Button>
+                )}
               </>
             )}
             <Button
@@ -462,6 +479,86 @@ export default function HaritaPage() {
           )}
         </Card>
       </div>
+
+      {/* Oyun modu: her zaman üstte duran küçük rehber penceresi */}
+      <PipGuide open={pipOpen} onClose={() => setPipOpen(false)}>
+        {(() => {
+          const stops = route ?? [];
+          if (stops.length === 0) {
+            return (
+              <div style={{ padding: 16, color: "#7a8ba3", fontFamily: "sans-serif", fontSize: 13 }}>
+                Toplanacak durak kalmadı.
+              </div>
+            );
+          }
+          const idx = Math.min(stopIdx, stops.length - 1);
+          const stop = points.find((p) => p.id === stops[idx].id);
+          if (!stop) return null;
+          const shots = shotsOf(stop);
+          const meta = categoryMeta(stop.category);
+
+          return (
+            <div style={{
+              fontFamily: "sans-serif", color: "#dce4f2", background: "#0c0f15",
+              height: "100vh", display: "flex", flexDirection: "column",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 12px", borderBottom: "1px solid #1e2a3c",
+              }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: meta.color }} />
+                <strong style={{ fontSize: 13 }}>{stop.title}</strong>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "#7a8ba3" }}>
+                  {idx + 1} / {stops.length}
+                </span>
+              </div>
+
+              <div style={{ flex: 1, overflow: "auto", background: "#080b10" }}>
+                {shots.length > 0 ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={shots[0]} alt="" style={{ width: "100%", display: "block" }} />
+                ) : (
+                  <div style={{ padding: 16, fontSize: 12, color: "#4d5c73" }}>Konum görseli yok.</div>
+                )}
+                {stop.description && (
+                  <div style={{ padding: "6px 12px", fontSize: 11, color: "#7a8ba3" }}>
+                    {stop.description}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 6, padding: 10, borderTop: "1px solid #1e2a3c" }}>
+                <button
+                  onClick={() => setStopIdx((i) => Math.max(0, i - 1))}
+                  disabled={idx === 0}
+                  style={{
+                    padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                    border: "1px solid #1e2a3c", background: "#10151d",
+                    color: idx === 0 ? "#3d4a5c" : "#9fb0c9", fontSize: 12,
+                  }}
+                >‹</button>
+                <button
+                  onClick={() => { toggleDone(stop.id); /* durak listeden düşer, indeks yerinde kalır */ }}
+                  style={{
+                    flex: 1, padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                    border: "1px solid #e0b04055", background: "#e0b04022",
+                    color: "#e0b040", fontSize: 12, fontWeight: 700,
+                  }}
+                >✓ Topladım</button>
+                <button
+                  onClick={() => setStopIdx((i) => Math.min(stops.length - 1, i + 1))}
+                  disabled={idx >= stops.length - 1}
+                  style={{
+                    padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                    border: "1px solid #1e2a3c", background: "#10151d",
+                    color: idx >= stops.length - 1 ? "#3d4a5c" : "#9fb0c9", fontSize: 12,
+                  }}
+                >›</button>
+              </div>
+            </div>
+          );
+        })()}
+      </PipGuide>
 
       {lightbox && (
         <div
