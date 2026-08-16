@@ -30,6 +30,7 @@ export const BDO_CLASSES = [
   { id: "seraph", name: "Seraph", classType: 32, hasSuccession: false },
   { id: "dosa", name: "Dosa", classType: 33, hasSuccession: true },
   { id: "deadeye", name: "Deadeye", classType: 34, hasSuccession: false },
+  { id: "agent", name: "Agent", classType: 35, hasSuccession: false },
 ] as const;
 
 export type BdoClass = (typeof BDO_CLASSES)[number]["id"];
@@ -83,10 +84,11 @@ const CLASS_PORTRAIT_MAP: Record<string, string> = {
   seraph:      "seraph",
   dosa:        "dosa",
   deadeye:     "deadeye",
+  agent:       "agent",
 };
 
 // These classes only have a single portrait (no awak/succ split)
-const NO_VARIANT_PORTRAITS = new Set(["archer", "shai", "scholar", "deadeye", "wukong", "seraph"]);
+const NO_VARIANT_PORTRAITS = new Set(["archer", "shai", "scholar", "deadeye", "wukong", "seraph", "agent"]);
 
 /** Returns `/portrait/<filename>_awak.png` or `/portrait/<filename>.png` */
 export function getPortraitUrl(classId: string, spec: string): string {
