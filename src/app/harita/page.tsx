@@ -277,7 +277,7 @@ export default function HaritaPage() {
         </div>
       </Card>
 
-      <Card className={fullscreen ? "fixed top-3 left-3 right-3 z-50 p-3 shadow-2xl" : "p-3"}>
+      <Card className={fullscreen ? "fixed top-3 left-3 right-3 z-[1050] p-3 shadow-2xl" : "p-3"}>
         <div className="flex items-center gap-2 mb-2">
           <Input
             value={query}
@@ -382,7 +382,7 @@ export default function HaritaPage() {
         <Card className={
           fullscreen
             ? "fixed inset-0 z-40 rounded-none border-0 overflow-hidden p-0"
-            : "overflow-hidden p-0"
+            : "relative z-0 overflow-hidden p-0"
         }>
           <EdaniaMap
             markers={markers}
@@ -395,7 +395,7 @@ export default function HaritaPage() {
 
         <Card className={
           fullscreen
-            ? "fixed top-24 right-3 w-[300px] max-h-[calc(100vh-8rem)] overflow-y-auto z-50 p-4 shadow-2xl"
+            ? "fixed top-24 right-3 w-[300px] max-h-[calc(100vh-8rem)] overflow-y-auto z-[1050] p-4 shadow-2xl"
             : "p-4 h-fit lg:sticky lg:top-4"
         }>
           {sel ? (
@@ -465,7 +465,7 @@ export default function HaritaPage() {
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1100] bg-black/90 flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
           role="dialog"
           aria-modal="true"
