@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { BDO_CLASSES } from "@/lib/classes";
 import { useState, useRef, useEffect } from "react";
 import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
+import { displayOf, DISPLAY_META } from "@/lib/attendance";
 
 export interface UserPerfStats {
   wars: number;
@@ -25,13 +26,11 @@ export interface UserPerfStats {
 
 // ─── Attendance dot ───────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<AttendanceStatus, { icon: string; color: string; label: string }> = {
-  attending_not_selected:    { icon: "✓", color: "text-blue-400",   label: "Katıldı — seçilmedi" },
-  attending_selected_absent: { icon: "✕", color: "text-red-500",    label: "Seçildi — gelmedi" },
-  attending_selected_came:   { icon: "✓", color: "text-green-400",  label: "Seçildi — geldi" },
-  not_attending:             { icon: "○", color: "text-orange-400/60", label: "Katılmadı / cevap yok" },
-  not_attending_came:        { icon: "✓", color: "text-orange-400", label: "Katılmadı — yine de geldi" },
-};
+/** Beş durum üç gösterime indirgenir; hiç katılmayan işaretsiz kalır */
+function markOf(status: AttendanceStatus) {
+  const d = displayOf(status);
+  return d ? DISPLAY_META[d] : null;
+}
 
 function AttendanceDots({ userId, history }: { userId: number; history: WarAttendanceSummary[] }) {
   if (history.length === 0) return null;
@@ -45,12 +44,20 @@ function AttendanceDots({ userId, history }: { userId: number; history: WarAtten
               className="text-[9px] leading-none text-bdo-border">·</span>
           );
         }
-        const cfg = STATUS_CONFIG[status];
+        const cfg = markOf(status);
+        const when = new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+        // Hiç katılmayan için işaret yok — nokta ile yer tutulur
+        if (!cfg) {
+          return (
+            <span key={war.warId} title={`${when} — Katılmadı`}
+              className="text-[9px] leading-none text-bdo-border">·</span>
+          );
+        }
         return (
           <span key={war.warId}
-            title={`${new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} — ${cfg.label}`}
-            className={`text-[9px] leading-none font-bold ${cfg.color}`}>
-            {cfg.icon}
+            title={`${when} — ${cfg.label}`}
+            className={`text-[9px] leading-none font-bold ${cfg.tw}`}>
+            {cfg.mark}
           </span>
         );
       })}

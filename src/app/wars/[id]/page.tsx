@@ -398,11 +398,9 @@ export default function WarDetailPage() {
             <div className="card px-3 py-2 mb-3">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-bdo-text-secondary items-center">
                 <span className="font-semibold text-bdo-text-muted">Son {attendanceHistory.length} savaş:</span>
-                <span><span className="text-emerald-400 font-bold">✓</span> katıldı + geldi</span>
+                <span><span className="text-[#6b93ff] font-bold">✓</span> başvurdu, seçilmedi</span>
                 <span><span className="text-red-400 font-bold">✕</span> seçildi, gelmedi</span>
-                <span><span className="text-[#6b93ff] font-bold">✓</span> katıldı, seçilmedi</span>
-                <span><span className="text-orange-400/60 font-bold">○</span> katılmadı</span>
-                <span><span className="text-orange-400 font-bold">✓</span> katılmadı ama geldi</span>
+                <span><span className="text-emerald-400 font-bold">✓</span> savaşa geldi</span>
               </div>
             </div>
           )}

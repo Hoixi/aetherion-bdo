@@ -60,3 +60,38 @@ export const ATTENDANCE_META: Record<
 export function attendanceKnown(performanceCount: number): boolean {
   return performanceCount > 0;
 }
+
+/**
+ * Gösterimde yalnızca üç durum var. Alttaki beş durum korunuyor —
+ * veri kaybetmeden sadeleştirmek için, çünkü "katılmadı ama geldi"
+ * sonuçta gelmiştir; hiç katılmayanın ise işareti olmaz.
+ */
+export type AttendanceDisplay = "not_selected" | "absent" | "came";
+
+export function displayOf(status: AttendanceStatus): AttendanceDisplay | null {
+  switch (status) {
+    case "attending_not_selected":    return "not_selected";
+    case "attending_selected_absent": return "absent";
+    case "attending_selected_came":   return "came";
+    case "not_attending_came":        return "came";
+    case "not_attending":             return null;
+  }
+}
+
+export const DISPLAY_META: Record<
+  AttendanceDisplay,
+  { label: string; short: string; mark: string; color: string; bg: string; tw: string }
+> = {
+  not_selected: {
+    label: "Başvurdu, seçilmedi", short: "Seçilmedi", mark: "✓",
+    color: "#6b93ff", bg: "rgba(107,147,255,.12)", tw: "text-blue-400",
+  },
+  absent: {
+    label: "Seçildi, gelmedi", short: "Gelmedi", mark: "✕",
+    color: "#e05252", bg: "rgba(224,82,82,.12)", tw: "text-red-500",
+  },
+  came: {
+    label: "Savaşa geldi", short: "Geldi", mark: "✓",
+    color: "#2bca6e", bg: "rgba(43,202,110,.12)", tw: "text-green-400",
+  },
+};
