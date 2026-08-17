@@ -4,13 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   BarChart3, Sparkles, Check, Shield, Users, Swords, Skull,
-  Castle, TrendingDown, TrendingUp, Loader2,
+  Castle, TrendingDown, TrendingUp, Loader2, AlertTriangle, Target, Lightbulb,
 } from "lucide-react";
 import { PageHeader, Card, CardHeader, Empty, Loading, Button } from "@/components/ui";
 import { getClassByID, getClassIconUrl } from "@/lib/classes";
 import { METRIC_WEIGHTS, METRIC_KEYS, type PlayerAnalysis } from "@/lib/war-analysis";
 
 type WarRow = { id: number; title: string; type: string; date: string; result: string | null };
+
+type AiReport = {
+  headline: string;
+  teamStrengths: string[];
+  teamWeaknesses: string[];
+  standouts: { name: string; reason: string }[];
+  concerns: { name: string; issue: string; suggestion: string; severity: "high" | "medium" | "low"; lowSample: boolean }[];
+  classNotes: { className: string; verdict: string; roleExpected: boolean }[];
+  actions: { title: string; detail: string }[];
+};
 
 type AnalysisData = {
   wars: WarRow[];
@@ -62,7 +72,8 @@ export default function AnalizPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const [aiText, setAiText] = useState<string | null>(null);
+  const [ai, setAi] = useState<AiReport | null>(null);
+  const [aiErr, setAiErr] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [focus, setFocus] = useState("");
 
@@ -81,7 +92,8 @@ export default function AnalizPage() {
     if (picked.size === 0) return;
     setRunning(true);
     setError(null);
-    setAiText(null);
+    setAi(null);
+    setAiErr(null);
     const qs = new URLSearchParams({ wars: Array.from(picked).join(",") });
     if (!excludeDefense) qs.set("defense", "include");
     const res = await fetch("/api/analiz?" + qs);
@@ -94,15 +106,23 @@ export default function AnalizPage() {
   async function askAi() {
     if (!data) return;
     setAiBusy(true);
-    setAiText(null);
+    setAi(null);
+    setAiErr(null);
     const res = await fetch("/api/analiz/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ players: data.players, wars: data.wars, focus: focus.trim() || undefined }),
     });
     const json = await res.json().catch(() => ({}));
-    setAiText(res.ok ? json.text : (json.error ?? "AI analizi başarısız."));
+    if (res.ok) setAi(json as AiReport);
+    else setAiErr(json.error ?? "AI analizi başarısız.");
     setAiBusy(false);
+  }
+
+  /** AI bir isimden bahsedince listedeki oyuncuya bağla */
+  function focusPlayer(name: string) {
+    const p = data?.players.find((x) => x.name.toLowerCase() === name.toLowerCase());
+    if (p) setSelected(p.userId != null ? "u" + p.userId : "n" + p.name);
   }
 
   const sel = useMemo(
@@ -380,10 +400,164 @@ export default function AnalizPage() {
               </Button>
             </div>
 
-            {aiText && (
-              <div className="text-[13px] text-bdo-text-muted leading-relaxed whitespace-pre-wrap
-                              bg-bdo-bg rounded-lg p-3 border border-bdo-border max-h-[520px] overflow-y-auto">
-                {aiText}
+            {aiErr && <p className="text-[12px] text-red-400">{aiErr}</p>}
+
+            {ai && (
+              <div className="space-y-3">
+                {/* Manşet */}
+                <div className="bg-bdo-bg rounded-lg p-3 border border-bdo-border">
+                  <p className="text-[14px] text-bdo-text-primary leading-snug">{ai.headline}</p>
+                </div>
+
+                {/* Güçlü / zayıf yönler */}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {[
+                    { title: "Güçlü Yönler", items: ai.teamStrengths, color: "#2bca6e", Icon: TrendingUp },
+                    { title: "Zayıf Yönler", items: ai.teamWeaknesses, color: "#e05252", Icon: TrendingDown },
+                  ].map((box) => (
+                    <div key={box.title} className="bg-bdo-bg rounded-lg p-3 border border-bdo-border">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <box.Icon className="w-3.5 h-3.5" strokeWidth={2} style={{ color: box.color }} />
+                        <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
+                          {box.title}
+                        </span>
+                      </div>
+                      <ul className="space-y-1">
+                        {box.items.map((t, i) => (
+                          <li key={i} className="flex gap-1.5 text-[12px] text-bdo-text-muted leading-snug">
+                            <span style={{ color: box.color }}>•</span>
+                            <span>{t}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Öne çıkanlar */}
+                {ai.standouts.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
+                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
+                        Öne Çıkanlar
+                      </span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {ai.standouts.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => focusPlayer(s.name)}
+                          className="text-left bg-bdo-bg rounded-lg p-2.5 border border-emerald-500/20
+                                     hover:border-emerald-500/45 transition-colors"
+                        >
+                          <div className="text-[13px] font-semibold text-emerald-400 mb-0.5">{s.name}</div>
+                          <div className="text-[11px] text-bdo-text-muted leading-snug">{s.reason}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dikkat gerektirenler */}
+                {ai.concerns.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-orange-400" strokeWidth={2} />
+                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
+                        Dikkat Gerektirenler
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {ai.concerns.map((c, i) => {
+                        const tone = c.severity === "high" ? "#e05252"
+                          : c.severity === "medium" ? "#e09832" : "#7a8ba3";
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => focusPlayer(c.name)}
+                            className="w-full text-left bg-bdo-bg rounded-lg p-2.5 border transition-colors
+                                       hover:border-bdo-border-2"
+                            style={{ borderColor: tone + "33" }}
+                          >
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: tone }} />
+                              <span className="text-[13px] font-semibold text-bdo-text-primary">{c.name}</span>
+                              {c.lowSample && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-400/10 text-orange-400/90"
+                                      title="Örneklem küçük, kesin yargı için yeterli değil">
+                                  az savaş
+                                </span>
+                              )}
+                              <span className="text-[11px] text-bdo-text-secondary">{c.issue}</span>
+                            </div>
+                            <div className="flex gap-1.5 text-[11px] text-bdo-text-muted leading-snug pl-3.5">
+                              <Lightbulb className="w-3 h-3 text-bdo-gold/70 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                              <span>{c.suggestion}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Class notları */}
+                {ai.classNotes.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Swords className="w-3.5 h-3.5 text-bdo-text-secondary" strokeWidth={2} />
+                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
+                        Class Değerlendirmesi
+                      </span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {ai.classNotes.map((c, i) => (
+                        <div key={i} className="bg-bdo-bg rounded-lg p-2.5 border border-bdo-border">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[12px] font-semibold text-bdo-text-primary">
+                              {c.className}
+                            </span>
+                            {c.roleExpected && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-bdo-surface-2 text-bdo-text-secondary"
+                                    title="Düşük puan class'ın rolünden kaynaklanıyor, oyuncudan değil">
+                                rol gereği
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-bdo-text-muted leading-snug">{c.verdict}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Adımlar */}
+                {ai.actions.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Target className="w-3.5 h-3.5 text-bdo-gold" strokeWidth={2} />
+                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
+                        Somut Adımlar
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {ai.actions.map((a, i) => (
+                        <div key={i} className="flex gap-2.5 bg-bdo-bg rounded-lg p-2.5 border border-bdo-border">
+                          <span className="w-5 h-5 rounded-full bg-bdo-gold/12 text-bdo-gold text-[11px]
+                                           font-bold grid place-items-center flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-[12px] font-semibold text-bdo-text-primary">{a.title}</div>
+                            <div className="text-[11px] text-bdo-text-muted leading-snug">{a.detail}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </Card>

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 import { getGuildScope } from "@/lib/guild-scope";
 import { getClassByID } from "@/lib/classes";
 import { METRIC_WEIGHTS, METRIC_KEYS, type PlayerAnalysis } from "@/lib/war-analysis";
@@ -10,10 +10,77 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 /**
  * Analiz sonucunu yorumlar.
  *
- * Sayıları modele yeniden hesaplatmıyoruz — dilimler ve puanlar zaten
- * hesaplanmış halde gidiyor, modelden istenen tek şey yorum. Böylece
- * aritmetik hatası yapamaz, sadece çıkarım üretir.
+ * Serbest metin yerine şema dayatıyoruz — çıktı doğrudan arayüzde
+ * kart olarak çizilebilsin diye. Sayılar da modele hesaplanmış halde
+ * gidiyor; ondan istenen tek şey yorum, aritmetik değil.
  */
+const schema: Schema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    headline: { type: SchemaType.STRING, description: "Tek cümlelik genel durum" },
+    teamStrengths: {
+      type: SchemaType.ARRAY, description: "Klanın güçlü olduğu 2-4 konu, kısa",
+      items: { type: SchemaType.STRING },
+    },
+    teamWeaknesses: {
+      type: SchemaType.ARRAY, description: "Klanın zayıf olduğu 2-4 konu, kısa",
+      items: { type: SchemaType.STRING },
+    },
+    standouts: {
+      type: SchemaType.ARRAY, description: "Öne çıkan 3-5 oyuncu",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          name: { type: SchemaType.STRING },
+          reason: { type: SchemaType.STRING, description: "Tek cümle, neden öne çıkıyor" },
+        },
+        required: ["name", "reason"],
+      },
+    },
+    concerns: {
+      type: SchemaType.ARRAY, description: "Düşük performanslı oyuncular, en fazla 8",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          name: { type: SchemaType.STRING },
+          issue: { type: SchemaType.STRING, description: "Hangi metrikte geri kalıyor" },
+          suggestion: { type: SchemaType.STRING, description: "Somut, çözüm odaklı öneri" },
+          severity: { type: SchemaType.STRING, enum: ["high", "medium", "low"], format: "enum" },
+          lowSample: { type: SchemaType.BOOLEAN, description: "Savaş sayısı 2 veya altıysa true" },
+        },
+        required: ["name", "issue", "suggestion", "severity", "lowSample"],
+      },
+    },
+    classNotes: {
+      type: SchemaType.ARRAY, description: "Class bazlı değerlendirme, en fazla 6",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          className: { type: SchemaType.STRING },
+          verdict: { type: SchemaType.STRING, description: "Tek cümle değerlendirme" },
+          roleExpected: {
+            type: SchemaType.BOOLEAN,
+            description: "Düşük puan class'ın doğasından kaynaklanıyorsa true, oyuncudan kaynaklanıyorsa false",
+          },
+        },
+        required: ["className", "verdict", "roleExpected"],
+      },
+    },
+    actions: {
+      type: SchemaType.ARRAY, description: "3-5 uygulanabilir adım, önemli olan önce",
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING, description: "Kısa başlık" },
+          detail: { type: SchemaType.STRING, description: "Tek cümle açıklama" },
+        },
+        required: ["title", "detail"],
+      },
+    },
+  },
+  required: ["headline", "teamStrengths", "teamWeaknesses", "standouts", "concerns", "classNotes", "actions"],
+};
+
 export async function POST(req: NextRequest) {
   const scope = await getGuildScope();
   if (!scope?.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -33,7 +100,7 @@ export async function POST(req: NextRequest) {
     .map((k) => `${METRIC_WEIGHTS[k].label} (ağırlık ${METRIC_WEIGHTS[k].weight})`)
     .join(", ");
 
-  // Modele sadece gereken alanlar — bağlam şişmesin
+  // Yalnızca gereken alanlar — bağlam şişmesin
   const table = players.slice(0, 60).map((p) => {
     const cls = getClassByID(p.class)?.name ?? p.class ?? "?";
     const dims = METRIC_KEYS.map((k) => `${METRIC_WEIGHTS[k].label}:${Math.round(p.metrics[k].pct)}`).join(" ");
@@ -53,22 +120,23 @@ ${wars.map((w) => `- ${w.title} (${new Date(w.date).toLocaleDateString("tr-TR")}
 
 OYUNCULAR:
 ${table}
-
-${focus ? `Yöneticinin özel sorusu: ${focus}\n` : ""}
-Şunları yaz, Türkçe, madde madde, gereksiz övgü yok:
-
-1. GENEL DURUM — 2-3 cümle. Klan neyde iyi, neyde zayıf.
-2. ÖNE ÇIKANLAR — en iyi 3-5 oyuncu, neden.
-3. DÜŞÜK PERFORMANS — dilimi düşük oyuncular. Her biri için hangi metrikte geri kaldığını ve olası sebebini yaz. Suçlayıcı değil, çözüm odaklı ol.
-4. CLASS DEĞERLENDİRMESİ — hangi classlar beklenenin altında? Bir oyuncunun düşük puanı class'ın doğasından mı (tank az hasar basar) yoksa oyuncudan mı kaynaklanıyor, ayır. Class değişikliği önerecekssen sadece güçlü gerekçe varsa öner.
-5. SOMUT ADIMLAR — 3-5 uygulanabilir madde.
-
-ÖNEMLİ: Az savaşa katılmış oyuncular için (savaş sayısı 1-2) kesin yargı verme, örneklem küçük olduğunu belirt. Destek ve kale hasarı metriklerinde sıfır olması her zaman kötü değildir, rol gereği olabilir.`;
+${focus ? `\nYöneticinin özel sorusu, cevabını headline ve actions içine yedir: ${focus}\n` : ""}
+Kurallar:
+- Türkçe yaz, kısa ve net cümleler kur, gereksiz övgü yapma.
+- Savaş sayısı 1-2 olan oyuncular için lowSample=true ver ve kesin yargı kurma.
+- Destek ve kale hasarında sıfır her zaman kötü değildir; rol gereği olabilir, bunu ayırt et.
+- Bir class'ın düşük puanı doğasından kaynaklanıyorsa (tank az hasar basar) roleExpected=true ver.
+- Class değişikliği önerisini sadece güçlü gerekçe varsa yap.
+- İsimleri listedeki haliyle yaz, uydurma.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json", responseSchema: schema },
+    });
     const result = await model.generateContent(prompt);
-    return NextResponse.json({ text: result.response.text() });
+    const parsed = JSON.parse(result.response.text());
+    return NextResponse.json(parsed);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "bilinmeyen hata";
     return NextResponse.json({ error: "AI analizi başarısız: " + msg }, { status: 502 });
