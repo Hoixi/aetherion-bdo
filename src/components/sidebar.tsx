@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationBell } from "./notification-bell";
 import {
   LayoutGrid, Users, Zap, MessageSquare, ListOrdered, BarChart3,
-  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake, CalendarDays, MapPin } from "lucide-react";
+  Sparkles, Globe2, User, Settings, LogOut, Swords, Handshake, CalendarDays, MapPin, LineChart } from "lucide-react";
 
 const navGroups = [
   {
@@ -16,6 +16,7 @@ const navGroups = [
       { href: "/wars", label: "Savaşlar", icon: Swords },
       { href: "/members", label: "Üyeler", icon: Users },
       { href: "/hasar-raporu", label: "Hasar Raporu", icon: BarChart3 },
+      { href: "/analiz", label: "Savaş Analizi", icon: LineChart },
       { href: "/etkinlikler", label: "Etkinlikler", icon: Zap },
       { href: "/calendar", label: "Takvim", icon: CalendarDays },
       { href: "/ally", label: "Ally", icon: Handshake },
