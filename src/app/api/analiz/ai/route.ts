@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 import { getGuildScope } from "@/lib/guild-scope";
 import { getClassByID } from "@/lib/classes";
-import { METRIC_WEIGHTS, METRIC_KEYS, type PlayerAnalysis } from "@/lib/war-analysis";
+import { METRIC_WEIGHTS, METRIC_KEYS, ROLE_LABEL, type PlayerAnalysis } from "@/lib/war-analysis";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -43,7 +43,8 @@ const schema: Schema = {
         type: SchemaType.OBJECT,
         properties: {
           name: { type: SchemaType.STRING },
-          issue: { type: SchemaType.STRING, description: "Hangi metrikte geri kalıyor" },
+          role: { type: SchemaType.STRING, description: "Oyuncunun rolü: Savunma, Main veya Flank" },
+          issue: { type: SchemaType.STRING, description: "Kendi rolü içinde hangi metrikte geri kalıyor" },
           suggestion: { type: SchemaType.STRING, description: "Somut, çözüm odaklı öneri" },
           severity: { type: SchemaType.STRING, enum: ["high", "medium", "low"], format: "enum" },
           lowSample: { type: SchemaType.BOOLEAN, description: "Savaş sayısı 2 veya altıysa true" },
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
     const cls = getClassByID(p.class)?.name ?? p.class ?? "?";
     const dims = METRIC_KEYS.map((k) => `${METRIC_WEIGHTS[k].label}:${Math.round(p.metrics[k].pct)}`).join(" ");
     const rank = p.classRank ? ` [${cls} içinde ${p.classRank.rank}/${p.classRank.of}]` : "";
-    return `${p.name} (${cls}${p.spec ? "/" + p.spec : ""}${p.guildTag ? ", " + p.guildTag : ""}) ` +
+    return `${p.name} [${ROLE_LABEL[p.role]}] (${cls}${p.spec ? "/" + p.spec : ""}${p.guildTag ? ", " + p.guildTag : ""}) ` +
       `puan:${p.rating} savaş:${p.wars} ${dims}${rank}`;
   }).join("\n");
 
@@ -121,6 +122,24 @@ ${wars.map((w) => `- ${w.title} (${new Date(w.date).toLocaleDateString("tr-TR")}
 OYUNCULAR:
 ${table}
 ${focus ? `\nYöneticinin özel sorusu, cevabını headline ve actions içine yedir: ${focus}\n` : ""}
+ROLLER — her oyuncunun adının yanında köşeli parantez içinde yazıyor. Dilimler zaten
+KENDİ ROLÜ İÇİNDE hesaplandı, yani bir savunmacının hasar dilimi diğer savunmacılara
+göredir, saldırıya göre değil. Buna rağmen yorum yaparken rolü mutlaka gözet:
+
+- Savunma: Görevi bölgeyi tutmak. Az hasar ve az ölüm BEKLENEN durumdur, başarı değil.
+  "Az hasar vermiş ama ölmemiş, iyi" DEME — savunmacı zaten öyle oynar. Savunmacıyı
+  bölgeyi tutup tutmadığı, CC ve dayanıklılık üzerinden değerlendir. Kale hasarının
+  sıfır olması savunmacı için tamamen normaldir, asla eksiklik sayma.
+
+- Flank: Az kişiyle riskli hedefe gider. Ölümünün yüksek olması BEKLENENDİR, zayıflık
+  değil. "Çok ölmüş" DEME. Flank'ı yarattığı baskı, kill ve CC üzerinden değerlendir.
+  Toplam hasarının main'den düşük olması normaldir, sayıca az oldukları içindir.
+
+- Main: Asıl vuruş gücü. Hasar, kale hasarı ve hayatta kalma dengesi burada anlamlıdır.
+
+Bir oyuncuyu asla başka rolün ölçütüyle yargılama. Rolü gereği olan bir durumu
+concerns içine koyma; oraya yalnızca kendi rolünün içinde geride kalanlar girsin.
+
 Kurallar:
 - Türkçe yaz, kısa ve net cümleler kur, gereksiz övgü yapma.
 - Savaş sayısı 1-2 olan oyuncular için lowSample=true ver ve kesin yargı kurma.

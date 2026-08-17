@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGuildScope } from "@/lib/guild-scope";
-import { analyzeWars, classAverages, type RawPerf } from "@/lib/war-analysis";
+import { analyzeWars, classAverages, type RawPerf, type PartyRole } from "@/lib/war-analysis";
 
 /**
  * Seçilen savaşların analizi.
@@ -49,21 +49,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Seçilen savaşlarda rapor yok." }, { status: 404 });
   }
 
-  // warId+userId çifti — aynı kişi bir savaşta savunmada, başkasında saldırıda olabilir
-  const defenders = new Set<string>();
-  if (excludeDefense) {
-    const defParties = await prisma.party.findMany({
-      where: { warId: { in: warIds }, isDefense: true },
-      select: { warId: true, members: { select: { userId: true } } },
-    });
-    for (const party of defParties) {
-      for (const m of party.members) defenders.add(party.warId + ":" + m.userId);
-    }
+  // Rol, warId+userId çiftine bağlı — aynı kişi bir savaşta savunmada,
+  // başkasında saldırıda olabilir
+  const allParties = await prisma.party.findMany({
+    where: { warId: { in: warIds } },
+    select: { warId: true, name: true, isDefense: true, members: { select: { userId: true } } },
+  });
+
+  const roleOf = new Map<string, PartyRole>();
+  for (const party of allParties) {
+    // FLANK şemada yok; parti adından okunur, alan eklenince buradan kalkacak
+    const role: PartyRole = party.isDefense
+      ? "DEFENSE"
+      : /flank|kanat/i.test(party.name) ? "FLANK" : "MAIN";
+    for (const m of party.members) roleOf.set(party.warId + ":" + m.userId, role);
   }
 
-  const usable = perfs.filter(
-    (p) => p.userId == null || !defenders.has(p.warId + ":" + p.userId),
-  );
+  const usable = excludeDefense
+    ? perfs.filter((p) => p.userId == null || roleOf.get(p.warId + ":" + p.userId) !== "DEFENSE")
+    : perfs;
   const excludedCount = perfs.length - usable.length;
 
   // Klan etiketi ve class boşsa kullanıcının güncel class'ına düş
@@ -71,7 +75,9 @@ export async function GET(req: NextRequest) {
   const raw: RawPerf[] = usable.map((p) => {
     if (p.userId != null) meta.set(p.userId, { guildTag: p.user?.guild?.tag ?? null });
     return {
-      warId: p.warId, userId: p.userId, inGameName: p.inGameName,
+      warId: p.warId,
+      role: (p.userId != null ? roleOf.get(p.warId + ":" + p.userId) : undefined) ?? "MAIN",
+      userId: p.userId, inGameName: p.inGameName,
       class: p.class || p.user?.class || "", spec: p.spec,
       kills: p.kills, deaths: p.deaths, killStreak: p.killStreak,
       damageDealt: p.damageDealt, damageTaken: p.damageTaken, ccCount: p.ccCount,
@@ -91,5 +97,10 @@ export async function GET(req: NextRequest) {
     deaths: raw.reduce((s, p) => s + p.deaths, 0),
   };
 
-  return NextResponse.json({ wars, players, classAvg, totals, excludedCount });
+  const roleCounts = players.reduce((m, p) => {
+    m[p.role] = (m[p.role] ?? 0) + 1;
+    return m;
+  }, {} as Record<string, number>);
+
+  return NextResponse.json({ wars, players, classAvg, totals, excludedCount, roleCounts });
 }

@@ -8,8 +8,16 @@
  * katsayı ayarı gerektirmeden 0–100 aralığına oturur.
  */
 
+/** Parti rolü — FLANK şemaya eklenince kendiliğinden devreye girer */
+export type PartyRole = "DEFENSE" | "MAIN" | "FLANK";
+
+export const ROLE_LABEL: Record<PartyRole, string> = {
+  DEFENSE: "Savunma", MAIN: "Main", FLANK: "Flank",
+};
+
 export type RawPerf = {
   warId: number;
+  role: PartyRole;
   userId: number | null;
   inGameName: string;
   class: string;
@@ -75,6 +83,8 @@ export type PlayerMetric = {
 export type PlayerAnalysis = {
   userId: number | null;
   name: string;
+  /** Ağırlıklı olarak oynadığı rol */
+  role: PartyRole;
   class: string;
   spec: string;
   guildTag: string | null;
@@ -100,22 +110,45 @@ export function analyzeWars(
 ): PlayerAnalysis[] {
   if (perfs.length === 0) return [];
 
-  // Savaş bazında metrik dağılımları — yüzdelik dilim bunlardan çıkar
-  const byWar = new Map<number, RawPerf[]>();
+  /**
+   * Dilim, savaşın *ve rolün* içinde hesaplanır.
+   *
+   * Savunmacıyı saldırıyla aynı havuzda ölçmek yanlış sonuç verir: az hasar
+   * basar, az ölür, kaleye hiç vurmaz. Flank da öyle — az kişiyle riskli
+   * hedefe gider, ölümü yüksektir. Her rol kendi içinde kıyaslanır.
+   *
+   * Rol havuzu tek kişiyse dilim anlamsız olur; o durumda savaşın tamamına
+   * düşülür, çünkü yanlış bir kıyas hiç kıyas yapmamaktan kötüdür.
+   */
+  const poolKey = (p: RawPerf) => p.warId + "|" + p.role;
+  const byPool = new Map<string, RawPerf[]>();
+  const byWarOnly = new Map<number, RawPerf[]>();
   for (const p of perfs) {
-    const list = byWar.get(p.warId);
-    if (list) list.push(p);
-    else byWar.set(p.warId, [p]);
+    const k = poolKey(p);
+    const a = byPool.get(k); if (a) a.push(p); else byPool.set(k, [p]);
+    const b = byWarOnly.get(p.warId); if (b) b.push(p); else byWarOnly.set(p.warId, [p]);
   }
 
-  const sortedPerWar = new Map<number, Record<MetricKey, number[]>>();
-  byWar.forEach((list, warId) => {
+  const MIN_POOL = 3;
+  function columnsFor(list: RawPerf[]): Record<MetricKey, number[]> {
     const cols = {} as Record<MetricKey, number[]>;
     for (const key of METRIC_KEYS) {
       cols[key] = list.map((p) => valueOf(p, key)).sort((a, b) => a - b);
     }
-    sortedPerWar.set(warId, cols);
-  });
+    return cols;
+  }
+
+  const sortedPool = new Map<string, Record<MetricKey, number[]>>();
+  byPool.forEach((list, k) => sortedPool.set(k, columnsFor(list)));
+  const sortedWar = new Map<number, Record<MetricKey, number[]>>();
+  byWarOnly.forEach((list, w) => sortedWar.set(w, columnsFor(list)));
+
+  const colsFor = (p: RawPerf) => {
+    const pool = byPool.get(poolKey(p));
+    return pool && pool.length >= MIN_POOL
+      ? sortedPool.get(poolKey(p))!
+      : sortedWar.get(p.warId)!;
+  };
 
   // Oyuncu bazında topla — userId yoksa isimle grupla
   const keyOf = (p: RawPerf) => (p.userId != null ? "u" + p.userId : "n" + p.inGameName.toLowerCase());
@@ -137,7 +170,7 @@ export function analyzeWars(
       let pctSum = 0;
       let total = 0;
       for (const p of list) {
-        const cols = sortedPerWar.get(p.warId)!;
+        const cols = colsFor(p);
         const v = valueOf(p, key);
         const raw = percentile(cols[key], v);
         // Ölüm gibi az olması iyi olan metriklerde dilim ters çevrilir
@@ -156,9 +189,15 @@ export function analyzeWars(
       0,
     );
 
+    // Baskın rol — en çok hangi rolde oynadıysa
+    const roleCount = new Map<PartyRole, number>();
+    for (const p of list) roleCount.set(p.role, (roleCount.get(p.role) ?? 0) + 1);
+    const role = Array.from(roleCount.entries()).sort((a, b) => b[1] - a[1])[0][0];
+
     players.push({
       userId: last.userId,
       name: last.inGameName,
+      role,
       class: last.class,
       spec: last.spec,
       guildTag: last.userId != null ? meta.get(last.userId)?.guildTag ?? null : null,

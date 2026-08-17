@@ -17,7 +17,7 @@ type AiReport = {
   teamStrengths: string[];
   teamWeaknesses: string[];
   standouts: { name: string; reason: string }[];
-  concerns: { name: string; issue: string; suggestion: string; severity: "high" | "medium" | "low"; lowSample: boolean }[];
+  concerns: { name: string; role?: string; issue: string; suggestion: string; severity: "high" | "medium" | "low"; lowSample: boolean }[];
   classNotes: { className: string; verdict: string; roleExpected: boolean }[];
   actions: { title: string; detail: string }[];
 };
@@ -484,6 +484,11 @@ export default function AnalizPage() {
                               <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                     style={{ backgroundColor: tone }} />
                               <span className="text-[13px] font-semibold text-bdo-text-primary">{c.name}</span>
+                              {c.role && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-bdo-surface-2 text-bdo-text-secondary">
+                                  {c.role}
+                                </span>
+                              )}
                               {c.lowSample && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-400/10 text-orange-400/90"
                                       title="Örneklem küçük, kesin yargı için yeterli değil">
