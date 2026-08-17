@@ -12,17 +12,32 @@ export async function PUT(req: Request, { params }: { params: { id: string; part
   const partyId = Number(params.partyId);
   const warId = Number(params.id);
 
-  // Enforce max 1 defense party per war
-  if (body.isDefense === true) {
+  const ROLES = ["MAIN", "DEFENSE", "FLANK"];
+  // role verilmezse eski isDefense çağrılarından türetilir
+  const nextRole: string | undefined =
+    body.role !== undefined ? String(body.role)
+      : body.isDefense !== undefined ? (body.isDefense ? "DEFENSE" : "MAIN")
+      : undefined;
+
+  if (nextRole !== undefined && !ROLES.includes(nextRole)) {
+    return NextResponse.json({ error: "Geçersiz rol." }, { status: 400 });
+  }
+
+  // Savaş başına tek savunma partisi — flank için sınır yok, birden çok olabilir
+  if (nextRole === "DEFENSE") {
     const existing = await prisma.party.findFirst({
-      where: { warId, isDefense: true, id: { not: partyId } },
+      where: { warId, role: "DEFENSE", id: { not: partyId } },
     });
     if (existing) return NextResponse.json({ error: "Zaten bir defans partisi var" }, { status: 400 });
   }
 
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = body.name;
-  if (body.isDefense !== undefined) data.isDefense = body.isDefense;
+  if (nextRole !== undefined) {
+    data.role = nextRole;
+    // isDefense senkron kalsın — eski sorgular hâlâ onu okuyor
+    data.isDefense = nextRole === "DEFENSE";
+  }
 
   const party = await prisma.party.update({ where: { id: partyId }, data });
   return NextResponse.json(party);

@@ -292,6 +292,9 @@ model Party {
   warId     Int
   name      String
   order     Int     @default(0)
+  /** Analizde rol içi kıyas için — savunma ve flank main ile aynı ölçüye vurulamaz */
+  role      String  @default("MAIN")  // MAIN | DEFENSE | FLANK
+  /** role ile senkron tutulur; eski kod bunu okuyor */
   isDefense Boolean @default(false)
 
   war     War           @relation(fields: [warId], references: [id], onDelete: Cascade)

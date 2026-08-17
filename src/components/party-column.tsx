@@ -6,27 +6,39 @@ import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
 import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 
+
+/** Parti rolleri — analizde her rol kendi içinde kıyaslanır */
+const ROLES = [
+  { key: "MAIN",    label: "Main",     mark: "⚔",  tone: "#e0b040" },
+  { key: "DEFENSE", label: "Savunma",  mark: "⛨",  tone: "#6b93ff" },
+  { key: "FLANK",   label: "Flank",    mark: "↱",  tone: "#b98cff" },
+] as const;
+
 interface PartyColumnProps {
   party: {
     id: number;
     name: string;
     isDefense: boolean;
+    role?: string;
     members: { id: number; userId: number; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null } }[];
   };
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
-  onToggleDefense: (partyId: number, isDefense: boolean) => Promise<{ error?: string }>;
+  onSetRole: (partyId: number, role: string) => Promise<{ error?: string }>;
   memberStats?: Record<number, UserPerfStats>;
   attendanceHistory?: WarAttendanceSummary[];
 }
 
-export function PartyColumn({ party, onRename, onDelete, onToggleDefense, memberStats, attendanceHistory }: PartyColumnProps) {
+export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats, attendanceHistory }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
   const [defenseErr, setDefenseErr] = useState<string | null>(null);
   const { setNodeRef, isOver } = useDroppable({ id: `party-${party.id}` });
 
   const memberIds = party.members.map((m) => `member-${m.userId}`);
+
+  const role = party.role ?? (party.isDefense ? "DEFENSE" : "MAIN");
+  const roleMeta = ROLES.find((r) => r.key === role) ?? ROLES[0];
 
   const count = party.members.length;
   const avgAp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.ap, 0) / count) : 0;
@@ -50,9 +62,9 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
     if (name !== party.name) onRename(party.id, name);
   }
 
-  async function handleDefenseToggle() {
+  async function handleSetRole(next: string) {
     setDefenseErr(null);
-    const result = await onToggleDefense(party.id, !party.isDefense);
+    const result = await onSetRole(party.id, next);
     if (result?.error) {
       setDefenseErr(result.error);
       setTimeout(() => setDefenseErr(null), 3000);
@@ -63,12 +75,9 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
     <div
       ref={setNodeRef}
       className={`flex-shrink-0 w-64 border rounded-lg p-3 transition-colors ${
-        party.isDefense
-          ? "bg-blue-950/30 border-blue-500/40"
-          : isOver
-          ? "bg-bdo-surface border-bdo-gold"
-          : "bg-bdo-surface border-bdo-border"
+        isOver ? "bg-bdo-surface border-bdo-gold" : "bg-bdo-surface"
       }`}
+      style={!isOver ? { borderColor: roleMeta.tone + "3d", background: roleMeta.tone + "0a" } : undefined}
     >
       <div className="flex items-center justify-between mb-1">
         {editing ? (
@@ -82,23 +91,25 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
           />
         ) : (
           <button onClick={() => setEditing(true)} className="text-sm text-bdo-text-muted hover:text-bdo-text-primary flex items-center gap-1">
-            {party.isDefense && <span title="Defans Partisi">🛡️</span>}
+            <span title={roleMeta.label} style={{ color: roleMeta.tone }}>{roleMeta.mark}</span>
             {party.name}
           </button>
         )}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-bdo-text-muted">{party.members.length}/20</span>
-          <button
-            onClick={handleDefenseToggle}
-            title={party.isDefense ? "Defans modunu kapat" : "Defans partisi olarak işaretle"}
-            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
-              party.isDefense
-                ? "text-blue-400 bg-blue-500/20 hover:bg-blue-500/30"
-                : "text-bdo-text-muted hover:text-blue-400 hover:bg-blue-500/10"
-            }`}
-          >
-            🛡
-          </button>
+          {ROLES.map((r) => (
+            <button
+              key={r.key}
+              onClick={() => handleSetRole(r.key)}
+              title={r.label}
+              className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
+              style={role === r.key
+                ? { color: r.tone, backgroundColor: r.tone + "26" }
+                : { color: "#4d5c73" }}
+            >
+              {r.mark}
+            </button>
+          ))}
           <button onClick={() => onDelete(party.id)} className="text-xs text-red-400 hover:text-red-300">✕</button>
         </div>
       </div>

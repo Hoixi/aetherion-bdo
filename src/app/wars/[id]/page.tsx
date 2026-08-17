@@ -36,7 +36,7 @@ interface User {
   guild?: Guild | null;
 }
 interface PartyMember { id: number; userId: number; order: number; user: User }
-interface Party { id: number; name: string; order: number; isDefense: boolean; members: PartyMember[] }
+interface Party { id: number; name: string; order: number; isDefense: boolean; role?: string; members: PartyMember[] }
 interface Participant { id: number; status: string; user: User }
 
 interface WarDetail {

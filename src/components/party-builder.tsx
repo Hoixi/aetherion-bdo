@@ -42,6 +42,7 @@ interface PartyData {
   id: number;
   name: string;
   isDefense: boolean;
+  role?: string;
   members: { id: number; userId: number; user: User }[];
 }
 
@@ -174,17 +175,17 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
     setParties(parties.map((p) => (p.id === partyId ? { ...p, name } : p)));
   }
 
-  async function toggleDefense(partyId: number, isDefense: boolean): Promise<{ error?: string }> {
+  async function setRole(partyId: number, role: string): Promise<{ error?: string }> {
     const res = await fetch(`/api/wars/${warId}/parties/${partyId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefense }),
+      body: JSON.stringify({ role }),
     });
     if (!res.ok) {
       const data = await res.json();
       return { error: data.error ?? "Hata oluştu" };
     }
-    setParties(parties.map((p) => (p.id === partyId ? { ...p, isDefense } : p)));
+    setParties(parties.map((p) => (p.id === partyId ? { ...p, role, isDefense: role === "DEFENSE" } : p)));
     return {};
   }
 
@@ -235,7 +236,7 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {parties.map((party) => (
-              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onToggleDefense={toggleDefense} memberStats={memberStats} attendanceHistory={attendanceHistory} />
+              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole} memberStats={memberStats} attendanceHistory={attendanceHistory} />
             ))}
           </div>
         </div>

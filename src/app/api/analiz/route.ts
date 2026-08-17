@@ -53,15 +53,12 @@ export async function GET(req: NextRequest) {
   // başkasında saldırıda olabilir
   const allParties = await prisma.party.findMany({
     where: { warId: { in: warIds } },
-    select: { warId: true, name: true, isDefense: true, members: { select: { userId: true } } },
+    select: { warId: true, name: true, role: true, isDefense: true, members: { select: { userId: true } } },
   });
 
   const roleOf = new Map<string, PartyRole>();
   for (const party of allParties) {
-    // FLANK şemada yok; parti adından okunur, alan eklenince buradan kalkacak
-    const role: PartyRole = party.isDefense
-      ? "DEFENSE"
-      : /flank|kanat/i.test(party.name) ? "FLANK" : "MAIN";
+    const role = (party.role as PartyRole) ?? (party.isDefense ? "DEFENSE" : "MAIN");
     for (const m of party.members) roleOf.set(party.warId + ":" + m.userId, role);
   }
 
