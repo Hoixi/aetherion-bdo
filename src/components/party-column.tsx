@@ -11,7 +11,7 @@ interface PartyColumnProps {
     id: number;
     name: string;
     isDefense: boolean;
-    members: { id: number; userId: number; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string } }[];
+    members: { id: number; userId: number; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null } }[];
   };
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
@@ -32,6 +32,18 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
   const avgAp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.ap, 0) / count) : 0;
   const avgDp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.dp, 0) / count) : 0;
   const avgGs = avgAp + avgDp;
+
+  // Partideki klan dağılımı — ittifak savaşlarında dengeyi görmek için
+  const guildCounts = Array.from(
+    party.members.reduce((m, mem) => {
+      const g = mem.user.guild;
+      if (!g) return m;
+      const cur = m.get(g.tag) ?? { tag: g.tag, color: g.color, n: 0 };
+      cur.n++;
+      m.set(g.tag, cur);
+      return m;
+    }, new Map<string, { tag: string; color: string; n: number }>()).values(),
+  ).sort((a, b) => b.n - a.n);
 
   function handleNameSave() {
     setEditing(false);
@@ -98,6 +110,21 @@ export function PartyColumn({ party, onRename, onDelete, onToggleDefense, member
           <span className="text-red-400/80" title="Ort. AP">⚔ {avgAp}</span>
           <span className="text-blue-400/80" title="Ort. DP">🛡 {avgDp}</span>
           <span className="ml-auto text-bdo-gold/70" title="Ort. GS">GS {avgGs}</span>
+        </div>
+      )}
+
+      {guildCounts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 mb-2">
+          {guildCounts.map((g) => (
+            <span
+              key={g.tag}
+              title={`${g.tag}: ${g.n} kişi`}
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+              style={{ color: g.color, borderColor: g.color + "38", backgroundColor: g.color + "14" }}
+            >
+              {g.tag} {g.n}
+            </span>
+          ))}
         </div>
       )}
 
