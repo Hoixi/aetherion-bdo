@@ -130,16 +130,20 @@ export function analyzeWars(
   if (perfs.length === 0) return [];
 
   /**
-   * Dilim, savaşın *ve rolün* içinde hesaplanır.
+   * Dilim savaşın içinde hesaplanır; roller tek istisna dışında ayrılmaz.
    *
-   * Savunmacıyı saldırıyla aynı havuzda ölçmek yanlış sonuç verir: az hasar
-   * basar, az ölür, kaleye hiç vurmaz. Flank da öyle — az kişiyle riskli
-   * hedefe gider, ölümü yüksektir. Her rol kendi içinde kıyaslanır.
+   * Main ve flank aynı havuzda ölçülür. Flank havuzu çoğu savaşta birkaç
+   * kişi oluyor ve o kadar küçük bir kümede dilim gürültüye dönüşüyordu:
+   * savaşın genelinde ilk yedide olan biri, beş kişilik kendi havuzunda
+   * alt sıraya düşebiliyordu.
    *
-   * Rol havuzu tek kişiyse dilim anlamsız olur; o durumda savaşın tamamına
-   * düşülür, çünkü yanlış bir kıyas hiç kıyas yapmamaktan kötüdür.
+   * Savunma ayrı tutulur, çünkü işi farklı — az hasar ve az ölüm onun için
+   * beklenen sonuçtur, saldırıyla aynı ölçüye vurulamaz.
+   *
+   * Rol bilgisi yine de taşınır: AI yorumlarken kullanıyor.
    */
-  const poolKey = (p: RawPerf) => p.warId + "|" + p.role;
+  const poolKey = (p: RawPerf) =>
+    p.warId + "|" + (p.role === "DEFENSE" ? "DEFENSE" : "FIELD");
   const byPool = new Map<string, RawPerf[]>();
   const byWarOnly = new Map<number, RawPerf[]>();
   for (const p of perfs) {

@@ -122,9 +122,11 @@ ${wars.map((w) => `- ${w.title} (${new Date(w.date).toLocaleDateString("tr-TR")}
 OYUNCULAR:
 ${table}
 ${focus ? `\nYöneticinin özel sorusu, cevabını headline ve actions içine yedir: ${focus}\n` : ""}
-ROLLER — her oyuncunun adının yanında köşeli parantez içinde yazıyor. Dilimler zaten
-KENDİ ROLÜ İÇİNDE hesaplandı, yani bir savunmacının hasar dilimi diğer savunmacılara
-göredir, saldırıya göre değil. Buna rağmen yorum yaparken rolü mutlaka gözet:
+ROLLER — her oyuncunun adının yanında köşeli parantez içinde yazıyor.
+
+Savunmadakiler kendi aralarında ölçüldü. Main ve flank ise AYNI havuzda ölçüldü,
+yani bir flank oyuncusunun dilimi tüm sahaya göredir. Bu yüzden flank yorumlarken
+rolü kendin gözetmen gerekiyor — sayı bunu senin için düzeltmedi:
 
 - Savunma: Görevi bölgeyi tutmak. Az hasar ve az ölüm BEKLENEN durumdur, başarı değil.
   "Az hasar vermiş ama ölmemiş, iyi" DEME — savunmacı zaten öyle oynar. Savunmacıyı
