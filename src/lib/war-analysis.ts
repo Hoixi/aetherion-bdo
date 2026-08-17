@@ -60,6 +60,13 @@ function valueOf(p: RawPerf, key: MetricKey): number {
  * Bir değerin dizi içindeki yüzdelik dilimi (0–100).
  * Eşit değerler aynı dilimi alır; herkes sıfırsa nötr 50 döner.
  */
+/** Sıralı dizinin medyanı */
+function median(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 function percentile(sorted: number[], value: number): number {
   if (sorted.length <= 1) return 50;
   const first = sorted[0];
@@ -82,6 +89,14 @@ export type PlayerMetric = {
   /** Savaş başına ham ortalama */
   avg: number;
   total: number;
+  /**
+   * Kıyaslandığı havuzların medyanı.
+   *
+   * Dilim olmadan ham sayı yanıltır: farklı savaşlara giren iki oyuncudan
+   * daha çok hasar vuranın dilimi daha düşük çıkabilir, çünkü yanındakiler
+   * de çok vurmuştur. Tabanı göstermek bunu okunur kılıyor.
+   */
+  baseline: number;
 };
 
 export type PlayerAnalysis = {
@@ -173,6 +188,7 @@ export function analyzeWars(
     for (const key of METRIC_KEYS) {
       let pctSum = 0;
       let total = 0;
+      let baseSum = 0;
       for (const p of list) {
         const cols = colsFor(p);
         const v = valueOf(p, key);
@@ -180,11 +196,13 @@ export function analyzeWars(
         // Ölüm gibi az olması iyi olan metriklerde dilim ters çevrilir
         pctSum += METRIC_WEIGHTS[key].higherIsBetter ? raw : 100 - raw;
         total += v;
+        baseSum += median(cols[key]);
       }
       metrics[key] = {
         pct: pctSum / list.length,
         avg: total / list.length,
         total,
+        baseline: baseSum / list.length,
       };
     }
 

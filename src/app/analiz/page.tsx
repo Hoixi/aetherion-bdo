@@ -317,6 +317,9 @@ export default function AnalizPage() {
                           <PctBar pct={sel.metrics[k].pct} label={METRIC_WEIGHTS[k].label} />
                           <div className="text-[9px] text-bdo-text-secondary pl-[82px] -mt-0.5">
                             savaş başı {fmt(sel.metrics[k].avg)}
+                            <span className="text-bdo-text-secondary/70">
+                              {" · "}girdiği savaşların ortası {fmt(sel.metrics[k].baseline)}
+                            </span>
                           </div>
                         </div>
                       ))}
