@@ -143,7 +143,7 @@ concerns içine koyma; oraya yalnızca kendi rolünün içinde geride kalanlar g
 Kurallar:
 - Türkçe yaz, kısa ve net cümleler kur, gereksiz övgü yapma.
 - Savaş sayısı 1-2 olan oyuncular için lowSample=true ver ve kesin yargı kurma.
-- Destek ve kale hasarında sıfır her zaman kötü değildir; rol gereği olabilir, bunu ayırt et.
+- Kale hasarının sıfır olması her zaman kötü değildir; rol gereği olabilir, bunu ayırt et.
 - Bir class'ın düşük puanı doğasından kaynaklanıyorsa (tank az hasar basar) roleExpected=true ver.
 - Class değişikliği önerisini sadece güçlü gerekçe varsa yap.
 - İsimleri listedeki haliyle yaz, uydurma.`;

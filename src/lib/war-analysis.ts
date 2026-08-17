@@ -33,22 +33,26 @@ export type RawPerf = {
   castleDamage: number;
 };
 
-/** Yüzdelik dilime çevrilen metrikler ve skora katkı ağırlıkları */
+/**
+ * Yüzdelik dilime çevrilen metrikler ve skora katkı ağırlıkları.
+ *
+ * Şifa bilerek yok: müttefik şifası çoğu class için yapısal olarak sıfır,
+ * dolayısıyla kimseyi diğerinden ayırmıyor. Havuzun tamamı sıfır olunca
+ * herkes nötr 50 alıyor ve skorun onda biri sabite dönüşüp puanları ortaya
+ * sıkıştırıyordu. Ağırlığı kalan metriklere oranlarını bozmadan dağıtıldı.
+ */
 export const METRIC_WEIGHTS = {
-  damageDealt:  { label: "Hasar",       weight: 0.30, higherIsBetter: true  },
-  kills:        { label: "Kill",        weight: 0.20, higherIsBetter: true  },
-  deaths:       { label: "Ölüm",        weight: 0.15, higherIsBetter: false },
-  castleDamage: { label: "Kale Hasarı", weight: 0.15, higherIsBetter: true  },
-  ccCount:      { label: "CC",          weight: 0.10, higherIsBetter: true  },
-  support:      { label: "Destek",      weight: 0.10, higherIsBetter: true  },
+  damageDealt:  { label: "Hasar",       weight: 0.333, higherIsBetter: true  },
+  kills:        { label: "Kill",        weight: 0.222, higherIsBetter: true  },
+  deaths:       { label: "Ölüm",        weight: 0.167, higherIsBetter: false },
+  castleDamage: { label: "Kale Hasarı", weight: 0.167, higherIsBetter: true  },
+  ccCount:      { label: "CC",          weight: 0.111, higherIsBetter: true  },
 } as const;
 
 export type MetricKey = keyof typeof METRIC_WEIGHTS;
 export const METRIC_KEYS = Object.keys(METRIC_WEIGHTS) as MetricKey[];
 
-/** Ham kayıttan metrik değerini çıkarır — destek iki şifa alanının toplamı */
 function valueOf(p: RawPerf, key: MetricKey): number {
-  if (key === "support") return p.hpHeal + p.allyHpHeal;
   return p[key];
 }
 
