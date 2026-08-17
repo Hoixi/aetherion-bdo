@@ -4,7 +4,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
-import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
+import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
 
 
 /** Parti rolleri — analizde her rol kendi içinde kıyaslanır */
@@ -20,16 +20,18 @@ interface PartyColumnProps {
     name: string;
     isDefense: boolean;
     role?: string;
-    members: { id: number; userId: number; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null } }[];
+    members: { id: number; userId: number; asClass?: string | null; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null } }[];
   };
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
   onSetRole: (partyId: number, role: string) => Promise<{ error?: string }>;
   memberStats?: Record<number, UserPerfStats>;
+  currentStatuses?: Record<number, AttendanceStatus>;
+  onToggleShai?: (partyId: number, userId: number, next: string | null) => void;
   attendanceHistory?: WarAttendanceSummary[];
 }
 
-export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats, attendanceHistory }: PartyColumnProps) {
+export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats, attendanceHistory, currentStatuses, onToggleShai }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
   const [defenseErr, setDefenseErr] = useState<string | null>(null);
@@ -148,7 +150,17 @@ export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats,
           )}
           {party.members.map((m) => (
             <div key={`member-${m.userId}`} className="w-full">
-              <MemberChip id={`member-${m.userId}`} user={m.user} perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory} />
+              <MemberChip
+                id={`member-${m.userId}`}
+                user={m.user}
+                perf={memberStats?.[m.userId]}
+                attendanceHistory={attendanceHistory}
+                currentStatus={currentStatuses?.[m.userId]}
+                asClass={m.asClass}
+                onToggleShai={
+                  onToggleShai ? (userId, next) => onToggleShai(party.id, userId, next) : undefined
+                }
+              />
             </div>
           ))}
         </div>

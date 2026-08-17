@@ -27,7 +27,7 @@ const customCollision: CollisionDetection = (args) => {
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { MemberChip, UserPerfStats } from "./member-chip";
 import { PartyColumn } from "./party-column";
-import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
+import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
 
 interface User {
   id: number;
@@ -53,6 +53,7 @@ interface PartyBuilderProps {
   maxParticipants?: number | null;
   memberStats?: Record<number, UserPerfStats>;
   attendanceHistory?: WarAttendanceSummary[];
+  currentStatuses?: Record<number, AttendanceStatus>;
 }
 
 function DroppablePool({ children }: { children: React.ReactNode }) {
@@ -69,7 +70,7 @@ function DroppablePool({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PartyBuilder({ warId, attendees, initialParties, maxParticipants, memberStats, attendanceHistory }: PartyBuilderProps) {
+export function PartyBuilder({ warId, attendees, initialParties, maxParticipants, memberStats, attendanceHistory, currentStatuses }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -189,6 +190,25 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
     return {};
   }
 
+  /** Shai işareti — sunucuya yazılır, başarısız olursa geri alınır */
+  async function toggleShai(partyId: number, userId: number, next: string | null) {
+    setParties((prev) => prev.map((p) => p.id !== partyId ? p : {
+      ...p,
+      members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: next } : m)),
+    }));
+    const res = await fetch(`/api/wars/${warId}/parties/${partyId}/members/as-class`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, asClass: next }),
+    });
+    if (!res.ok) {
+      setParties((prev) => prev.map((p) => p.id !== partyId ? p : {
+        ...p,
+        members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: next ? null : "shai" } : m)),
+      }));
+    }
+  }
+
   async function deleteParty(partyId: number) {
     await fetch(`/api/wars/${warId}/parties/${partyId}`, { method: "DELETE" });
     setParties(parties.filter((p) => p.id !== partyId));
@@ -236,7 +256,8 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {parties.map((party) => (
-              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole} memberStats={memberStats} attendanceHistory={attendanceHistory} />
+              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole} memberStats={memberStats} attendanceHistory={attendanceHistory}
+                currentStatuses={currentStatuses} onToggleShai={toggleShai} />
             ))}
           </div>
         </div>

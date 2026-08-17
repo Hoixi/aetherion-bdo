@@ -71,6 +71,12 @@ interface MemberChipProps {
   isDragOverlay?: boolean;
   perf?: UserPerfStats;
   attendanceHistory?: WarAttendanceSummary[];
+  /** Bu savaştaki durumu — geçmiş işaretlerinden ayrı */
+  currentStatus?: AttendanceStatus;
+  /** O savaşa geldiği class, profilindekinden farklıysa */
+  asClass?: string | null;
+  /** Shai işaretini aç/kapat; verilmezse buton çıkmaz */
+  onToggleShai?: (userId: number, next: string | null) => void;
 }
 
 function fmtDmg(n: number): string {
@@ -91,14 +97,11 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function ScoreDot({ score }: { score: number }) {
-  const color = score >= 20 ? "bg-green-400" : score >= 8 ? "bg-bdo-gold" : score >= 0 ? "bg-amber-400" : "bg-red-400";
-  return (
-    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} title={`Skor: ${score}`} />
-  );
-}
 
-export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }: MemberChipProps) {
+export function MemberChip({
+  id, user, isDragOverlay, perf, attendanceHistory,
+  currentStatus, asClass, onToggleShai,
+}: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
@@ -205,17 +208,54 @@ export function MemberChip({ id, user, isDragOverlay, perf, attendanceHistory }:
         <div className="flex items-center gap-1.5">
           {user.avatarUrl && <img src={user.avatarUrl} alt="" className="w-5 h-5 rounded-full shrink-0" />}
           <span className="text-xs font-semibold text-bdo-text-primary truncate">{user.familyName}</span>
-          <span className="text-[10px] text-bdo-text-muted shrink-0">({className})</span>
+          <span className="text-[10px] text-bdo-text-muted shrink-0">
+            ({asClass ? BDO_CLASSES.find((c) => c.id === asClass)?.name ?? asClass : className})
+          </span>
+          {asClass && asClass !== user.class && (
+            <span className="text-[9px] font-bold px-1 rounded bg-purple-500/15 text-purple-300 shrink-0"
+                  title={`Bu savaşa ${BDO_CLASSES.find((c) => c.id === asClass)?.name ?? asClass} ile geliyor`}>
+              ⇄
+            </span>
+          )}
         </div>
         {/* Row 2: AP/DP + score */}
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[10px] text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
+          {(() => {
+            const cur = currentStatus ? markOf(currentStatus) : null;
+            return cur ? (
+              <span title={cur.label}
+                    className="text-[9px] font-semibold px-1 py-0.5 rounded"
+                    style={{ color: cur.color, backgroundColor: cur.bg }}>
+                {cur.mark} {cur.short}
+              </span>
+            ) : null;
+          })()}
           {perf && (
             <span className="text-[10px] font-mono font-semibold ml-auto" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>
               {perf.score}p
             </span>
           )}
         </div>
+
+        {onToggleShai && !isDragOverlay && (
+          <button
+            // Sürükleme başlatmasın
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleShai(user.id, asClass === "shai" ? null : "shai");
+            }}
+            title={asClass === "shai" ? "Shai işaretini kaldır" : "Bu savaşa Shai ile geliyor"}
+            className={`mt-1 w-full text-[9px] py-0.5 rounded transition-colors ${
+              asClass === "shai"
+                ? "bg-purple-500/20 text-purple-300"
+                : "bg-bdo-bg text-bdo-text-secondary hover:text-purple-300"
+            }`}
+          >
+            {asClass === "shai" ? "Shai ✓" : "Shai"}
+          </button>
+        )}
         {/* Row 3: attendance dots */}
         {!isDragOverlay && attendanceHistory && (
           <AttendanceDots userId={user.id} history={attendanceHistory} />

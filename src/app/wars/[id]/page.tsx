@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { PartyBuilder } from "@/components/party-builder";
 import { UserPerfStats } from "@/components/member-chip";
 import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
-import { getTypeName } from "@/lib/classes";
+import { getTypeName, BDO_CLASSES } from "@/lib/classes";
 import { classifyAttendance, ATTENDANCE_META, attendanceKnown } from "@/lib/attendance";
 import {
   ArrowLeft, Check, X, HelpCircle, AlertTriangle, Users, Send, Clock, Swords,
@@ -35,7 +35,7 @@ interface User {
   id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
   guild?: Guild | null;
 }
-interface PartyMember { id: number; userId: number; order: number; user: User }
+interface PartyMember { id: number; userId: number; order: number; asClass?: string | null; user: User }
 interface Party { id: number; name: string; order: number; isDefense: boolean; role?: string; members: PartyMember[] }
 interface Participant { id: number; status: string; user: User }
 
@@ -76,6 +76,8 @@ export default function WarDetailPage() {
   const [loading, setLoading] = useState(true);
   const [myStatus, setMyStatus] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  // Boş = profilindeki karakter
+  const [joinClass, setJoinClass] = useState("");
   const [publishingParties, setPublishingParties] = useState(false);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [performances, setPerformances] = useState<WarPerf[]>([]);
@@ -121,13 +123,14 @@ export default function WarDetailPage() {
     fetchWar();
   }, [status, warId, router, session?.user?.id]);
 
-  async function handleParticipate(newStatus: string) {
+  async function handleParticipate(newStatus: string, cls?: string) {
     if (!war) return;
     setStatusLoading(true);
     const res = await fetch(`/api/wars/${war.id}/participate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      // Seçim yapmazsa sunucu profilindeki class'ı yazar
+      body: JSON.stringify({ status: newStatus, asClass: cls ?? (joinClass || undefined) }),
     });
     if (res.ok) {
       setMyStatus(newStatus);
@@ -177,6 +180,10 @@ export default function WarDetailPage() {
     );
   }
 
+  // Bu savaşın durumları — parti builder'daki kartlarda gösterilir
+  const currentStatuses: Record<number, ReturnType<typeof statusOf>> = {};
+  for (const p of war.participants) currentStatuses[p.user.id] = statusOf(p.user.id, p.status);
+
   const attendingCounts = war.participants
     .filter((p) => p.status === "ATTENDING")
     .reduce((m, p) => {
@@ -225,10 +232,25 @@ export default function WarDetailPage() {
               variant={myStatus === "ATTENDING" ? "success" : "ghost"}
               size="md" icon={Check}
               onClick={() => handleParticipate("ATTENDING")}
-              disabled={statusLoading || myStatus === "ATTENDING"}
+              disabled={statusLoading}
             >
               Katılıyorum
             </Button>
+            <select
+              value={joinClass}
+              onChange={(e) => {
+                setJoinClass(e.target.value);
+                // Zaten katılıyorsa seçim anında kaydedilsin
+                if (myStatus === "ATTENDING") handleParticipate("ATTENDING", e.target.value);
+              }}
+              title="Bu savaşa hangi karakterle geleceksin?"
+              className="bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1.5 text-[12px] text-bdo-text-primary focus:outline-none focus:border-bdo-gold/40"
+            >
+              <option value="">Kayıtlı karakterim</option>
+              {BDO_CLASSES.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
             <Button
               variant={myStatus === "DECLINED" ? "danger" : "ghost"}
               size="md" icon={X}
@@ -412,6 +434,7 @@ export default function WarDetailPage() {
             maxParticipants={war.maxParticipants}
             memberStats={memberStats}
             attendanceHistory={attendanceHistory}
+            currentStatuses={currentStatuses}
           />
         </div>
       )}
