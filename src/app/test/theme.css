@@ -139,6 +139,8 @@
 .t-menu {
   position: absolute;
   top: calc(100% + 8px);
+  /* Köprü aşağıda: butonla panel arasındaki boşluk fareyi menüden
+     çıkarmasın diye görünmez bir alanla dolduruluyor */
   left: 0;
   min-width: 208px;
   padding: 6px;
@@ -148,6 +150,16 @@
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.75);
   z-index: 80;
 }
+/* Butonla panel arasındaki boşluğu kapatan görünmez alan */
+.t-menu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  height: 10px;
+}
+
 .t-menu a {
   display: flex;
   align-items: center;

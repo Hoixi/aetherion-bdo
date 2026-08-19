@@ -114,6 +114,14 @@ export default function TestPage() {
       .catch((e) => setErr(e?.error ?? "Veri alınamadı — giriş yapmış olman gerekiyor."));
   }, []);
 
+  // Menü dışına tıklayınca kapansın; hover tek dayanak kalmasın
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [open]);
+
   const maxDamage = useMemo(() => d?.players[0]?.damage ?? 1, [d]);
   const maxTrend = useMemo(
     () => Math.max(1, ...(d?.trend ?? []).map((t) => t.participants)),
@@ -138,7 +146,7 @@ export default function TestPage() {
 
           <nav className="hidden lg:flex items-center gap-1 ml-2" onMouseLeave={() => setOpen(null)}>
             {NAV.map((n) => (
-              <div key={n.key} className="relative">
+              <div key={n.key} className="relative" onClick={(e) => e.stopPropagation()}>
                 <button className="t-tab" data-on={open === n.key}
                         onMouseEnter={() => setOpen(n.key)}
                         onClick={() => setOpen(open === n.key ? null : n.key)}>
