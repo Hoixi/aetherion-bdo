@@ -135,7 +135,7 @@ function WarRow({ w, upcoming = false }: { w: War; upcoming?: boolean }) {
   const full = w.maxParticipants ? w._count.participants >= w.maxParticipants : false;
 
   return (
-    <Link href={`/wars/${w.id}`} className="t-row px-5 py-3.5 flex items-center gap-4 flex-wrap">
+    <Link href={`/test/savaslar/${w.id}`} className="t-row px-5 py-3.5 flex items-center gap-4 flex-wrap">
       <div className="w-1 h-10 rounded-full flex-shrink-0"
            style={{
              background: upcoming ? "var(--t-gold)"

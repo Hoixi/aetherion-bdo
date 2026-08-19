@@ -125,7 +125,7 @@ export default function ProfilPage() {
           : "Yükleniyor…"
       }
       aside={
-        <Link href="/profile" className="t-tab">
+        <Link href="/test/profil/duzenle" className="t-tab">
           Düzenle <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       }
@@ -238,7 +238,7 @@ export default function ProfilPage() {
                 const played = getClassByID(x.class);
                 const different = x.class && x.class !== p.class;
                 return (
-                  <Link key={x.id} href={`/wars/${x.warId}`}
+                  <Link key={x.id} href={`/test/savaslar/${x.warId}`}
                         className="t-row px-5 py-3 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
@@ -307,7 +307,7 @@ export default function ProfilPage() {
                     Henüz bir savaşa katılmadın.
                   </p>
                 ) : p.participations.slice(0, 12).map((x) => (
-                  <Link key={x.id} href={`/wars/${x.war.id}`}
+                  <Link key={x.id} href={`/test/savaslar/${x.war.id}`}
                         className="t-row px-5 py-2.5 flex items-center gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-[12.5px] truncate">{x.war.title}</div>

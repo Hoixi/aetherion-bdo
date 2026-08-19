@@ -299,7 +299,7 @@ export default function TestPage() {
                   const win = w.result === "WIN";
                   const loss = w.result === "LOSS";
                   return (
-                    <Link key={w.id} href={`/wars/${w.id}`}
+                    <Link key={w.id} href={`/test/savaslar/${w.id}`}
                           className="t-row px-5 py-3.5 flex items-center gap-4 flex-wrap">
                       <div className="w-1 h-9 rounded-full flex-shrink-0"
                            style={{ background: win ? "var(--t-good)" : loss ? "var(--t-bad)" : "var(--t-faint)" }} />

@@ -54,7 +54,7 @@ export function CharacterCard({ me, warsCounted }: { me: Me; warsCounted: number
         <span className="text-[13px]" style={{ color: "var(--t-dim)" }}>
           Karakterin tanımlı değil — aile adı ve class girersen burada görünür.
         </span>
-        <Link href="/profile" className="t-tab" data-on>
+        <Link href="/test/profil/duzenle" className="t-tab" data-on>
           Profili doldur <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </Card>

@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
   Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
 } from "lucide-react";
+import { toTestRoute } from "@/lib/test-routes";
 import "@/app/test/theme.css";
 import "@/app/test/bridge.css";
 
@@ -69,6 +70,7 @@ export function TestShell({
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Menü dışına tıklayınca kapansın; hover tek dayanak kalmasın
   useEffect(() => {
@@ -77,6 +79,38 @@ export function TestShell({
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [open]);
+
+  /**
+   * Taşınan ekranlar içeride hâlâ eski adreslere link veriyor; bir savaşa
+   * tıklayınca temadan düşülüyordu. Sayfaların içine dokunmak yerine
+   * tıklamayı burada yakalayıp /test karşılığına çeviriyoruz.
+   */
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      // Yeni sekmede açma, orta tık, değiştirici tuşlar bize ait değil
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      if (!a) return;
+      const href = a.getAttribute("href");
+      if (!href || a.target === "_blank" || a.hasAttribute("download")) return;
+
+      let url: URL;
+      try { url = new URL(href, window.location.origin); }
+      catch { return; }
+      if (url.origin !== window.location.origin) return;
+
+      const mapped = toTestRoute(url.pathname);
+      if (!mapped) return;
+
+      e.preventDefault();
+      router.push(mapped + url.search + url.hash);
+    };
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [router]);
 
   return (
     <div className="t-root t-glow relative min-h-full">
