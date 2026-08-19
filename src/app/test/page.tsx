@@ -80,13 +80,16 @@ export default function TestPage() {
         {d && (
           <>
             {/* KPI — her sekmede görünür, bağlam kaybolmasın */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {/* Her ipucu kendi metriğini anlatıyor: kale hasarının altında
+                kill sayısı yazınca sayı yanlışmış gibi okunuyordu */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
               {[
                 { label: "Üye", value: String(d.totals.members), hint: `${d.totals.geared} gear girmiş`, icon: Users },
                 { label: "Ortalama GS", value: String(d.totals.avgGs), hint: "AP + DP", icon: Shield },
                 { label: "Galibiyet", value: `${d.totals.wins}`, hint: `${d.totals.losses} mağlubiyet`, icon: Trophy },
                 { label: "Toplam Hasar", value: fmt(d.totals.damage), hint: `son ${d.totals.warsCounted} savaş`, icon: Flame },
-                { label: "Kale Hasarı", value: fmt(d.totals.castle), hint: `${d.totals.kills} kill`, icon: Castle },
+                { label: "Kale Hasarı", value: fmt(d.totals.castle), hint: `son ${d.totals.warsCounted} savaş`, icon: Castle },
+                { label: "Kill / Ölüm", value: `${d.totals.kills}/${d.totals.deaths}`, hint: `son ${d.totals.warsCounted} savaş`, icon: Crown },
               ].map((k) => (
                 <Card key={k.label} className="p-4">
                   <div className="flex items-center gap-2 mb-3">
