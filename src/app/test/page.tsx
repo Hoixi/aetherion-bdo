@@ -141,6 +141,9 @@ export default function TestPage() {
                     <div className="flex items-center gap-2 mb-4">
                       <Target className="w-4 h-4" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
                       <h2 className="text-[14px] font-semibold">Savaşta Oynanan Class</h2>
+                      {/* Kapsam yazmayınca sayılar yanlış görünüyor:
+                          bu kart profil değil, sahadaki raporları sayıyor */}
+                      <span className="t-chip ml-auto">SON {d.totals.warsCounted} SAVAŞ</span>
                     </div>
                     <div className="space-y-2.5">
                       {d.playedClasses.map((c) => {

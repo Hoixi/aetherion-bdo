@@ -1,0 +1,39 @@
+/**
+ * Eski sayfaları yeni temaya bağlayan katman.
+ *
+ * Eski ekranlar `bg-bdo-surface`, `text-bdo-gold` gibi Tailwind sınıfları
+ * kullanıyor. O renkler artık config'de `rgb(var(--bdo-x) / <alpha-value>)`
+ * olarak duruyor (bkz. tailwind.config.ts), yani üçlüleri burada yeniden
+ * tanımlamak yetiyor: saydamlık türevleri (`bg-bdo-bg/80`) ve durum
+ * türevleri (`focus:border-bdo-gold`) kendiliğinden doğru çalışıyor.
+ *
+ * İlk denemede sınıf adlarını `[class*=...]` ile yakalayıp `!important`
+ * basmıştım; `focus:border-bdo-gold` taşıyan inputlar sürekli altın
+ * kenarlı çıkıyordu çünkü seçici durum türevini de yakalıyordu.
+ */
+
+.t-root {
+  --bdo-bg: 0 0 0;                /* --t-canvas */
+  --bdo-surface: 11 11 12;        /* --t-surface */
+  --bdo-surface-2: 20 20 22;      /* --t-raised */
+  --bdo-border: 38 38 42;         /* --t-line ile aynı ton, opak karşılığı */
+  --bdo-border-2: 56 56 62;       /* --t-line-strong */
+  --bdo-gold: 232 180 81;         /* --t-gold */
+  --bdo-gold-dim: 184 135 58;
+  --bdo-text-primary: 244 244 245; /* --t-text */
+  --bdo-text-muted: 154 154 162;   /* --t-dim */
+  --bdo-text-secondary: 94 94 102; /* --t-faint */
+  --bdo-sapphire: 107 147 255;
+  --bdo-silver: 154 154 162;
+}
+
+/* Eski ekranlar sidebar payı bırakıyordu; /test'te sidebar yok */
+.t-root .md\:ml-56 { margin-left: 0 !important; }
+
+/* Köşeler yeni temada biraz daha yumuşak */
+.t-root .rounded-lg { border-radius: var(--t-r-sm); }
+.t-root .rounded-xl { border-radius: var(--t-r); }
+
+/* Eski sayfalar kendi tam ekran zeminini kuruyor; kabuk zaten siyah,
+   ikinci bir zemin katmanı kartların kenarlarını yutuyordu */
+.t-root .min-h-screen { min-height: 0; }

@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Palet RGB uclusu olarak duruyor: Tailwind renkleri
+ * `rgb(var(--bdo-x) / <alpha-value>)` diye kuruyor, boylece /test kabugu
+ * ayni siniflari kendi temasina boyayabiliyor (bkz. test/theme.css).
+ * Buradaki degerler eski tasarimin orijinal renkleri.
+ */
+:root {
+  --bdo-bg: 12 15 21;
+  --bdo-surface: 19 24 32;
+  --bdo-surface-2: 26 34 51;
+  --bdo-border: 30 42 60;
+  --bdo-border-2: 42 58 82;
+  --bdo-gold: 212 160 48;
+  --bdo-gold-dim: 154 112 32;
+  --bdo-text-primary: 220 228 242;
+  --bdo-text-secondary: 77 92 115;
+  --bdo-text-muted: 122 139 163;
+  --bdo-sapphire: 74 124 245;
+  --bdo-silver: 122 139 163;
+}
+
 /* AI Asistan markdown renderer */
 .ai-markdown p { margin: 0.4rem 0; }
 .ai-markdown p:first-child { margin-top: 0; }

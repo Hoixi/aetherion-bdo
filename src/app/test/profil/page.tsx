@@ -135,40 +135,58 @@ export default function ProfilPage() {
 
       {p && (
         <>
-          {/* Kimlik */}
-          <Card hi className="overflow-hidden relative">
-            {banner && (
-              <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          {/* Kimlik — banner tam opak, okunurluk gradyanla sağlanıyor;
+              yükseklik sabit, içeriğe bırakılırsa kart uzayıp gidiyor */}
+          <Card hi className="overflow-hidden relative h-[210px] sm:h-[240px]">
+            {banner ? (
+              <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={banner} alt="" className="w-full h-full object-cover opacity-[0.18]" />
+                <img src={banner} alt="" className="absolute inset-0 w-full h-full object-cover
+                                                    pointer-events-none select-none"
+                     style={{ objectPosition: "center 26%" }} />
                 <div className="absolute inset-0"
-                     style={{ background: "linear-gradient(100deg, var(--t-surface) 30%, transparent 80%)" }} />
-              </div>
+                     style={{ background: "linear-gradient(90deg, var(--t-surface) 0%, rgba(11,11,12,.78) 42%, rgba(11,11,12,.12) 100%)" }} />
+                <div className="absolute inset-x-0 bottom-0 h-28"
+                     style={{ background: "linear-gradient(0deg, var(--t-surface) 12%, rgba(11,11,12,.7) 60%, transparent 100%)" }} />
+                <div className="absolute inset-x-0 top-0 h-12"
+                     style={{ background: "linear-gradient(180deg, rgba(11,11,12,.75), transparent)" }} />
+              </>
+            ) : (
+              <div className="absolute inset-0" style={{ background: "var(--t-surface)" }} />
             )}
-            <div className="relative flex items-center gap-5 p-6 flex-wrap">
-              {portrait && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={portrait} alt="" className="w-[92px] h-[92px] rounded-2xl object-cover"
-                     style={{ background: "var(--t-raised)", border: "1px solid var(--t-line-strong)" }} />
-              )}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[24px] font-bold tracking-tight truncate">{p.familyName}</span>
-                  <GuildTag g={p.guild} />
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: "var(--t-dim)" }}>
-                  {cls?.name ?? "Class seçilmemiş"} ·{" "}
-                  {p.spec === "succession" ? "Succession" : "Awakening"}
-                  {p.guild ? ` · ${p.guild.name}` : ""}
+
+            <div className="relative h-full flex flex-col justify-between p-5 sm:p-6">
+              <div className="flex items-start gap-4">
+                {portrait && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={portrait} alt="" className="w-14 h-14 rounded-xl object-cover object-top flex-shrink-0"
+                       style={{ boxShadow: "0 6px 20px rgba(0,0,0,.65)",
+                                outline: "1px solid rgba(255,255,255,.14)" }} />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[24px] font-bold tracking-tight truncate"
+                          style={{ textShadow: "0 2px 10px rgba(0,0,0,.9)" }}>{p.familyName}</span>
+                    <GuildTag g={p.guild} />
+                  </div>
+                  <div className="text-[13px] mt-1"
+                       style={{ color: "rgba(255,255,255,.72)", textShadow: "0 1px 6px rgba(0,0,0,.9)" }}>
+                    {cls?.name ?? "Class seçilmemiş"} ·{" "}
+                    {p.spec === "succession" ? "Succession" : "Awakening"}
+                    {p.guild ? ` · ${p.guild.name}` : ""}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-6 ml-auto">
-                {[["AP", p.ap], ["DP", p.dp], ["GS", p.ap + p.dp]].map(([l, v], i) => (
-                  <div key={l as string}>
-                    <div className="text-[10px] uppercase tracking-[0.08em]"
+
+              <div className="flex items-stretch gap-2">
+                {[["AP", p.ap], ["DP", p.dp], ["GS", p.ap + p.dp]].map(([l, v]) => (
+                  <div key={l as string}
+                       className="flex-1 max-w-[130px] rounded-[var(--t-r-sm)] px-3 py-2 backdrop-blur-sm"
+                       style={{ background: "rgba(20,20,22,.72)", border: "1px solid rgba(255,255,255,.08)" }}>
+                    <div className="text-[9px] uppercase tracking-[0.08em]"
                          style={{ color: "var(--t-faint)" }}>{l}</div>
-                    <div className="t-num text-[26px] font-bold leading-tight"
-                         style={i === 2 ? { color: "var(--t-gold)" } : undefined}>{v}</div>
+                    <div className="t-num text-[22px] font-bold leading-none mt-1"
+                         style={l === "GS" ? { color: "var(--t-gold)" } : undefined}>{v}</div>
                   </div>
                 ))}
               </div>

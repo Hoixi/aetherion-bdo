@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, Shield, CalendarCheck, ArrowUpDown, LayoutGrid, List } from "lucide-react";
-import { getClassByID, getClassIconUrl, getPortraitUrl } from "@/lib/classes";
+import { getClassByID, getClassBannerUrl, getClassIconUrl, getPortraitUrl } from "@/lib/classes";
 import { TestShell, Card, GuildTag, Empty, loadJson, type Guild } from "@/components/test-shell";
 
 /**
@@ -206,19 +206,36 @@ function ClassIcon({ cls }: { cls: string }) {
 
 function MemberCard({ m }: { m: Member }) {
   const portrait = getPortraitUrl(m.class, m.spec);
+  const cls = getClassByID(m.class);
+  const banner = cls ? getClassBannerUrl(cls.classType) : "";
   const gs = m.ap + m.dp;
 
   return (
-    <Card className="p-4 flex items-center gap-3">
-      <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0"
-           style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+    <Card className="p-4 flex items-center gap-3 overflow-hidden relative h-[104px]">
+      {/* Banner tam opak, okunurluk gradyanla sağlanıyor — soldurulunca
+          karakter seçilmiyordu. Yükseklik sabit ki kartlar ızgarada
+          birbirini tutsun. */}
+      {banner && (
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={banner} alt="" className="w-full h-full object-cover select-none"
+               style={{ objectPosition: "center 24%" }} />
+          <div className="absolute inset-0"
+               style={{ background: "linear-gradient(90deg, var(--t-surface) 0%, rgba(11,11,12,.82) 46%, rgba(11,11,12,.20) 100%)" }} />
+        </div>
+      )}
+
+      <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0"
+           style={{ background: "var(--t-raised)", outline: "1px solid rgba(255,255,255,.14)",
+                    boxShadow: "0 4px 14px rgba(0,0,0,.6)" }}>
         {portrait && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={portrait} alt="" className="w-full h-full object-cover object-top" />
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1"
+           style={{ textShadow: "0 1px 6px rgba(0,0,0,.9)" }}>
         <div className="flex items-center gap-1.5">
           <span className="text-[13.5px] font-medium truncate">{m.familyName}</span>
           <GuildTag g={m.guild} />
@@ -239,7 +256,8 @@ function MemberCard({ m }: { m: Member }) {
         </div>
       </div>
 
-      <div className="text-right flex-shrink-0">
+      <div className="relative text-right flex-shrink-0"
+           style={{ textShadow: "0 1px 6px rgba(0,0,0,.9)" }}>
         <div className="flex items-center gap-1 justify-end">
           <Shield className="w-3 h-3" style={{ color: "var(--t-faint)" }} />
           <span className="t-num text-[16px] font-bold"

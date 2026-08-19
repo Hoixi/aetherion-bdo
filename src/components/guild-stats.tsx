@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BDO_CLASSES } from "@/lib/classes";
 import { Users, Shield, Trophy, Swords, Timer, Handshake } from "lucide-react";
-import { StatTile, Card, CardHeader } from "./ui";
+import { StatTile } from "./ui";
 
 interface WarReportAverage {
   warId: number;
