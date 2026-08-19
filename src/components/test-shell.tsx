@@ -10,6 +10,7 @@ import {
   Menu, X, ScrollText,
 } from "lucide-react";
 import { toTestRoute } from "@/lib/test-routes";
+import { UserMenu } from "@/components/test-user-menu";
 import "@/app/test/theme.css";
 import "@/app/test/bridge.css";
 
@@ -170,7 +171,10 @@ export function TestShell({
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">{aside}</div>
+          <div className="ml-auto flex items-center gap-2">
+            {aside}
+            <UserMenu />
+          </div>
         </div>
 
         {drawer && (

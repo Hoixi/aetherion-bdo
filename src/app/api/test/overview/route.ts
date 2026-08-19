@@ -142,17 +142,26 @@ export async function GET() {
     return copy;
   });
 
-  // ── Savaşta en çok oynanan class'lar — üye profilinden değil, sahadan
-  const playedCount = new Map<string, number>();
+  // ── Savaşta oynanan class dağılımı — üye profilinden değil, sahadan.
+  //
+  // Rapor satırlarını saymak yanıltıyordu: aynı kişi beş savaşta aynı
+  // class'la çıkınca beş kez sayılıyor ve sayı sahadaki kişi sayısını
+  // değil, katılım tekrarını gösteriyordu. Burada her oyuncu class başına
+  // bir kez sayılıyor; class değiştiren ikisinde birden görünüyor, ki
+  // kompozisyon bakarken istenen de bu.
+  const playersPerClass = new Map<string, Set<string>>();
   for (const p of inScope) {
     const c = p.class;
     if (!c) continue;
-    playedCount.set(c, (playedCount.get(c) ?? 0) + 1);
+    const who = p.userId != null ? "u" + p.userId : "n" + p.inGameName.toLowerCase();
+    const set = playersPerClass.get(c) ?? new Set<string>();
+    set.add(who);
+    playersPerClass.set(c, set);
   }
-  const playedClasses = Array.from(playedCount.entries())
-    .map(([cls, n]) => ({ class: cls, n }))
+  const playedClasses = Array.from(playersPerClass.entries())
+    .map(([cls, set]) => ({ class: cls, n: set.size }))
     .sort((a, b) => b.n - a.n)
-    .slice(0, 8);
+    .slice(0, 10);
 
   // ── Katılım eğrisi
   const trend = wars

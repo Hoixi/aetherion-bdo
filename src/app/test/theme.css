@@ -206,3 +206,6 @@
   box-shadow: none;
 }
 .leaflet-tooltip-top::before { border-top-color: var(--t-line-strong); }
+
+/* Sağ uca yaslanan menü — hesap düğmesi için */
+.t-menu.right-0 { left: auto; right: 0; }

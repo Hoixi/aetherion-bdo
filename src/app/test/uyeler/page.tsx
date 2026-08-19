@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Search, Shield, CalendarCheck, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import { getClassByID, getClassBannerUrl, getClassIconUrl, getPortraitUrl } from "@/lib/classes";
 import { TestShell, Card, GuildTag, Empty, loadJson, type Guild } from "@/components/test-shell";
@@ -161,7 +162,7 @@ export default function UyelerPage() {
                 <span>GS</span><span className="text-right">Katılım</span>
               </div>
               {shown.map((m, i) => (
-                <div key={m.id}
+                <Link key={m.id} href={`/test/uyeler/${m.id}`}
                      className="t-row px-5 py-2.5 grid grid-cols-[32px_1fr_70px_70px_80px_70px] gap-3 items-center">
                   <span className="t-num text-[12px] font-bold"
                         style={{ color: i < 3 && sort === "gs" ? "var(--t-gold)" : "var(--t-faint)" }}>
@@ -185,7 +186,7 @@ export default function UyelerPage() {
                     {m.ap + m.dp || "—"}
                   </span>
                   <span className="t-num text-[12px] text-right">{m._count.participations}</span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -211,7 +212,9 @@ function MemberCard({ m }: { m: Member }) {
   const gs = m.ap + m.dp;
 
   return (
-    <Card className="p-4 flex items-center gap-3 overflow-hidden relative h-[104px]">
+    <Link href={`/test/uyeler/${m.id}`} className="block">
+    <Card className="p-4 flex items-center gap-3 overflow-hidden relative h-[104px]
+                     transition-colors hover:border-[rgba(232,180,81,.3)]">
       {/* Banner tam opak, okunurluk gradyanla sağlanıyor — soldurulunca
           karakter seçilmiyordu. Yükseklik sabit ki kartlar ızgarada
           birbirini tutsun. */}
@@ -270,5 +273,6 @@ function MemberCard({ m }: { m: Member }) {
         </div>
       </div>
     </Card>
+    </Link>
   );
 }

@@ -146,7 +146,7 @@ export default function TestPage() {
                       <h2 className="text-[14px] font-semibold">Savaşta Oynanan Class</h2>
                       {/* Kapsam yazmayınca sayılar yanlış görünüyor:
                           bu kart profil değil, sahadaki raporları sayıyor */}
-                      <span className="t-chip ml-auto">SON {d.totals.warsCounted} SAVAŞ</span>
+                      <span className="t-chip ml-auto">SON {d.totals.warsCounted} SAVAŞ · KİŞİ</span>
                     </div>
                     <div className="space-y-2.5">
                       {d.playedClasses.map((c) => {
