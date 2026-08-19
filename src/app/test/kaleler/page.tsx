@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+
 import {
-  Castle, ChevronLeft, Circle as CircleIcon, Type as TypeIcon, Minus,
+  Circle as CircleIcon, Type as TypeIcon, Minus,
   Square, Trash2, MousePointer2, Save, Undo2, Eye, EyeOff, Tag, Check,
   Cloud, HardDrive, Lock,
 } from "lucide-react";
-import "../theme.css";
+import { TestShell } from "@/components/test-shell";
 import balenosRaw from "@/data/forts/balenos.json";
 import serendiaRaw from "@/data/forts/serendia.json";
 import {
@@ -239,37 +239,36 @@ export default function KalelerPage() {
   );
 
   return (
-    <div className="t-root t-glow relative min-h-full">
-      <header className="t-nav sticky top-0 z-[60]">
-        <div className="mx-auto max-w-[1500px] px-5 h-[68px] flex items-center gap-4">
-          <Link href="/test" className="t-tab"><ChevronLeft className="w-3.5 h-3.5" /> Panel</Link>
-          <div className="flex items-center gap-2">
-            <Castle className="w-4 h-4" style={{ color: "var(--t-gold)" }} strokeWidth={2} />
-            <span className="text-[15px] font-bold">Kale Kurulumları</span>
-          </div>
-          {msg && <span className="ml-auto text-[11px]" style={{ color: "var(--t-gold)" }}>{msg}</span>}
+    <TestShell
+      title={fort.name}
+      subtitle={
+        source === "loading"
+          ? "Yükleniyor…"
+          : `${fort.region} · garmoth kurulum noktaları üzerine çizim`
+      }
+      aside={msg ? <span className="t-chip" style={{ color: "var(--t-gold)" }}>{msg}</span> : null}
+      tabs={
+        <div className="space-y-2">
+          {(["Balenos", "Serendia"] as const).map((region) => (
+            <div key={region} className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-[0.08em] w-[70px] flex-shrink-0"
+                    style={{ color: "var(--t-faint)" }}>{region}</span>
+              {FORTS.filter((f) => f.region === region).map((f) => (
+                <button key={f.id} className="t-tab" data-on={f.id === sel}
+                        onClick={() => setSel(f.id)}>
+                  {f.name}
+                  {saved[f.id]?.length ? (
+                    <Check className="w-3 h-3" style={{ color: "var(--t-good)" }} />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
-      </header>
-
-      <main className="relative mx-auto max-w-[1500px] px-5 py-5 space-y-3">
-        {/* Kale seçimi */}
-        {(["Balenos", "Serendia"] as const).map((region) => (
-          <div key={region} className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-[0.08em] w-[70px] flex-shrink-0"
-                  style={{ color: "var(--t-faint)" }}>{region}</span>
-            {FORTS.filter((f) => f.region === region).map((f) => (
-              <button key={f.id} className="t-tab" data-on={f.id === sel}
-                      onClick={() => setSel(f.id)}>
-                {f.name}
-                {saved[f.id]?.length ? (
-                  <Check className="w-3 h-3" style={{ color: "var(--t-good)" }} />
-                ) : null}
-              </button>
-            ))}
-          </div>
-        ))}
-
-        <div className="t-card p-3 !mt-4">
+      }
+    >
+      <>
+        <div className="t-card p-3">
           {/* Araç çubuğu */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {editable ? (
@@ -385,7 +384,7 @@ export default function KalelerPage() {
               ? "Oturum açık değil, çizimler yalnızca bu tarayıcıda kalıyor."
               : null}
         </p>
-      </main>
-    </div>
+      </>
+    </TestShell>
   );
 }

@@ -4,50 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Swords, Users, Trophy, Flame, Shield,
-  Activity, Crown, Target, ChevronRight, ChevronDown, BarChart3,
-  Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
-  ListOrdered, Castle, Zap, MessageSquare, UserPlus,
+  Activity, Crown, Target, ChevronRight, BarChart3, Castle,
 } from "lucide-react";
 import { getClassByID, getClassIconUrl, getPortraitUrl, getTypeName } from "@/lib/classes";
-import "./theme.css";
-
-/** Üst menü — her başlık kendi alt sayfalarını açar */
-const NAV = [
-  { key: "Savaşlar", icon: Swords, items: [
-    { label: "Savaş Listesi", href: "/wars", icon: Swords },
-    { label: "Takvim", href: "/calendar", icon: CalendarDays },
-    { label: "Etkinlikler", href: "/etkinlikler", icon: Zap },
-  ] },
-  { key: "İstatistik", icon: BarChart3, items: [
-    { label: "Savaş Analizi", href: "/analiz", icon: BarChart3 },
-    { label: "Hasar Raporu", href: "/hasar-raporu", icon: Flame },
-    { label: "Tier List", href: "/tier-list", icon: ListOrdered },
-  ] },
-  { key: "Araçlar", icon: Wrench, items: [
-    { label: "Harita", href: "/harita", icon: MapIcon },
-    { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
-    { label: "Optimizer", href: "/optimizer", icon: Target },
-    { label: "GeoGuessr", href: "/geo", icon: MapIcon },
-    { label: "Kale Kurulumları", href: "/test/kaleler", icon: Castle },
-  ] },
-  { key: "Takip", icon: Search, items: [
-    { label: "Üyeler", href: "/members", icon: Users },
-    { label: "Grind Tracker", href: "/grind-tracker", icon: Activity },
-    { label: "Forum", href: "/forum", icon: MessageSquare },
-  ] },
-  { key: "Yönetim", icon: ClipboardList, items: [
-    { label: "Admin Paneli", href: "/admin", icon: Shield },
-    { label: "Başvurular", href: "/basvuru", icon: UserPlus },
-    { label: "Ally", href: "/ally", icon: Users },
-  ] },
-] as const;
+import {
+  TestShell, Card, Head, Bar, GuildTag, fmt, loadJson, type Guild,
+} from "@/components/test-shell";
+import { CharacterCard, type Me } from "@/components/test-character-card";
 
 const TABS = ["Genel", "Karakterler", "Performans", "Savaşlar"] as const;
 type Tab = (typeof TABS)[number];
 
-type Guild = { tag: string; color: string } | null;
-
 type Data = {
+  me: Me | null;
   totals: {
     members: number; geared: number; avgGs: number; wins: number; losses: number;
     damage: number; castle: number; kills: number; deaths: number; warsCounted: number;
@@ -66,61 +35,16 @@ type Data = {
   trend: { id: number; title: string; date: string; participants: number; reported: number }[];
 };
 
-function fmt(n: number): string {
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 10_000) return Math.round(n / 1_000) + "K";
-  return String(Math.round(n));
-}
-
-function Card({ children, className = "", hi = false }: { children: React.ReactNode; className?: string; hi?: boolean }) {
-  return <div className={`t-card ${hi ? "t-card-hi" : ""} ${className}`}>{children}</div>;
-}
-
-function Head({ icon: Icon, title, meta }: { icon: React.ElementType; title: string; meta?: string }) {
-  return (
-    <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: "1px solid var(--t-line)" }}>
-      <Icon className="w-4 h-4" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
-      <h2 className="text-[14px] font-semibold">{title}</h2>
-      {meta && <span className="t-chip ml-auto">{meta}</span>}
-    </div>
-  );
-}
-
-function Bar({ pct }: { pct: number }) {
-  return <div className="t-bar"><i style={{ width: Math.max(2, Math.min(100, pct)) + "%" }} /></div>;
-}
-
-function GuildTag({ g }: { g: Guild }) {
-  if (!g) return null;
-  return (
-    <span className="text-[9px] font-bold px-1 py-px rounded flex-shrink-0"
-          style={{ color: g.color, background: g.color + "18" }}>
-      {g.tag}
-    </span>
-  );
-}
-
 export default function TestPage() {
   const [tab, setTab] = useState<Tab>("Genel");
-  const [open, setOpen] = useState<string | null>(null);
   const [d, setD] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/test/overview")
-      .then(async (r) => (r.ok ? r.json() : Promise.reject(await r.json().catch(() => ({})))))
+    loadJson<Data>("/api/test/overview")
       .then(setD)
-      .catch((e) => setErr(e?.error ?? "Veri alınamadı — giriş yapmış olman gerekiyor."));
+      .catch((e: Error) => setErr(e.message));
   }, []);
-
-  // Menü dışına tıklayınca kapansın; hover tek dayanak kalmasın
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(null);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [open]);
 
   const maxDamage = useMemo(() => d?.players[0]?.damage ?? 1, [d]);
   const maxTrend = useMemo(
@@ -129,75 +53,26 @@ export default function TestPage() {
   );
 
   return (
-    <div className="t-root t-glow relative min-h-full">
-      {/* Üst menü */}
-      <header className="t-nav sticky top-0 z-50">
-        <div className="mx-auto max-w-[1400px] px-5 h-[68px] flex items-center gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[10px] grid place-items-center"
-                 style={{ background: "linear-gradient(140deg, var(--t-gold), var(--t-ember))" }}>
-              <Swords className="w-4 h-4" strokeWidth={2.4} style={{ color: "#0a0a0b" }} />
-            </div>
-            <div className="leading-none">
-              <div className="text-[15px] font-bold tracking-tight">Aetherion</div>
-              <div className="text-[10px] mt-0.5" style={{ color: "var(--t-faint)" }}>Klan Yönetimi</div>
-            </div>
-          </div>
-
-          <nav className="hidden lg:flex items-center gap-1 ml-2" onMouseLeave={() => setOpen(null)}>
-            {NAV.map((n) => (
-              <div key={n.key} className="relative" onClick={(e) => e.stopPropagation()}>
-                <button className="t-tab" data-on={open === n.key}
-                        onMouseEnter={() => setOpen(n.key)}
-                        onClick={() => setOpen(open === n.key ? null : n.key)}>
-                  <n.icon className="w-3.5 h-3.5" strokeWidth={2} />
-                  {n.key}
-                  <ChevronDown className="w-3 h-3 opacity-60" strokeWidth={2.5} />
-                </button>
-                {open === n.key && (
-                  <div className="t-menu">
-                    {n.items.map((it) => (
-                      <Link key={it.label} href={it.href} onClick={() => setOpen(null)}>
-                        <it.icon className="w-3.5 h-3.5" strokeWidth={1.9} />
-                        {it.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-3">
-            {d && d.guildBreakdown.map((g) => (
-              <span key={g.tag} className="t-chip hidden sm:inline"
-                    style={{ color: g.color, borderColor: g.color + "40" }}>
-                {g.tag} {g.n}
-              </span>
-            ))}
-          </div>
-        </div>
-      </header>
-
-      <main className="relative mx-auto max-w-[1400px] px-5 py-7 space-y-5">
+    <TestShell
+      title={tab}
+      subtitle={d ? `İki klanın birleşik görünümü · son ${d.totals.warsCounted} savaş` : "Yükleniyor…"}
+      aside={d?.guildBreakdown.map((g) => (
+        <span key={g.tag} className="t-chip hidden sm:inline"
+              style={{ color: g.color, borderColor: g.color + "40" }}>
+          {g.tag} {g.n}
+        </span>
+      ))}
+      tabs={
         <div className="flex items-center gap-1 flex-wrap">
           {TABS.map((t) => (
             <button key={t} className="t-tab" data-on={tab === t} onClick={() => setTab(t)}>{t}</button>
           ))}
         </div>
-
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[30px] font-bold tracking-tight leading-none">{tab}</h1>
-            <p className="text-[13px] mt-2" style={{ color: "var(--t-dim)" }}>
-              {d ? `İki klanın birleşik görünümü · son ${d.totals.warsCounted} savaş` : "Yükleniyor…"}
-            </p>
-          </div>
-          <Link href="/dashboard" className="text-[12px] flex items-center gap-1 hover:opacity-80"
-                style={{ color: "var(--t-gold)" }}>
-            Mevcut siteye dön <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+      }
+    >
+      <>
+        {/* Klan geneline bakmadan önce insan kendi durumunu görsün */}
+        {d?.me && <CharacterCard me={d.me} warsCounted={d.totals.warsCounted} />}
 
         {err && <Card className="p-4"><p className="text-[13px]" style={{ color: "var(--t-bad)" }}>{err}</p></Card>}
         {!d && !err && <Card className="p-8 text-center"><span className="text-[13px]" style={{ color: "var(--t-dim)" }}>Veriler geliyor…</span></Card>}
@@ -463,7 +338,7 @@ export default function TestPage() {
         <p className="text-[11px] pb-6" style={{ color: "var(--t-faint)" }}>
           Yeni tema denemesi · veriler canlı
         </p>
-      </main>
-    </div>
+      </>
+    </TestShell>
   );
 }

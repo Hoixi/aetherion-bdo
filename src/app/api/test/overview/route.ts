@@ -14,7 +14,7 @@ export async function GET() {
   const scope = await getGuildScope();
   if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [guilds, members, wars, recentPerfs] = await Promise.all([
+  const [guilds, members, wars, recentPerfs, me] = await Promise.all([
     prisma.guild.findMany({
       select: { id: true, name: true, tag: true, color: true, isPrimary: true },
       orderBy: { isPrimary: "desc" },
@@ -45,6 +45,17 @@ export async function GET() {
         kills: true, deaths: true, damageDealt: true, castleDamage: true, ccCount: true,
         war: { select: { id: true, date: true, title: true } },
         user: { select: { familyName: true, avatarUrl: true, guild: { select: { tag: true, color: true } } } },
+      },
+    }),
+    // Oturum sahibinin kendi kartı
+    prisma.user.findUnique({
+      where: { id: scope.userId },
+      select: {
+        id: true, familyName: true, class: true, spec: true, ap: true, dp: true,
+        avatarUrl: true, absenceCount: true,
+        guild: { select: { tag: true, color: true } },
+        siteRole: { select: { name: true, color: true } },
+        _count: { select: { participations: { where: { status: "ATTENDING" } } } },
       },
     }),
   ]);
@@ -110,13 +121,26 @@ export async function GET() {
     agg.set(key, cur);
   }
 
-  const players = Array.from(agg.values())
-    .map((a) => ({
+  // Sıra numarası listeden kırpılmadan önce çıkarılıyor: kendi sıramız
+  // ilk 25'in dışında kalabilir
+  const ranked = Array.from(agg.entries())
+    .map(([key, a]) => ({
+      key,
       ...a,
       avgDamage: a.wars ? a.damage / a.wars : 0,
       kd: a.deaths > 0 ? Math.round((a.kills / a.deaths) * 100) / 100 : a.kills,
     }))
     .sort((a, b) => b.damage - a.damage);
+
+  const myRank = ranked.findIndex((p) => p.key === "u" + scope.userId);
+  const mine = myRank >= 0 ? ranked[myRank] : null;
+
+  // Anahtar yalnızca sıralamayı bulmak içindi, cevaba girmesin
+  const players = ranked.map((r) => {
+    const copy: Partial<typeof r> = { ...r };
+    delete copy.key;
+    return copy;
+  });
 
   // ── Savaşta en çok oynanan class'lar — üye profilinden değil, sahadan
   const playedCount = new Map<string, number>();
@@ -144,7 +168,37 @@ export async function GET() {
   const wins = wars.filter((w) => w.result === "WIN").length;
   const losses = wars.filter((w) => w.result === "LOSS").length;
 
+  // GS sıralamasındaki yerimiz — gear girmemiş üyeler sayılmıyor
+  const gsRank = me && me.ap + me.dp > 0
+    ? geared.filter((m) => m.ap + m.dp > me.ap + me.dp).length + 1
+    : null;
+
   return NextResponse.json({
+    me: me && {
+      name: me.familyName,
+      class: me.class,
+      spec: me.spec,
+      ap: me.ap,
+      dp: me.dp,
+      gs: me.ap + me.dp,
+      avatarUrl: me.avatarUrl,
+      guild: me.guild,
+      role: me.siteRole,
+      attended: me._count.participations,
+      absences: me.absenceCount,
+      gsRank,
+      gearedCount: geared.length,
+      /** Sayılan savaşlardaki kendi toplamımız — hiç oynamadıysak null */
+      stats: mine
+        ? {
+            rank: myRank + 1,
+            of: ranked.length,
+            wars: mine.wars, kills: mine.kills, deaths: mine.deaths,
+            damage: mine.damage, castle: mine.castle, cc: mine.cc,
+            avgDamage: mine.avgDamage, kd: mine.kd,
+          }
+        : null,
+    },
     guilds,
     totals: {
       members: members.length,
