@@ -37,3 +37,72 @@
 /* Eski sayfalar kendi tam ekran zeminini kuruyor; kabuk zaten siyah,
    ikinci bir zemin katmanı kartların kenarlarını yutuyordu */
 .t-root .min-h-screen { min-height: 0; }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Semantik sınıflar.
+
+   Eski ekranlar kartlarını `.card`, başlıklarını `.section-title` gibi
+   sınıflarla kuruyor ve bunların renkleri globals.css'te düz hex. Değişken
+   numarası burada işe yaramıyor, o yüzden sınıfların kendisi `.t-root`
+   altında yeni tema diline çevriliyor — yani `.t-card` ile aynı yüzey,
+   aynı kenar, aynı üst ışık çizgisi.
+   ────────────────────────────────────────────────────────────────────── */
+
+.t-root .card {
+  background: linear-gradient(180deg, var(--t-surface),
+              color-mix(in srgb, var(--t-surface) 88%, black));
+  border-color: var(--t-line);
+  border-radius: var(--t-r);
+  box-shadow: none;
+}
+.t-root .card::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.10), transparent);
+}
+
+.t-root .card-accent {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(232, 180, 81, 0.07), transparent 55%),
+    linear-gradient(180deg, var(--t-surface), color-mix(in srgb, var(--t-surface) 88%, black));
+  border-color: rgba(232, 180, 81, 0.22);
+}
+.t-root .card-accent::before {
+  background: linear-gradient(90deg, transparent, rgba(232, 180, 81, 0.30) 30%,
+              rgba(232, 180, 81, 0.14) 70%, transparent);
+}
+
+.t-root .card-header {
+  border-bottom-color: var(--t-line);
+  background: none;
+}
+.t-root .card-title { color: var(--t-text); }
+.t-root .card-meta  { color: var(--t-faint); }
+
+.t-root .card-row { border-bottom-color: var(--t-line); }
+/* Eski hover safir maviye kayıyordu; yeni tema nötr */
+.t-root .card-row:hover { background: rgba(255, 255, 255, 0.022); }
+.t-root .card-row-active {
+  background: linear-gradient(90deg, var(--t-gold-soft), transparent 40%);
+  box-shadow: inset 2px 0 0 var(--t-gold);
+}
+
+/* Yeni tema başlıkları italik değil */
+.t-root .section-title {
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--t-text);
+}
+.t-root .section-desc { color: var(--t-dim); }
+
+.t-root .stat-badge {
+  background: var(--t-raised);
+  border-color: var(--t-line-strong);
+  color: var(--t-dim);
+}
+
+.t-root .icon-tile {
+  background: var(--t-raised);
+  border-color: var(--t-line-strong);
+  border-radius: var(--t-r-sm);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
