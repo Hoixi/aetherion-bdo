@@ -7,6 +7,7 @@ import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
   Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
+  Menu, X,
 } from "lucide-react";
 import { toTestRoute } from "@/lib/test-routes";
 import "@/app/test/theme.css";
@@ -69,6 +70,7 @@ export function TestShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -79,6 +81,9 @@ export function TestShell({
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [open]);
+
+  // Gidilen yer değişince çekmece açık kalmasın
+  useEffect(() => { setDrawer(false); }, [pathname]);
 
   /**
    * Taşınan ekranlar içeride hâlâ eski adreslere link veriyor; bir savaşa
@@ -127,6 +132,12 @@ export function TestShell({
             </div>
           </Link>
 
+          {/* Menü lg altında gizli; telefonda tek gezinme yolu bu */}
+          <button className="t-tab lg:hidden" onClick={(e) => { e.stopPropagation(); setDrawer((v) => !v); }}
+                  aria-label="Menü">
+            {drawer ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+
           <nav className="hidden lg:flex items-center gap-1" onMouseLeave={() => setOpen(null)}>
             <Link href="/test" className="t-tab" data-on={pathname === "/test"}>
               <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={2} /> Panel
@@ -160,6 +171,38 @@ export function TestShell({
 
           <div className="ml-auto flex items-center gap-2">{aside}</div>
         </div>
+
+        {drawer && (
+          <div className="lg:hidden max-h-[70vh] overflow-y-auto px-4 pb-4"
+               style={{ borderTop: "1px solid var(--t-line)", background: "var(--t-shell)" }}
+               onClick={(e) => e.stopPropagation()}>
+            <Link href="/test" className="t-tab w-full !justify-start mt-3"
+                  data-on={pathname === "/test"} onClick={() => setDrawer(false)}>
+              <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={2} /> Panel
+            </Link>
+            {NAV.map((n) => (
+              <div key={n.key} className="mt-4">
+                <div className="flex items-center gap-1.5 px-1 mb-1.5 text-[10px] uppercase tracking-[0.08em]"
+                     style={{ color: "var(--t-faint)" }}>
+                  <n.icon className="w-3 h-3" strokeWidth={2} /> {n.key}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {n.items.map((it) => (
+                    <Link key={it.label} href={it.href} onClick={() => setDrawer(false)}
+                          className="flex items-center gap-2 px-2.5 py-2 rounded-[var(--t-r-sm)] text-[12.5px]"
+                          style={{
+                            background: pathname === it.href ? "var(--t-raised)" : "transparent",
+                            color: pathname === it.href ? "var(--t-text)" : "var(--t-dim)",
+                          }}>
+                      <it.icon className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.9} />
+                      <span className="truncate">{it.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className={`relative mx-auto max-w-[1500px] px-5 ${bare ? "py-4" : "py-7 space-y-5"}`}>
