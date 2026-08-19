@@ -19,7 +19,11 @@ import "../theme.css";
  */
 
 const TILE = "https://assets.garmoth.com/world-map/v2/tiles";
-const TILE_PX = 256;
+/**
+ * Garmoth'un harita uzayı piksel değil: dünya 448 birim kare, merkez 224.
+ * Zoom z'de ızgara 2^z karo, yani karo başına 448/2^z birim düşüyor.
+ */
+const WORLD = 448;
 
 type Shape =
   | { t: "c"; p: [number, number]; r: number; k?: string }        // daire
@@ -73,7 +77,14 @@ export default function KalelerPage() {
   const cal = cur?.c ?? DEFAULT_CAL;
 
   /** Görünen tüm şekiller — hazır veri + o an çizilenler */
-  const shapes = useMemo(() => [...(cur?.s ?? []), ...draft], [cur, draft]);
+  const shapes = useMemo(() => {
+    const all = [...(cur?.s ?? []), ...draft];
+    // Kaynakta koordinatsız şekiller olabiliyor (ör. "r") — çizim bozulmasın
+    return all.filter((s) => {
+      const p = s.p as (number | null)[];
+      return Array.isArray(p) && p.length >= 2 && p.every((n) => typeof n === "number" && isFinite(n));
+    });
+  }, [cur, draft]);
 
   // Çizim alanının sınırları — şekillere göre otomatik
   const box = useMemo(() => {
@@ -88,9 +99,17 @@ export default function KalelerPage() {
     if (pts.length === 0) return { x: 0, y: 0, w: 448, h: 448 };
     const proj = pts.map((p) => project(p, cal));
     const xs = proj.map((p) => p[0]), ys = proj.map((p) => p[1]);
-    const pad = 30;
+    const rawW = Math.max(...xs) - Math.min(...xs);
+    const rawH = Math.max(...ys) - Math.min(...ys);
+    // Dolgu içeriğe oranlı: bir kale birkaç birim yer kaplıyor, sabit
+    // dolgu koyunca kutu açılıp bölge geneline zoom-out oluyordu
+    const pad = Math.max(1.5, Math.max(rawW, rawH) * 0.18);
     const x = Math.min(...xs) - pad, y = Math.min(...ys) - pad;
-    return { x, y, w: Math.max(120, Math.max(...xs) - x + pad), h: Math.max(120, Math.max(...ys) - y + pad) };
+    return {
+      x, y,
+      w: Math.max(6, rawW + pad * 2),
+      h: Math.max(6, rawH + pad * 2),
+    };
   }, [shapes, cal]);
 
   function svgPoint(e: React.MouseEvent): [number, number] {
@@ -109,7 +128,7 @@ export default function KalelerPage() {
   function onClick(e: React.MouseEvent) {
     if (tool === "pan") return;
     const p = svgPoint(e);
-    if (tool === "c") setDraft((d) => [...d, { t: "c", p, r: 3, k: color }]);
+    if (tool === "c") setDraft((d) => [...d, { t: "c", p, r: Math.max(0.6, box.w / 40), k: color }]);
     if (tool === "t") {
       const x = window.prompt("Etiket");
       if (x) setDraft((d) => [...d, { t: "t", p, x, k: color }]);
@@ -167,15 +186,28 @@ export default function KalelerPage() {
     setMsg("Çizim kaydedildi.");
   }
 
-  // Karo ızgarası — kutuya denk gelenler
-  const tiles = useMemo(() => {
-    const z = 5, n = Math.pow(2, z);
-    const x0 = Math.max(0, Math.floor(box.x / TILE_PX)), x1 = Math.min(n - 1, Math.floor((box.x + box.w) / TILE_PX));
-    const y0 = Math.max(0, Math.floor(box.y / TILE_PX)), y1 = Math.min(n - 1, Math.floor((box.y + box.h) / TILE_PX));
-    const out: { x: number; y: number }[] = [];
-    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push({ x, y });
-    return out;
+  /**
+   * Zoom, kutunun büyüklüğüne göre seçilir: kaleye yakınlaşınca daha
+   * ayrıntılı karo gelsin, bölge geneline bakarken boşuna yüzlerce
+   * karo istenmesin. Hedef, kutuyu yaklaşık 10 karoyla kaplamak.
+   */
+  const { zoom, tiles } = useMemo(() => {
+    const want = Math.max(1, box.w) / 10;
+    let z = Math.round(Math.log2(WORLD / want));
+    z = Math.max(2, Math.min(7, z));
+    const span = WORLD / Math.pow(2, z);
+    const n = Math.pow(2, z);
+    const x0 = Math.max(0, Math.floor(box.x / span));
+    const x1 = Math.min(n - 1, Math.floor((box.x + box.w) / span));
+    const y0 = Math.max(0, Math.floor(box.y / span));
+    const y1 = Math.min(n - 1, Math.floor((box.y + box.h) / span));
+    const out: { x: number; y: number; s: number }[] = [];
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push({ x, y, s: span });
+    return { zoom: z, tiles: out };
   }, [box]);
+
+  // Metin ve işaret boyutu kutuyla ölçeklenir — sabit punto uçuk kalıyor
+  const uiScale = box.w / 100;
 
   return (
     <div className="t-root t-glow relative min-h-full">
@@ -277,24 +309,26 @@ export default function KalelerPage() {
               >
                 {tiles.map((t) => (
                   <image key={t.x + "_" + t.y}
-                         href={`${TILE}/5/${t.x}/${t.y}.webp`}
-                         x={t.x * TILE_PX} y={t.y * TILE_PX}
-                         width={TILE_PX} height={TILE_PX} />
+                         href={`${TILE}/${zoom}/${t.x}/${t.y}.webp`}
+                         x={t.x * t.s} y={t.y * t.s}
+                         width={t.s + 0.02} height={t.s + 0.02} />
                 ))}
 
                 {shapes.map((s, i) => {
                   const stroke = s.t === "i" ? "#fff" : (s as { k?: string }).k ?? "#e8b451";
                   if (s.t === "c") {
                     const [x, y] = project(s.p, cal);
-                    return <circle key={i} cx={x} cy={y} r={Math.max(1, s.r * cal.scaleX)}
-                                   fill={stroke + "55"} stroke={stroke} strokeWidth={1} />;
+                    return <circle key={i} cx={x} cy={y} r={Math.max(0.4, s.r * cal.scaleX)}
+                                   fill={stroke + "44"} stroke={stroke}
+                                   strokeWidth={uiScale * 0.35} />;
                   }
                   if (s.t === "t") {
                     const [x, y] = project(s.p, cal);
                     return (
-                      <text key={i} x={x} y={y} fill={stroke} fontSize={7} fontWeight={700}
+                      <text key={i} x={x} y={y} fill={stroke}
+                            fontSize={uiScale * 2.2} fontWeight={700}
                             textAnchor="middle" style={{ paintOrder: "stroke" }}
-                            stroke="#000" strokeWidth={2}>
+                            stroke="#000" strokeWidth={uiScale * 0.7}>
                         {s.x}
                       </text>
                     );
@@ -306,7 +340,12 @@ export default function KalelerPage() {
                       pts.push(`${x},${y}`);
                     }
                     return <polyline key={i} points={pts.join(" ")} fill="none"
-                                     stroke={stroke} strokeWidth={1.4} strokeLinecap="round" />;
+                                     stroke={stroke} strokeWidth={uiScale * 0.5} strokeLinecap="round" />;
+                  }
+                  if (s.t === "i") {
+                    const [x, y] = project(s.p as [number, number], cal);
+                    return <circle key={i} cx={x} cy={y} r={uiScale * 0.35}
+                                   fill="#fff" opacity={0.55} />;
                   }
                   return null;
                 })}
