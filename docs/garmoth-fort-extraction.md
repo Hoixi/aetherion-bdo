@@ -117,3 +117,104 @@ zaten circle/text/image/polyline taşıyor. Aynı şemayı kullanırsak kendi
 
 Kaydetmek için `MapPoint`'e benzer bir tablo ya da savaşa bağlı bir
 `WarPlan` tablosu (warId, fortKey, shapes JSON) uygun olur.
+
+---
+
+## Çözüm: DOM'dan doğrudan al, koordinat dönüşümü yapma
+
+`calibration` bloğundan güvenilir bir dönüşüm çıkarmaya çalışmak gereksizdi.
+Leaflet zaten her şeyi ekrana yerleştirmiş durumda ve konumlar DOM'da yazıyor.
+
+### Karolar
+
+```
+.leaflet-tile-container   → transform: translate3d(0,0,0) scale(S)
+img.leaflet-tile          → src + transform: translate3d(Xpx, Ypx, 0) + width/height
+```
+
+Karonun ekrandaki yeri `(X * S, Y * S)`, boyutu `width * S`. Örnekte
+`S = 0.707107`, karo 200px → ekranda 141.4px.
+
+### İşaretçiler
+
+```
+.leaflet-marker-icon      → transform: translate3d(Xpx, Ypx, 0)
+                            margin-left / margin-top  (çapa kayması)
+```
+
+`translate3d` değeri doğrudan çapa noktası; margin'ler kutuyu ortalamak
+için, konumu değiştirmiyor. Marker pane karo konteynerindeki `scale`'i
+almıyor, yani bu değerler zaten ekran uzayında.
+
+Alt türler:
+- `.bdo-draw-image` → içinde `img` (ikon), `alt` etiketi taşıyor
+- `.bdo-draw-text`  → içinde `span.bdo-draw-text__label`, rengi inline style'da
+- `.bdo-town-marker` → şehir etiketi (Velia, Heidel…), istenirse elenir
+
+### Harita paneli kayması
+
+`.leaflet-map-pane` üzerinde `transform: translate3d(-78px, 0, 0)` gibi bir
+kayma olabiliyor; hem karolara hem işaretçilere uygulanır.
+
+### Doğrulama
+
+Örnek veride iki metin işaretçisi:
+
+```
+GLISH   coords [278.54, 164.44] → translate3d(315px, 230px)
+HEIDEL  coords [289.76, 177.94] → translate3d(414px, 111px)
+```
+
+Aradaki afin: `px = 8.82 * coord + sabit`, y ekseni ters. Tutarlı çıkıyor,
+ama üretimde kullanmaya gerek yok — piksel değerleri zaten elimizde.
+
+### Çıkarma betiği
+
+```js
+(() => {
+  const box = document.querySelector('.bdo-map-embed__map');
+  const pane = box.querySelector('.leaflet-map-pane');
+  const cont = box.querySelector('.leaflet-tile-container');
+  const num = (el, re) => { const m = (el.getAttribute('style')||'').match(re); return m ? parseFloat(m[1]) : 0; };
+  const tx = (el) => {
+    const m = (el.getAttribute('style')||'').match(/translate3d\(([-\d.]+)px,\s*([-\d.]+)px/);
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : [0, 0];
+  };
+  const S = num(cont, /scale\(([-\d.]+)\)/) || 1;
+  const [px, py] = tx(pane);
+  return JSON.stringify({
+    w: box.clientWidth, h: box.clientHeight, pane: [px, py], scale: S,
+    tiles: [...cont.querySelectorAll('img.leaflet-tile')].map(t => {
+      const [x, y] = tx(t);
+      return { src: t.src, x, y, w: parseFloat(t.style.width) };
+    }),
+    marks: [...box.querySelectorAll('.leaflet-marker-pane > div')].map(m => {
+      const [x, y] = tx(m);
+      const img = m.querySelector('img');
+      const lab = m.querySelector('.bdo-draw-text__label');
+      return {
+        x, y,
+        icon: img && !m.classList.contains('bdo-town-marker') ? img.src : null,
+        text: lab ? lab.textContent : null,
+        color: lab ? lab.style.color : null,
+        town: m.classList.contains('bdo-town-marker') || null,
+      };
+    }),
+  });
+})();
+```
+
+### Birleştirme
+
+Bu çıktı `sharp` ile sunucuda birleştirilir:
+
+1. `w × h` boyutunda tuval
+2. Her karo: `assets.garmoth.com`'dan indir, `w*S` boyutuna getir,
+   `(x*S + paneX, y*S + paneY)` konumuna yapıştır
+3. İkonlar: indir, `(x + paneX - 24, y + paneY - 48)` konumuna yapıştır
+   (48×48 ikonun çapası alt-orta)
+4. Metinler: SVG katmanı olarak üstüne bindir
+5. `webp` olarak `public/map/forts/<id>.webp`
+
+Veri ajanın bağlamından geçmesin diye, çıktıyı bir API ucuna yapıştırıp
+işlemi sunucuda yaptırmak en pratiği.
