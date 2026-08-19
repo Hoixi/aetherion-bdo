@@ -142,8 +142,30 @@ model User {
   reviewedApplications Application[] @relation("ApplicationReviewer")
   mapPoints            MapPoint[]     @relation("MapPointCreator")
   mapPointsDone        MapPointDone[]
+  fortPlans            FortPlan[]     @relation("FortPlanEditor")
 
   @@map("users")
+}
+
+/// Kale kurulum planı — garmoth haritasının üstüne çizdiklerimiz.
+///
+/// Klana göre ayrılmıyor: node war'a müttefiklerle birlikte giriliyor, kale
+/// kurulumu da ortak. Bir kalenin tek bir planı var, herkes aynısını görüyor.
+///
+/// `shapes` garmoth'un şekil şemasında (bkz. lib/garmoth-forts.ts) — kaynak
+/// veriyle aynı yapıda olduğu için tek bir çizim yolu ikisine de yetiyor.
+model FortPlan {
+  id        Int      @id @default(autoincrement())
+  /// Katalog kimliği: "cron-castle", "wolf-hill" …
+  fortKey   String   @unique
+  shapes    String   @default("[]") @db.Text
+  updatedBy Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  editor User @relation("FortPlanEditor", fields: [updatedBy], references: [id])
+
+  @@map("fort_plans")
 }
 
 // ── GeoGuessr mini-game ─────────────────────────────────────────────────────

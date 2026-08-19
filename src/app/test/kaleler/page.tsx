@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Castle, ChevronLeft, Circle as CircleIcon, Type as TypeIcon, Minus,
   Square, Trash2, MousePointer2, Save, Undo2, Eye, EyeOff, Tag, Check,
+  Cloud, HardDrive, Lock,
 } from "lucide-react";
 import "../theme.css";
 import balenosRaw from "@/data/forts/balenos.json";
@@ -22,6 +23,10 @@ import type { DrawTool } from "@/components/fort-map";
  * garmoth'un kendi şekil verisinden geliyor — ikisi de kaynağında ne ise o.
  * Üstüne kendi çizimlerimiz biniyor; onlar da aynı şekil şemasında, yani
  * tek bir çizim yolu ikisine birden yetiyor.
+ *
+ * Planlar sunucuda tutuluyor ki savaşa girecek herkes aynısını görsün.
+ * Oturum yoksa sayfa yine açılıyor ama çizimler yalnızca o tarayıcıda
+ * kalıyor — harita ve kurulum noktaları oturumsuz da işe yarıyor.
  *
  * Kaynak: garmoth.com occupation rehberleri, izinleriyle.
  */
@@ -53,12 +58,20 @@ const TOOLS: [DrawTool, typeof MousePointer2, string][] = [
   ["t", TypeIcon, "Yazı"],
 ];
 
+/** Planların nereden geldiği — sunucu erişilemezse yerele düşülüyor */
+type Source = "loading" | "server" | "local";
+type PlanMeta = { by: string; updatedAt: string };
+
 export default function KalelerPage() {
   const [sel, setSel] = useState("balenos-genel");
   const [tool, setTool] = useState<DrawTool>("pan");
   const [color, setColor] = useState(COLORS[0]);
   const [draft, setDraft] = useState<Shape[]>([]);
   const [saved, setSaved] = useState<Record<string, Shape[]>>({});
+  const [meta, setMeta] = useState<Record<string, PlanMeta>>({});
+  const [source, setSource] = useState<Source>("loading");
+  const [canEdit, setCanEdit] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [showSource, setShowSource] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
@@ -67,12 +80,44 @@ export default function KalelerPage() {
 
   const fort = useMemo(() => FORTS.find((f) => f.id === sel) ?? FORTS[0], [sel]);
   const drawn = saved[fort.id] ?? [];
+  const editable = source === "local" || canEdit;
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORE);
-      if (raw) setSaved(JSON.parse(raw));
-    } catch { /* bozuk kayıt — boş başla */ }
+    let dead = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/forts/plans");
+        if (res.ok) {
+          const data = await res.json();
+          if (dead) return;
+          const shapes: Record<string, Shape[]> = {};
+          const metas: Record<string, PlanMeta> = {};
+          for (const [key, p] of Object.entries(data.plans as Record<string, {
+            shapes: Shape[]; updatedAt: string; by: string;
+          }>)) {
+            shapes[key] = p.shapes;
+            metas[key] = { by: p.by, updatedAt: p.updatedAt };
+          }
+          setSaved(shapes);
+          setMeta(metas);
+          setCanEdit(Boolean(data.canEdit));
+          setSource("server");
+          return;
+        }
+      } catch { /* ağ yok — yerele düş */ }
+
+      if (dead) return;
+      // Oturum yok ya da sunucuya ulaşılamadı: harita yine çalışsın,
+      // çizimler bu tarayıcıda kalsın
+      try {
+        const raw = localStorage.getItem(STORE);
+        if (raw) setSaved(JSON.parse(raw));
+      } catch { /* bozuk kayıt — boş başla */ }
+      setSource("local");
+    })();
+
+    return () => { dead = true; };
   }, []);
 
   useEffect(() => {
@@ -87,13 +132,50 @@ export default function KalelerPage() {
     cornerRef.current = null;
   }, [sel]);
 
-  function persist(next: Record<string, Shape[]>) {
+  /** Bir kalenin planını yazar — sunucu varsa oraya, yoksa tarayıcıya */
+  async function persist(fortKey: string, shapes: Shape[]) {
+    const next = { ...saved };
+    if (shapes.length === 0) delete next[fortKey];
+    else next[fortKey] = shapes;
     setSaved(next);
-    try { localStorage.setItem(STORE, JSON.stringify(next)); }
-    catch { setMsg("Kaydedilemedi — tarayıcı deposu dolu olabilir."); }
+
+    if (source !== "server") {
+      try { localStorage.setItem(STORE, JSON.stringify(next)); }
+      catch { setMsg("Kaydedilemedi — tarayıcı deposu dolu olabilir."); }
+      return true;
+    }
+
+    setBusy(true);
+    try {
+      const res = await fetch("/api/forts/plans", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fortKey, shapes }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setMsg(err.error ?? "Sunucuya kaydedilemedi.");
+        return false;
+      }
+      const data = await res.json();
+      setMeta((m) => {
+        const n = { ...m };
+        if (data.cleared) delete n[fortKey];
+        else n[fortKey] = { by: data.by, updatedAt: data.updatedAt };
+        return n;
+      });
+      return true;
+    } catch {
+      setMsg("Sunucuya ulaşılamadı.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   function onPick(cx: number, cy: number) {
+    if (!editable) return;
+
     if (tool === "c") {
       setDraft((d) => [...d, { t: "c", p: [cx, cy], r: CIRCLE_R, k: color }]);
       return;
@@ -125,18 +207,19 @@ export default function KalelerPage() {
     }
   }
 
-  function save() {
+  async function save() {
     if (draft.length === 0) return;
-    persist({ ...saved, [fort.id]: [...drawn, ...draft] });
+    const ok = await persist(fort.id, [...drawn, ...draft]);
+    if (!ok) return;
     setDraft([]);
     cornerRef.current = null;
-    setMsg("Çizim kaydedildi.");
+    setMsg(source === "server" ? "Plan kaydedildi, herkes görüyor." : "Çizim kaydedildi.");
   }
 
-  function clearSaved() {
-    const next = { ...saved };
-    delete next[fort.id];
-    persist(next);
+  async function clearSaved() {
+    if (!window.confirm(`${fort.name} planındaki ${drawn.length} çizim silinecek. Emin misin?`)) return;
+    const ok = await persist(fort.id, []);
+    if (!ok) return;
     setDraft([]);
     setMsg("Bu haritanın çizimleri silindi.");
   }
@@ -189,20 +272,28 @@ export default function KalelerPage() {
         <div className="t-card p-3 !mt-4">
           {/* Araç çubuğu */}
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            {TOOLS.map(([k, Ico, lbl]) => (
-              <button key={k} className="t-tab" data-on={tool === k}
-                      onClick={() => { setTool(k); cornerRef.current = null; }}>
-                <Ico className="w-3.5 h-3.5" /> {lbl}
-              </button>
-            ))}
+            {editable ? (
+              <>
+                {TOOLS.map(([k, Ico, lbl]) => (
+                  <button key={k} className="t-tab" data-on={tool === k}
+                          onClick={() => { setTool(k); cornerRef.current = null; }}>
+                    <Ico className="w-3.5 h-3.5" /> {lbl}
+                  </button>
+                ))}
 
-            <div className="flex items-center gap-1 ml-1">
-              {COLORS.map((c) => (
-                <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full"
-                        style={{ background: c, outline: color === c ? "2px solid #fff6" : "none",
-                                 outlineOffset: 2 }} />
-              ))}
-            </div>
+                <div className="flex items-center gap-1 ml-1">
+                  {COLORS.map((c) => (
+                    <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full"
+                            style={{ background: c, outline: color === c ? "2px solid #fff6" : "none",
+                                     outlineOffset: 2 }} />
+                  ))}
+                </div>
+              </>
+            ) : source === "server" ? (
+              <span className="t-chip flex items-center gap-1.5">
+                <Lock className="w-3 h-3" /> Sadece görüntüleme
+              </span>
+            ) : null}
 
             <div className="ml-auto flex items-center gap-2">
               <button className="t-tab" data-on={showSource}
@@ -214,18 +305,19 @@ export default function KalelerPage() {
                       onClick={() => setShowLabels((v) => !v)}>
                 <Tag className="w-3.5 h-3.5" /> Etiketler
               </button>
-              {draft.length > 0 && (
+              {editable && draft.length > 0 && (
                 <>
                   <button className="t-tab" onClick={() => setDraft((d) => d.slice(0, -1))}>
                     <Undo2 className="w-3.5 h-3.5" /> Geri
                   </button>
-                  <button className="t-tab" data-on onClick={save}>
-                    <Save className="w-3.5 h-3.5" /> Kaydet ({draft.length})
+                  <button className="t-tab" data-on onClick={save} disabled={busy}>
+                    <Save className="w-3.5 h-3.5" />
+                    {busy ? "Kaydediliyor…" : `Kaydet (${draft.length})`}
                   </button>
                 </>
               )}
-              {drawn.length > 0 && draft.length === 0 && (
-                <button className="t-tab" onClick={clearSaved}>
+              {editable && drawn.length > 0 && draft.length === 0 && (
+                <button className="t-tab" onClick={clearSaved} disabled={busy}>
                   <Trash2 className="w-3.5 h-3.5" /> Çizimleri Sil
                 </button>
               )}
@@ -261,11 +353,23 @@ export default function KalelerPage() {
                   {iconLabel(id)}
                 </span>
               ))}
-              {spots > 0 && (
-                <span className="text-[11px] ml-auto" style={{ color: "var(--t-faint)" }}>
-                  {spots} kurulum noktası
-                </span>
-              )}
+              <span className="text-[11px] ml-auto flex items-center gap-3"
+                    style={{ color: "var(--t-faint)" }}>
+                {spots > 0 && <span>{spots} kurulum noktası</span>}
+                {source === "server" ? (
+                  <span className="flex items-center gap-1.5">
+                    <Cloud className="w-3.5 h-3.5" />
+                    {meta[fort.id]
+                      ? `${meta[fort.id].by} · ${new Date(meta[fort.id].updatedAt)
+                          .toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`
+                      : "plan yok"}
+                  </span>
+                ) : source === "local" ? (
+                  <span className="flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5" /> yalnızca bu tarayıcıda
+                  </span>
+                ) : null}
+              </span>
             </div>
           )}
         </div>
@@ -274,7 +378,12 @@ export default function KalelerPage() {
           Harita karoları, kurulum noktaları ve ikonlar{" "}
           <a href="https://garmoth.com" target="_blank" rel="noreferrer"
              style={{ color: "var(--t-gold)" }}>garmoth.com</a>{" "}
-          izniyle kullanılıyor. Kendi çizimlerin şimdilik yalnızca bu tarayıcıda saklanıyor.
+          izniyle kullanılıyor.{" "}
+          {source === "server"
+            ? "Planlar sunucuda — savaşa girecek herkes aynısını görüyor."
+            : source === "local"
+              ? "Oturum açık değil, çizimler yalnızca bu tarayıcıda kalıyor."
+              : null}
         </p>
       </main>
     </div>
