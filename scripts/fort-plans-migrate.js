@@ -5,12 +5,19 @@
  * Klana gore ayrilmiyor: node war'a muttefiklerle birlikte giriliyor,
  * kale kurulumu da ortak. Bir kalenin tek plani var.
  *
- * Calistirma (yerelden Supabase'e erisilemiyor, VPS uzerinden):
+ * Calistirma (yerelden Supabase'e erisilemiyor, VPS uzerinden).
+ * Konteyner adinin sonundaki sayi her deploy'da degisiyor, o yuzden
+ * sabit yazmak yerine onekten bulunuyor:
+ *
  *   scp scripts/fort-plans-migrate.js root@178.105.214.249:/tmp/
- *   ssh root@178.105.214.249 'docker cp /tmp/fort-plans-migrate.js \
- *     b9xi4os749zl5ki0ldgkc8kg-123649844397:/app/ && \
- *     docker exec -w /app b9xi4os749zl5ki0ldgkc8kg-123649844397 \
- *     node fort-plans-migrate.js && shred -u /tmp/fort-plans-migrate.js'
+ *   ssh root@178.105.214.249 'C=$(docker ps --format "{{.Names}}" \
+ *     | grep "^b9xi4os749zl5ki0ldgkc8kg-" | head -1); \
+ *     docker cp /tmp/fort-plans-migrate.js "$C":/app/ && \
+ *     docker exec -w /app "$C" node fort-plans-migrate.js; \
+ *     docker exec "$C" rm -f /app/fort-plans-migrate.js; \
+ *     shred -u /tmp/fort-plans-migrate.js'
+ *
+ * Calistirildi: 2026-08-20. Tablo, benzersiz indeks ve FK yerinde.
  */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
