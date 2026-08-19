@@ -1,0 +1,128 @@
+/**
+ * Aetherion tema denemesi.
+ *
+ * Katmanlı koyu zemin: her yüzey bir üsttekinden bir tık açık, böylece
+ * derinlik gölge yerine ton farkıyla kuruluyor — koyu arayüzde gölge
+ * zaten görünmüyor.
+ *
+ * Tek sıcak vurgu (altın→ateş) taşıyor. İkinci renk yalnızca durum
+ * bildirmek için: yeşil iyi, kırmızı kötü. Dekoratif renk yok.
+ */
+
+.t-root {
+  --t-canvas: #07080c;
+  --t-shell: #0b0d13;
+  --t-surface: #111420;
+  --t-raised: #181c2b;
+  --t-line: rgba(255, 255, 255, 0.07);
+  --t-line-strong: rgba(255, 255, 255, 0.14);
+
+  --t-gold: #e8b451;
+  --t-ember: #f07a3c;
+  --t-gold-soft: rgba(232, 180, 81, 0.12);
+
+  --t-text: #f2f4f8;
+  --t-dim: #99a1b3;
+  --t-faint: #5b6478;
+
+  --t-good: #38d07f;
+  --t-bad: #ef5f5f;
+
+  --t-r: 14px;
+  --t-r-sm: 9px;
+
+  color: var(--t-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+/* Üstten gelen ışık — sayfanın tepesinde sıcak bir hale */
+.t-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  pointer-events: none;
+  background:
+    radial-gradient(80% 100% at 50% -20%, rgba(232, 180, 81, 0.10), transparent 60%),
+    radial-gradient(50% 80% at 85% -10%, rgba(240, 122, 60, 0.07), transparent 65%);
+}
+
+.t-nav {
+  background: color-mix(in srgb, var(--t-shell) 82%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--t-line);
+}
+
+.t-card {
+  background: linear-gradient(180deg, var(--t-surface), color-mix(in srgb, var(--t-surface) 88%, black));
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r);
+  position: relative;
+}
+
+/* Kartın üst kenarındaki ince ışık çizgisi — cam hissi verir */
+.t-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: var(--t-r) var(--t-r) 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.10), transparent);
+}
+
+.t-card-hi {
+  border-color: rgba(232, 180, 81, 0.22);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(232, 180, 81, 0.07), transparent 55%),
+    linear-gradient(180deg, var(--t-surface), color-mix(in srgb, var(--t-surface) 88%, black));
+}
+
+.t-tab {
+  position: relative;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--t-r-sm);
+  font-size: 13px;
+  color: var(--t-dim);
+  transition: color 0.16s, background 0.16s;
+}
+.t-tab:hover { color: var(--t-text); background: rgba(255, 255, 255, 0.03); }
+.t-tab[data-on="true"] { color: var(--t-text); background: var(--t-raised); }
+.t-tab[data-on="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem; right: 0.9rem; bottom: -1px;
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--t-gold), var(--t-ember));
+}
+
+.t-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Değerin büyüklüğünü gösteren yatay çubuk */
+.t-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.t-bar > i {
+  display: block; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--t-gold), var(--t-ember));
+}
+
+.t-chip {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--t-line-strong);
+  color: var(--t-dim);
+}
+
+.t-row { border-bottom: 1px solid var(--t-line); transition: background 0.14s; }
+.t-row:last-child { border-bottom: 0; }
+.t-row:hover { background: rgba(255, 255, 255, 0.022); }
