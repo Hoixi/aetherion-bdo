@@ -257,7 +257,7 @@ export default function ProfilePage() {
           </div>
           <div className="card px-4 py-3">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Gear Score</p>
+              <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider">Gear Puanı</p>
               <Shield className="w-3.5 h-3.5 text-bdo-text-secondary/50" strokeWidth={1.75} />
             </div>
             <p className="text-xl font-bold font-mono text-bdo-gold">{user.ap + user.dp}</p>

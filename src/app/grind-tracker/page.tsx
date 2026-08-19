@@ -247,7 +247,7 @@ export default function GrindTrackerPage() {
                       value={editPriceValue}
                       onChange={(e) => setEditPriceValue(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && saveCustomPrice(idx)}
-                      placeholder="Silver"
+                      placeholder="Gümüş"
                       autoFocus
                       className="w-28 bg-bdo-bg border border-bdo-gold rounded px-2 py-1 text-xs text-right text-bdo-text-primary focus:outline-none"
                     />

@@ -100,7 +100,7 @@ export default function WarsPage() {
         <StatTile label="Yaklaşan" value={upcoming.length} sub="savaş" icon={Timer} accent={upcoming.length > 0} />
         <StatTile label="Katıldığım" value={myAttending} sub="toplam" icon={Check} />
         <StatTile label="Geçmiş" value={past.length} sub="savaş" icon={Swords} />
-        <StatTile label="Win Rate" value={`%${winRate}`} sub={`${wins}/${decided}`} icon={Trophy}
+        <StatTile label="Kazanma Oranı" value={`%${winRate}`} sub={`${wins}/${decided}`} icon={Trophy}
           tone={winRate >= 50 ? "text-emerald-400" : "text-bdo-text-primary"} />
       </div>
 

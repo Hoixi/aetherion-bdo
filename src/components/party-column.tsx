@@ -4,51 +4,65 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
+import { Trash2, Pencil } from "lucide-react";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
 
+/**
+ * Tek bir parti sütunu.
+ *
+ * Rol seçimi üç ayrı simge butonu yerine tek bir segment şeridi: hangisinin
+ * seçili olduğu bir bakışta görünüyor, yanlışlıkla başkasına basmak zor.
+ * Başlıkta yalnızca ad, doluluk ve ortalama GS var; klan dağılımı ve
+ * silme gibi daha seyrek işler alt satıra indi.
+ */
 
-/** Parti rolleri — analizde her rol kendi içinde kıyaslanır */
-const ROLES = [
-  { key: "MAIN",    label: "Main",     mark: "⚔",  tone: "#e0b040" },
-  { key: "DEFENSE", label: "Savunma",  mark: "⛨",  tone: "#6b93ff" },
-  { key: "FLANK",   label: "Flank",    mark: "↱",  tone: "#b98cff" },
+export const ROLES = [
+  { key: "MAIN", label: "Main", tone: "#e8b451" },
+  { key: "DEFENSE", label: "Savunma", tone: "#6b93ff" },
+  { key: "FLANK", label: "Flank", tone: "#b98cff" },
 ] as const;
 
-interface PartyColumnProps {
-  party: {
-    id: number;
-    name: string;
-    isDefense: boolean;
-    role?: string;
-    members: { id: number; userId: number; asClass?: string | null; user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { tag: string; color: string } | null } }[];
+export type PartyMemberData = {
+  id: number;
+  userId: number;
+  asClass?: string | null;
+  user: {
+    id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
+    guild?: { tag: string; color: string } | null;
   };
+};
+
+interface PartyColumnProps {
+  party: { id: number; name: string; isDefense: boolean; role?: string; members: PartyMemberData[] };
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
   onSetRole: (partyId: number, role: string) => Promise<{ error?: string }>;
   memberStats?: Record<number, UserPerfStats>;
   currentStatuses?: Record<number, AttendanceStatus>;
-  onToggleShai?: (partyId: number, userId: number, next: string | null) => void;
   attendanceHistory?: WarAttendanceSummary[];
+  /** Parti başına üye sınırı */
+  capacity?: number;
 }
 
-export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats, attendanceHistory, currentStatuses, onToggleShai }: PartyColumnProps) {
+export function PartyColumn({
+  party, onRename, onDelete, onSetRole, memberStats, attendanceHistory,
+  currentStatuses, capacity = 20,
+}: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
-  const [defenseErr, setDefenseErr] = useState<string | null>(null);
+  const [roleErr, setRoleErr] = useState<string | null>(null);
   const { setNodeRef, isOver } = useDroppable({ id: `party-${party.id}` });
 
   const memberIds = party.members.map((m) => `member-${m.userId}`);
-
   const role = party.role ?? (party.isDefense ? "DEFENSE" : "MAIN");
   const roleMeta = ROLES.find((r) => r.key === role) ?? ROLES[0];
 
   const count = party.members.length;
-  const avgAp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.ap, 0) / count) : 0;
-  const avgDp = count > 0 ? Math.round(party.members.reduce((s, m) => s + m.user.dp, 0) / count) : 0;
-  const avgGs = avgAp + avgDp;
+  const avgAp = count ? Math.round(party.members.reduce((s, m) => s + m.user.ap, 0) / count) : 0;
+  const avgDp = count ? Math.round(party.members.reduce((s, m) => s + m.user.dp, 0) / count) : 0;
 
-  // Partideki klan dağılımı — ittifak savaşlarında dengeyi görmek için
-  const guildCounts = Array.from(
+  // İttifak savaşlarında dengeyi görmek için
+  const guilds = Array.from(
     party.members.reduce((m, mem) => {
       const g = mem.user.guild;
       if (!g) return m;
@@ -59,112 +73,109 @@ export function PartyColumn({ party, onRename, onDelete, onSetRole, memberStats,
     }, new Map<string, { tag: string; color: string; n: number }>()).values(),
   ).sort((a, b) => b.n - a.n);
 
-  function handleNameSave() {
+  function saveName() {
     setEditing(false);
     if (name !== party.name) onRename(party.id, name);
   }
 
-  async function handleSetRole(next: string) {
-    setDefenseErr(null);
-    const result = await onSetRole(party.id, next);
-    if (result?.error) {
-      setDefenseErr(result.error);
-      setTimeout(() => setDefenseErr(null), 3000);
+  async function pickRole(next: string) {
+    setRoleErr(null);
+    const res = await onSetRole(party.id, next);
+    if (res?.error) {
+      setRoleErr(res.error);
+      setTimeout(() => setRoleErr(null), 3000);
     }
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex-shrink-0 w-64 border rounded-lg p-3 transition-colors ${
-        isOver ? "bg-bdo-surface border-bdo-gold" : "bg-bdo-surface"
-      }`}
-      style={!isOver ? { borderColor: roleMeta.tone + "3d", background: roleMeta.tone + "0a" } : undefined}
-    >
-      <div className="flex items-center justify-between mb-1">
-        {editing ? (
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={handleNameSave}
-            onKeyDown={(e) => e.key === "Enter" && handleNameSave()}
-            autoFocus
-            className="bg-transparent border-b border-bdo-gold text-sm text-bdo-text-primary focus:outline-none w-full"
-          />
-        ) : (
-          <button onClick={() => setEditing(true)} className="text-sm text-bdo-text-muted hover:text-bdo-text-primary flex items-center gap-1">
-            <span title={roleMeta.label} style={{ color: roleMeta.tone }}>{roleMeta.mark}</span>
-            {party.name}
-          </button>
-        )}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-bdo-text-muted">{party.members.length}/20</span>
+    <div ref={setNodeRef}
+         className="flex-shrink-0 w-[268px] rounded-xl border transition-colors bg-bdo-surface"
+         style={{
+           borderColor: isOver ? "var(--tw-ring-color, #e8b451)" : roleMeta.tone + "33",
+           boxShadow: isOver ? `0 0 0 1px ${roleMeta.tone}` : undefined,
+         }}>
+      {/* Başlık */}
+      <div className="px-3 pt-2.5 pb-2 border-b border-bdo-border">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: roleMeta.tone }} />
+          {editing ? (
+            <input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName}
+                   onKeyDown={(e) => e.key === "Enter" && saveName()} autoFocus
+                   className="bg-transparent border-b border-bdo-gold text-[13px] font-semibold
+                              text-bdo-text-primary focus:outline-none flex-1 min-w-0" />
+          ) : (
+            <button onClick={() => setEditing(true)}
+                    className="group flex items-center gap-1.5 text-[13px] font-semibold
+                               text-bdo-text-primary flex-1 min-w-0">
+              <span className="truncate">{party.name}</span>
+              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 shrink-0" />
+            </button>
+          )}
+          <span className="text-[11px] font-mono shrink-0"
+                style={{ color: count >= capacity ? "#ef5f5f" : undefined }}>
+            <span className="text-bdo-text-primary">{count}</span>
+            <span className="text-bdo-text-secondary">/{capacity}</span>
+          </span>
+        </div>
+
+        {/* Rol — tek segment şeridi */}
+        <div className="flex mt-2 rounded-md overflow-hidden border border-bdo-border">
           {ROLES.map((r) => (
-            <button
-              key={r.key}
-              onClick={() => handleSetRole(r.key)}
-              title={r.label}
-              className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
-              style={role === r.key
-                ? { color: r.tone, backgroundColor: r.tone + "26" }
-                : { color: "#4d5c73" }}
-            >
-              {r.mark}
+            <button key={r.key} onClick={() => pickRole(r.key)}
+                    className="flex-1 text-[10px] py-1 font-semibold transition-colors"
+                    style={role === r.key
+                      ? { background: r.tone + "26", color: r.tone }
+                      : { color: "#5e5e66" }}>
+              {r.label}
             </button>
           ))}
-          <button onClick={() => onDelete(party.id)} className="text-xs text-red-400 hover:text-red-300">✕</button>
         </div>
-      </div>
-      {defenseErr && <p className="text-[10px] text-red-400 mb-1">{defenseErr}</p>}
+        {roleErr && <p className="text-[10px] text-red-400 mt-1">{roleErr}</p>}
 
-      {/* AP/DP ortalama */}
-      {count > 0 && (
-        <div className="flex items-center gap-2 mb-2 text-[10px] font-mono">
-          <span className="text-red-400/80" title="Ort. AP">⚔ {avgAp}</span>
-          <span className="text-blue-400/80" title="Ort. DP">🛡 {avgDp}</span>
-          <span className="ml-auto text-bdo-gold/70" title="Ort. GS">GS {avgGs}</span>
-        </div>
-      )}
-
-      {guildCounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 mb-2">
-          {guildCounts.map((g) => (
-            <span
-              key={g.tag}
-              title={`${g.tag}: ${g.n} kişi`}
-              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
-              style={{ color: g.color, borderColor: g.color + "38", backgroundColor: g.color + "14" }}
-            >
-              {g.tag} {g.n}
+        {/* Ortalama gear + klan dağılımı */}
+        {count > 0 && (
+          <div className="flex items-center gap-2 mt-2 text-[10px] font-mono">
+            <span className="text-bdo-text-muted" title="Ortalama AP / DP">
+              {avgAp}/{avgDp}
             </span>
-          ))}
-        </div>
-      )}
+            <span className="text-bdo-gold" title="Ortalama gear puanı">GS {avgAp + avgDp}</span>
+            {guilds.length > 0 && (
+              <span className="ml-auto flex items-center gap-1">
+                {guilds.map((g) => (
+                  <span key={g.tag} title={`${g.tag}: ${g.n} kişi`}
+                        className="text-[9px] font-bold uppercase tracking-wider"
+                        style={{ color: g.color }}>{g.tag}&nbsp;{g.n}</span>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
+      {/* Üyeler */}
       <SortableContext items={memberIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-1.5 min-h-[60px]">
-          {party.members.length === 0 && (
-            <div className="border border-dashed border-bdo-border rounded-lg p-4 text-center text-xs text-bdo-text-muted">
+        <div className="p-2 space-y-1.5 min-h-[72px]">
+          {count === 0 && (
+            <div className="border border-dashed border-bdo-border rounded-lg py-6 text-center
+                            text-[11px] text-bdo-text-secondary">
               Buraya sürükle
             </div>
           )}
           {party.members.map((m) => (
-            <div key={`member-${m.userId}`} className="w-full">
-              <MemberChip
-                id={`member-${m.userId}`}
-                user={m.user}
-                perf={memberStats?.[m.userId]}
-                attendanceHistory={attendanceHistory}
-                currentStatus={currentStatuses?.[m.userId]}
-                asClass={m.asClass}
-                onToggleShai={
-                  onToggleShai ? (userId, next) => onToggleShai(party.id, userId, next) : undefined
-                }
-              />
-            </div>
+            <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user}
+                        perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory}
+                        currentStatus={currentStatuses?.[m.userId]} asClass={m.asClass} />
           ))}
         </div>
       </SortableContext>
+
+      <div className="px-3 pb-2">
+        <button onClick={() => onDelete(party.id)}
+                className="flex items-center gap-1 text-[10px] text-bdo-text-secondary
+                           hover:text-red-400 transition-colors">
+          <Trash2 className="w-3 h-3" /> Partiyi sil
+        </button>
+      </div>
     </div>
   );
 }

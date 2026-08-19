@@ -81,7 +81,7 @@ export default function AllyPage() {
   return (
     <div>
       <PageHeader
-        title="Ally"
+        title="Müttefikler"
         desc="Müttefik klanlarla ortak veriler — katılım, güç dağılımı ve savaş özetleri."
         icon={Handshake}
         action={

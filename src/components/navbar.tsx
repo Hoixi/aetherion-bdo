@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationBell } from "./notification-bell";
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard", label: "Panel" },
   { href: "/members", label: "Üyeler" },
   { href: "/etkinlikler", label: "Etkinlikler" },
   { href: "/forum", label: "Forum" },

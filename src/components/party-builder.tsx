@@ -1,33 +1,35 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
-  DndContext,
-  DragOverlay,
-  rectIntersection,
-  pointerWithin,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  DragStartEvent,
-  DragEndEvent,
-  CollisionDetection,
+  DndContext, DragOverlay, rectIntersection, pointerWithin, PointerSensor,
+  useSensor, useSensors, useDroppable,
+  type DragStartEvent, type DragEndEvent, type CollisionDetection,
 } from "@dnd-kit/core";
-
-// Custom collision: pool uses rectIntersection (generous), parties use pointerWithin (precise)
-const customCollision: CollisionDetection = (args) => {
-  // First check pointerWithin for precise hits on parties/members
-  const pointerCollisions = pointerWithin(args);
-  if (pointerCollisions.length > 0) return pointerCollisions;
-
-  // Fallback to rectIntersection to catch the pool area
-  return rectIntersection(args);
-};
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { MemberChip, UserPerfStats } from "./member-chip";
-import { PartyColumn } from "./party-column";
+import { Search, Plus, Users, AlertTriangle } from "lucide-react";
+import { MemberChip, UserPerfStats, scoreColor } from "./member-chip";
+import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
+import { getClassByID } from "@/lib/classes";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
+
+/**
+ * Parti kurma ekranı.
+ *
+ * Kalabalık olmasın diye ölçü şu: sürekli lazım olan üstte ve sabit
+ * (kim atanmadı, ne kadar doldu, roller nasıl dağıldı), geri kalan
+ * ayrıntı karta üstüne gelince açılıyor.
+ *
+ * Havuzda altmış kişi olabiliyor; aranacak kişiyi gözle bulmak asıl
+ * zorluktu, o yüzden arama ve sıralama havuzun kendi başlığında duruyor.
+ */
+
+// Havuz geniş alan olduğu için rectIntersection ile yakalanıyor;
+// parti ve üyeler için imleç konumu daha isabetli
+const collide: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : rectIntersection(args);
+};
 
 interface User {
   id: number;
@@ -36,6 +38,7 @@ interface User {
   ap: number;
   dp: number;
   avatarUrl: string;
+  guild?: { tag: string; color: string } | null;
 }
 
 interface PartyData {
@@ -43,7 +46,7 @@ interface PartyData {
   name: string;
   isDefense: boolean;
   role?: string;
-  members: { id: number; userId: number; user: User }[];
+  members: PartyMemberData[];
 }
 
 interface PartyBuilderProps {
@@ -56,37 +59,107 @@ interface PartyBuilderProps {
   currentStatuses?: Record<number, AttendanceStatus>;
 }
 
-function DroppablePool({ children }: { children: React.ReactNode }) {
+type PoolSort = "gs" | "score" | "name" | "class";
+
+const POOL_SORTS: [PoolSort, string][] = [
+  ["gs", "Gear"],
+  ["score", "Puan"],
+  ["class", "Class"],
+  ["name", "İsim"],
+];
+
+function DroppablePool({ children, empty }: { children: React.ReactNode; empty: boolean }) {
   const { isOver, setNodeRef } = useDroppable({ id: "pool" });
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex gap-2 flex-wrap p-4 bg-bdo-bg border-2 border-dashed rounded-lg min-h-[80px] transition-colors ${
-        isOver ? "border-bdo-gold bg-bdo-gold/5" : "border-bdo-border"
-      }`}
-    >
-      {children}
+    <div ref={setNodeRef}
+         className={`flex gap-1.5 flex-wrap p-3 rounded-xl border border-dashed transition-colors
+                     min-h-[68px] ${isOver ? "border-bdo-gold bg-bdo-gold/5" : "border-bdo-border bg-bdo-bg"}`}>
+      {empty
+        ? <span className="text-[11px] text-bdo-text-secondary self-center">Herkes bir partiye atandı.</span>
+        : children}
     </div>
   );
 }
 
-export function PartyBuilder({ warId, attendees, initialParties, maxParticipants, memberStats, attendanceHistory, currentStatuses }: PartyBuilderProps) {
+export function PartyBuilder({
+  warId, attendees, initialParties, maxParticipants, memberStats,
+  attendanceHistory, currentStatuses,
+}: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<PoolSort>("gs");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const assignedUserIds = new Set(parties.flatMap((p) => p.members.map((m) => m.userId)));
-  const unassigned = attendees.filter((u) => !assignedUserIds.has(u.id));
-  const totalAssigned = assignedUserIds.size;
+  const assigned = new Set(parties.flatMap((p) => p.members.map((m) => m.userId)));
+  const totalAssigned = assigned.size;
   const isOverMax = maxParticipants ? totalAssigned > maxParticipants : false;
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const userId = Number(String(event.active.id).replace("member-", ""));
+  const unassigned = useMemo(() => {
+    let list = attendees.filter((u) => !assigned.has(u.id));
+    const needle = q.trim().toLocaleLowerCase("tr");
+    if (needle) {
+      list = list.filter((u) => {
+        const cls = getClassByID(u.class)?.name ?? u.class;
+        return u.familyName.toLocaleLowerCase("tr").includes(needle)
+            || cls.toLocaleLowerCase("tr").includes(needle);
+      });
+    }
+    return [...list].sort((a, b) => {
+      if (sort === "name") return a.familyName.localeCompare(b.familyName, "tr");
+      if (sort === "score") return (memberStats?.[b.id]?.score ?? -99) - (memberStats?.[a.id]?.score ?? -99);
+      if (sort === "class") {
+        const an = getClassByID(a.class)?.name ?? a.class;
+        const bn = getClassByID(b.class)?.name ?? b.class;
+        return an.localeCompare(bn, "tr") || b.ap + b.dp - (a.ap + a.dp);
+      }
+      return b.ap + b.dp - (a.ap + a.dp);
+    });
+    // `assigned` her render'da yeniden kuruluyor; parties'e bağlamak yeterli
+  }, [attendees, parties, q, sort, memberStats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Üstteki özet — rol ve klan dağılımı tek bakışta */
+  const summary = useMemo(() => {
+    const byRole = new Map<string, number>();
+    const byGuild = new Map<string, { tag: string; color: string; n: number }>();
+    let gsSum = 0;
+    for (const p of parties) {
+      const role = p.role ?? (p.isDefense ? "DEFENSE" : "MAIN");
+      byRole.set(role, (byRole.get(role) ?? 0) + p.members.length);
+      for (const m of p.members) {
+        gsSum += m.user.ap + m.user.dp;
+        const g = m.user.guild;
+        if (!g) continue;
+        const cur = byGuild.get(g.tag) ?? { tag: g.tag, color: g.color, n: 0 };
+        cur.n++;
+        byGuild.set(g.tag, cur);
+      }
+    }
+    return {
+      byRole,
+      guilds: Array.from(byGuild.values()).sort((a, b) => b.n - a.n),
+      avgGs: totalAssigned ? Math.round(gsSum / totalAssigned) : 0,
+    };
+  }, [parties, totalAssigned]);
+
+  const handleDragStart = useCallback((e: DragStartEvent) => {
+    const userId = Number(String(e.active.id).replace("member-", ""));
     const user = attendees.find((u) => u.id === userId);
     if (user) setActiveUser(user);
   }, [attendees]);
+
+  const savePartyMembers = useCallback(async (partyId: number, members: { userId: number }[]) => {
+    setSaveStatus("Kaydediliyor…");
+    await fetch(`/api/wars/${warId}/parties/${partyId}/members`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberIds: members.map((m) => m.userId) }),
+    });
+    setSaveStatus("Kaydedildi");
+    setTimeout(() => setSaveStatus(null), 2000);
+  }, [warId]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setActiveUser(null);
@@ -96,75 +169,54 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
     const userId = Number(String(active.id).replace("member-", ""));
     const overId = String(over.id);
 
-    let targetPartyId: number | null = null;
-    if (overId.startsWith("party-")) {
-      targetPartyId = Number(overId.replace("party-", ""));
-    } else if (overId.startsWith("member-")) {
-      const overUserId = Number(overId.replace("member-", ""));
-      const containingParty = parties.find((p) => p.members.some((m) => m.userId === overUserId));
-      if (containingParty) targetPartyId = containingParty.id;
-    }
-
     if (overId === "pool") {
-      const sourceParty = parties.find((p) => p.members.some((m) => m.userId === userId));
-      if (sourceParty) {
-        const updated = parties.map((p) =>
-          p.id === sourceParty.id ? { ...p, members: p.members.filter((m) => m.userId !== userId) } : p
-        );
-        setParties(updated);
-        await savePartyMembers(sourceParty.id, updated.find((p) => p.id === sourceParty.id)!.members);
-      }
+      const source = parties.find((p) => p.members.some((m) => m.userId === userId));
+      if (!source) return;
+      const updated = parties.map((p) =>
+        p.id === source.id ? { ...p, members: p.members.filter((m) => m.userId !== userId) } : p);
+      setParties(updated);
+      await savePartyMembers(source.id, updated.find((p) => p.id === source.id)!.members);
       return;
     }
 
-    if (!targetPartyId) return;
+    let targetId: number | null = null;
+    if (overId.startsWith("party-")) {
+      targetId = Number(overId.replace("party-", ""));
+    } else if (overId.startsWith("member-")) {
+      const overUserId = Number(overId.replace("member-", ""));
+      targetId = parties.find((p) => p.members.some((m) => m.userId === overUserId))?.id ?? null;
+    }
+    if (!targetId) return;
 
-    const targetParty = parties.find((p) => p.id === targetPartyId);
-    if (!targetParty) return;
-    if (targetParty.members.length >= 20 && !targetParty.members.some((m) => m.userId === userId)) return;
+    const target = parties.find((p) => p.id === targetId);
+    if (!target) return;
+    if (target.members.length >= 20 && !target.members.some((m) => m.userId === userId)) return;
 
-    const sourceParty = parties.find((p) => p.members.some((m) => m.userId === userId));
+    const source = parties.find((p) => p.members.some((m) => m.userId === userId));
     const user = attendees.find((u) => u.id === userId)!;
 
     let updated = [...parties];
-    if (sourceParty) {
+    if (source) {
       updated = updated.map((p) =>
-        p.id === sourceParty.id ? { ...p, members: p.members.filter((m) => m.userId !== userId) } : p
-      );
+        p.id === source.id ? { ...p, members: p.members.filter((m) => m.userId !== userId) } : p);
     }
     updated = updated.map((p) =>
-      p.id === targetPartyId ? { ...p, members: [...p.members, { id: 0, userId, user }] } : p
-    );
+      p.id === targetId ? { ...p, members: [...p.members, { id: 0, userId, user }] } : p);
     setParties(updated);
 
-    await savePartyMembers(targetPartyId, updated.find((p) => p.id === targetPartyId)!.members);
-    if (sourceParty && sourceParty.id !== targetPartyId) {
-      await savePartyMembers(sourceParty.id, updated.find((p) => p.id === sourceParty.id)!.members);
+    await savePartyMembers(targetId, updated.find((p) => p.id === targetId)!.members);
+    if (source && source.id !== targetId) {
+      await savePartyMembers(source.id, updated.find((p) => p.id === source.id)!.members);
     }
-  }, [parties, attendees, warId]);
-
-  async function savePartyMembers(partyId: number, members: { userId: number }[]) {
-    setSaveStatus("Kaydediliyor...");
-    await fetch(`/api/wars/${warId}/parties/${partyId}/members`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memberIds: members.map((m) => m.userId) }),
-    });
-    setSaveStatus("Kaydedildi ✓");
-    setTimeout(() => setSaveStatus(null), 2000);
-  }
+  }, [parties, attendees, savePartyMembers]);
 
   async function addParty() {
-    const name = `Parti ${parties.length + 1}`;
     const res = await fetch(`/api/wars/${warId}/parties`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name: `Parti ${parties.length + 1}` }),
     });
-    if (res.ok) {
-      const party = await res.json();
-      setParties([...parties, party]);
-    }
+    if (res.ok) setParties([...parties, await res.json()]);
   }
 
   async function renameParty(partyId: number, name: string) {
@@ -183,89 +235,156 @@ export function PartyBuilder({ warId, attendees, initialParties, maxParticipants
       body: JSON.stringify({ role }),
     });
     if (!res.ok) {
-      const data = await res.json();
-      return { error: data.error ?? "Hata oluştu" };
+      const data = await res.json().catch(() => ({}));
+      return { error: data.error ?? "Rol değiştirilemedi." };
     }
-    setParties(parties.map((p) => (p.id === partyId ? { ...p, role, isDefense: role === "DEFENSE" } : p)));
+    setParties(parties.map((p) =>
+      p.id === partyId ? { ...p, role, isDefense: role === "DEFENSE" } : p));
     return {};
   }
 
-  /** Shai işareti — sunucuya yazılır, başarısız olursa geri alınır */
-  async function toggleShai(partyId: number, userId: number, next: string | null) {
-    setParties((prev) => prev.map((p) => p.id !== partyId ? p : {
-      ...p,
-      members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: next } : m)),
-    }));
-    const res = await fetch(`/api/wars/${warId}/parties/${partyId}/members/as-class`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, asClass: next }),
-    });
-    if (!res.ok) {
-      setParties((prev) => prev.map((p) => p.id !== partyId ? p : {
-        ...p,
-        members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: next ? null : "shai" } : m)),
-      }));
-    }
-  }
-
   async function deleteParty(partyId: number) {
+    const p = parties.find((x) => x.id === partyId);
+    if (p && p.members.length > 0 &&
+        !window.confirm(`${p.name} içinde ${p.members.length} kişi var. Silinsin mi?`)) return;
     await fetch(`/api/wars/${warId}/parties/${partyId}`, { method: "DELETE" });
-    setParties(parties.filter((p) => p.id !== partyId));
+    setParties(parties.filter((x) => x.id !== partyId));
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={customCollision} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <h3 className="text-sm text-bdo-text-muted uppercase">Atanmamış Üyeler ({unassigned.length})</h3>
+    <DndContext sensors={sensors} collisionDetection={collide}
+                onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="space-y-4">
+        {/* Özet — sayfayı kaydırmadan durumu görebilmek için */}
+        <div className="flex items-center gap-x-5 gap-y-2 flex-wrap px-3.5 py-2.5
+                        rounded-xl bg-bdo-surface border border-bdo-border">
+          <span className="flex items-center gap-1.5 text-[12px]">
+            <Users className="w-3.5 h-3.5 text-bdo-text-secondary" />
+            <span className="font-mono font-bold text-bdo-text-primary">{totalAssigned}</span>
             {maxParticipants && (
-              <span className={`text-xs px-2 py-0.5 rounded ${
-                isOverMax ? "bg-red-500/20 text-red-400" : totalAssigned === maxParticipants ? "bg-bdo-gold/20 text-bdo-gold" : "bg-bdo-surface text-bdo-text-muted"
-              }`}>
-                Partilerde: {totalAssigned}/{maxParticipants}
-                {isOverMax && " ⚠️ Limit aşıldı!"}
-              </span>
+              <span className="font-mono text-bdo-text-secondary">/ {maxParticipants}</span>
             )}
-          </div>
-          <SortableContext items={unassigned.map((u) => `member-${u.id}`)} strategy={horizontalListSortingStrategy}>
-            <DroppablePool>
-              {unassigned.length === 0 && <span className="text-xs text-bdo-text-muted">Tüm üyeler atandı</span>}
-              {unassigned.map((user) => (
-                <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user} perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory} />
+            <span className="text-bdo-text-muted">partilerde</span>
+          </span>
+
+          {ROLES.map((r) => {
+            const n = summary.byRole.get(r.key) ?? 0;
+            if (!n) return null;
+            return (
+              <span key={r.key} className="flex items-center gap-1.5 text-[12px]">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: r.tone }} />
+                <span className="text-bdo-text-muted">{r.label}</span>
+                <span className="font-mono font-bold" style={{ color: r.tone }}>{n}</span>
+              </span>
+            );
+          })}
+
+          {summary.avgGs > 0 && (
+            <span className="text-[12px] text-bdo-text-muted">
+              Ort. GS <span className="font-mono font-bold text-bdo-gold">{summary.avgGs}</span>
+            </span>
+          )}
+
+          {summary.guilds.map((g) => (
+            <span key={g.tag} className="text-[12px] font-mono" style={{ color: g.color }}>
+              {g.tag} {g.n}
+            </span>
+          ))}
+
+          {isOverMax && (
+            <span className="flex items-center gap-1 text-[12px] font-semibold text-red-400">
+              <AlertTriangle className="w-3.5 h-3.5" /> Katılım sınırı aşıldı
+            </span>
+          )}
+
+          {saveStatus && (
+            <span className="ml-auto text-[11px] text-bdo-gold">{saveStatus}</span>
+          )}
+        </div>
+
+        {/* Havuz */}
+        <div>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <h3 className="text-[12px] font-semibold text-bdo-text-muted uppercase tracking-wider">
+              Atanmamış <span className="font-mono text-bdo-text-primary">{unassigned.length}</span>
+            </h3>
+
+            <div className="relative ml-1">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2
+                                 text-bdo-text-secondary" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="İsim ya da class ara"
+                     className="pl-8 pr-2 h-[30px] w-[200px] rounded-lg text-[12px] bg-bdo-bg
+                                border border-bdo-border focus:border-bdo-gold focus:outline-none" />
+            </div>
+
+            <div className="ml-auto flex items-center gap-1">
+              <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary mr-1">
+                Sırala
+              </span>
+              {POOL_SORTS.map(([k, label]) => (
+                <button key={k} onClick={() => setSort(k)}
+                        className="text-[11px] px-2 py-1 rounded-md transition-colors"
+                        style={sort === k
+                          ? { background: "rgb(var(--bdo-gold) / .14)", color: "rgb(var(--bdo-gold))" }
+                          : { color: "#5e5e66" }}>
+                  {label}
+                </button>
               ))}
+              <button onClick={addParty}
+                      className="ml-2 flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md
+                                 bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20 transition-colors">
+                <Plus className="w-3 h-3" /> Yeni parti
+              </button>
+            </div>
+          </div>
+
+          <SortableContext items={unassigned.map((u) => `member-${u.id}`)}
+                           strategy={horizontalListSortingStrategy}>
+            <DroppablePool empty={unassigned.length === 0 && q.trim() === ""}>
+              {unassigned.map((user) => (
+                <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user}
+                            perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory}
+                            currentStatus={currentStatuses?.[user.id]} compact />
+              ))}
+              {unassigned.length === 0 && q.trim() !== "" && (
+                <span className="text-[11px] text-bdo-text-secondary self-center">
+                  Aramaya uyan kimse yok.
+                </span>
+              )}
             </DroppablePool>
           </SortableContext>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm text-bdo-text-muted uppercase">Partiler</h3>
-              {saveStatus && (
-                <span className="text-xs text-bdo-gold">{saveStatus}</span>
-              )}
-            </div>
-            <button
-              onClick={addParty}
-              className="text-xs bg-bdo-gold/10 text-bdo-gold px-3 py-1 rounded hover:bg-bdo-gold/20 transition-colors"
-            >
-              + Yeni Parti
+        {/* Partiler */}
+        {parties.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-bdo-border py-10 text-center">
+            <p className="text-[13px] text-bdo-text-muted">Henüz parti yok.</p>
+            <button onClick={addParty}
+                    className="mt-3 inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-lg
+                               bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> İlk partiyi oluştur
             </button>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-3">
             {parties.map((party) => (
-              <PartyColumn key={party.id} party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole} memberStats={memberStats} attendanceHistory={attendanceHistory}
-                currentStatuses={currentStatuses} onToggleShai={toggleShai} />
+              <PartyColumn key={party.id} party={party} onRename={renameParty}
+                           onDelete={deleteParty} onSetRole={setRole}
+                           memberStats={memberStats} attendanceHistory={attendanceHistory}
+                           currentStatuses={currentStatuses} />
             ))}
           </div>
-        </div>
+        )}
       </div>
 
       <DragOverlay>
-        {activeUser && <MemberChip id={`overlay-${activeUser.id}`} user={activeUser} isDragOverlay />}
+        {activeUser && (
+          <MemberChip id={`overlay-${activeUser.id}`} user={activeUser}
+                      perf={memberStats?.[activeUser.id]} isDragOverlay compact />
+        )}
       </DragOverlay>
     </DndContext>
   );
 }
+
+export { scoreColor };

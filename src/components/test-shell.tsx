@@ -7,7 +7,7 @@ import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
   Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
-  Menu, X,
+  Menu, X, ScrollText,
 } from "lucide-react";
 import { toTestRoute } from "@/lib/test-routes";
 import "@/app/test/theme.css";
@@ -46,11 +46,12 @@ const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
     { label: "Karakterim", href: "/test/profil", icon: Shield },
     { label: "Grind Tracker", href: "/test/grind-tracker", icon: Activity },
     { label: "Forum", href: "/test/forum", icon: MessageSquare },
+    { label: "Yama Notları", href: "/test/patch-notes", icon: ScrollText },
   ] },
   { key: "Yönetim", icon: ClipboardList, items: [
     { label: "Admin Paneli", href: "/test/admin", icon: Shield },
     { label: "Başvurular", href: "/test/basvuru", icon: UserPlus },
-    { label: "Ally", href: "/test/ally", icon: Users },
+    { label: "Müttefikler", href: "/test/ally", icon: Users },
   ] },
 ];
 export function TestShell({

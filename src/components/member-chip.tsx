@@ -2,10 +2,19 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BDO_CLASSES } from "@/lib/classes";
+import { BDO_CLASSES, getClassIconUrl } from "@/lib/classes";
 import { useState, useRef, useEffect } from "react";
 import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { displayOf, DISPLAY_META } from "@/lib/attendance";
+
+/**
+ * Parti kurarken sürüklenen üye kartı.
+ *
+ * Kart üstünde yalnızca sürekli lazım olan üç şey duruyor: kim, hangi
+ * class, ne kadar gear. Puan sağda ince bir çubuk, bu savaştaki durumu
+ * sol kenardaki renk şeridi anlatıyor — hepsi ayrı rozet olunca kart
+ * okunmaz hâle geliyordu. Geri kalan her şey üstüne gelince açılıyor.
+ */
 
 export interface UserPerfStats {
   wars: number;
@@ -24,59 +33,17 @@ export interface UserPerfStats {
   score: number;
 }
 
-// ─── Attendance dot ───────────────────────────────────────────────────────────
-
 /** Beş durum üç gösterime indirgenir; hiç katılmayan işaretsiz kalır */
 function markOf(status: AttendanceStatus) {
   const d = displayOf(status);
   return d ? DISPLAY_META[d] : null;
 }
 
-function AttendanceDots({ userId, history }: { userId: number; history: WarAttendanceSummary[] }) {
-  if (history.length === 0) return null;
-  return (
-    <div className="flex gap-0.5 mt-1 justify-center">
-      {history.map((war) => {
-        const status = war.statuses[userId];
-        if (!status) {
-          return (
-            <span key={war.warId} title={`${war.title} — Veri yok`}
-              className="text-[9px] leading-none text-bdo-border">·</span>
-          );
-        }
-        const cfg = markOf(status);
-        const when = new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
-        // Hiç katılmayan için işaret yok — nokta ile yer tutulur
-        if (!cfg) {
-          return (
-            <span key={war.warId} title={`${when} — Katılmadı`}
-              className="text-[9px] leading-none text-bdo-border">·</span>
-          );
-        }
-        return (
-          <span key={war.warId}
-            title={`${when} — ${cfg.label}`}
-            className={`text-[9px] leading-none font-bold ${cfg.tw}`}>
-            {cfg.mark}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-interface MemberChipProps {
-  id: string;
-  user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string };
-  isDragOverlay?: boolean;
-  perf?: UserPerfStats;
-  attendanceHistory?: WarAttendanceSummary[];
-  /** Bu savaştaki durumu — geçmiş işaretlerinden ayrı */
-  currentStatus?: AttendanceStatus;
-  /** O savaşa geldiği class, profilindekinden farklıysa */
-  asClass?: string | null;
-  /** Shai işaretini aç/kapat; verilmezse buton çıkmaz */
-  onToggleShai?: (userId: number, next: string | null) => void;
+export function scoreColor(score: number): string {
+  if (score >= 20) return "#38d07f";
+  if (score >= 8) return "#e8b451";
+  if (score >= 0) return "#f0a03c";
+  return "#ef5f5f";
 }
 
 function fmtDmg(n: number): string {
@@ -85,26 +52,53 @@ function fmtDmg(n: number): string {
   return String(Math.round(n));
 }
 
-function ScoreBar({ score }: { score: number }) {
-  // score aralığı yaklaşık -10 ile +40 arası; clamp edip renklendir
-  const clamped = Math.max(-15, Math.min(40, score));
-  const pct = Math.round(((clamped + 15) / 55) * 100);
-  const color = score >= 20 ? "#22c55e" : score >= 8 ? "#d4a853" : score >= 0 ? "#f59e0b" : "#ef4444";
+function AttendanceDots({ userId, history }: { userId: number; history: WarAttendanceSummary[] }) {
+  if (history.length === 0) return null;
   return (
-    <div className="w-full h-1 bg-bdo-border rounded-full overflow-hidden">
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+    <div className="flex gap-0.5">
+      {history.map((war) => {
+        const status = war.statuses[userId];
+        const cfg = status ? markOf(status) : null;
+        const when = new Date(war.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+        if (!cfg) {
+          return (
+            <span key={war.warId} title={`${when} — Katılmadı`}
+                  className="w-1.5 h-1.5 rounded-full bg-bdo-border" />
+          );
+        }
+        return (
+          <span key={war.warId} title={`${when} — ${cfg.label}`}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: cfg.color }} />
+        );
+      })}
     </div>
   );
 }
 
+interface MemberChipProps {
+  id: string;
+  user: {
+    id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
+    guild?: { tag: string; color: string } | null;
+  };
+  isDragOverlay?: boolean;
+  perf?: UserPerfStats;
+  attendanceHistory?: WarAttendanceSummary[];
+  /** Bu savaştaki durumu — geçmiş işaretlerinden ayrı */
+  currentStatus?: AttendanceStatus;
+  /** O savaşa geldiği class, profilindekinden farklıysa */
+  asClass?: string | null;
+  /** Havuzdaki kartlar dar; parti içindekiler tam genişlik */
+  compact?: boolean;
+}
 
 export function MemberChip({
   id, user, isDragOverlay, perf, attendanceHistory,
-  currentStatus, asClass, onToggleShai,
+  currentStatus, asClass, compact,
 }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+  const [tip, setTip] = useState<{ top: number; left: number } | null>(null);
   const chipRef = useRef<HTMLDivElement>(null);
 
   const style = {
@@ -113,152 +107,121 @@ export function MemberChip({
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const className = BDO_CLASSES.find((c) => c.id === user.class)?.name ?? user.class;
+  const shownClass = asClass || user.class;
+  const className = BDO_CLASSES.find((c) => c.id === shownClass)?.name ?? shownClass;
+  const icon = getClassIconUrl(shownClass);
+  const swapped = Boolean(asClass && asClass !== user.class);
+  const status = currentStatus ? markOf(currentStatus) : null;
 
-  function handleMouseEnter() {
-    if (!chipRef.current) return;
-    const rect = chipRef.current.getBoundingClientRect();
-    // Tooltip'i chip'in üstüne yerleştir, ekranın sağına taşmamas için sola hizala
-    const left = Math.min(rect.left, window.innerWidth - 240);
-    setTooltipPos({ top: rect.top - 8, left });
-    setShowTooltip(true);
+  function handleEnter() {
+    if (!chipRef.current || !perf) return;
+    const r = chipRef.current.getBoundingClientRect();
+    setTip({ top: r.top - 8, left: Math.min(r.left, window.innerWidth - 250) });
   }
 
-  // Sürükleme başlayınca kapat
-  useEffect(() => { if (isDragging) setShowTooltip(false); }, [isDragging]);
+  useEffect(() => { if (isDragging) setTip(null); }, [isDragging]);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={isDragOverlay ? undefined : style}
-      className="relative"
-    >
-      {/* Tooltip — fixed pozisyon, overflow sorununu çözer */}
-      {perf && showTooltip && !isDragging && (
-        <div
-          className="fixed z-[9999] w-56 bg-[#0f1020] border border-bdo-border rounded-xl p-3 shadow-2xl pointer-events-none"
-          style={{ top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-100%)", minWidth: 220 }}
-        >
-          {/* Header */}
+    <div ref={setNodeRef} style={isDragOverlay ? undefined : style} className="relative">
+      {perf && tip && !isDragging && (
+        <div className="fixed z-[9999] w-60 bg-bdo-surface border border-bdo-border-2 rounded-xl p-3
+                        shadow-2xl pointer-events-none"
+             style={{ top: tip.top, left: tip.left, transform: "translateY(-100%)" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-bdo-text-primary">{user.familyName}</span>
             <span className="text-[10px] text-bdo-text-muted">{perf.wars} savaş</span>
           </div>
 
-          <ScoreBar score={perf.score} />
-          <div className="text-[10px] text-bdo-text-muted mt-0.5 mb-2">
-            Skor: <span className="font-mono font-bold" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>{perf.score}</span>
+          <div className="h-1 rounded-full bg-bdo-border overflow-hidden">
+            <div className="h-full rounded-full"
+                 style={{
+                   width: Math.round(((Math.max(-15, Math.min(40, perf.score)) + 15) / 55) * 100) + "%",
+                   backgroundColor: scoreColor(perf.score),
+                 }} />
+          </div>
+          <div className="text-[10px] text-bdo-text-muted mt-1 mb-2">
+            Puan <span className="font-mono font-bold" style={{ color: scoreColor(perf.score) }}>
+              {perf.score}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-            <div className="flex justify-between">
-              <span className="text-bdo-text-muted">⚔️ Ort. Öldürme</span>
-              <span className="font-mono text-green-400 font-semibold">{perf.avgKills}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-bdo-text-muted">💀 Ort. Ölüm</span>
-              <span className="font-mono text-red-400 font-semibold">{perf.avgDeaths}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-bdo-text-muted">📊 KDR</span>
-              <span className="font-mono text-bdo-gold font-semibold">{perf.kdr.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-bdo-text-muted">🔥 En Uzun Seri</span>
-              <span className="font-mono text-amber-400 font-semibold">{perf.avgKillStreak}</span>
-            </div>
-            <div className="flex justify-between col-span-2">
-              <span className="text-bdo-text-muted">💥 Ort. Hasar</span>
-              <span className="font-mono text-orange-400 font-semibold">{fmtDmg(perf.avgDamage)}</span>
-            </div>
-            {perf.avgCc > 0 && (
-              <div className="flex justify-between col-span-2">
-                <span className="text-bdo-text-muted">🌀 Ort. CC</span>
-                <span className="font-mono text-purple-400 font-semibold">{perf.avgCc}</span>
+            {([
+              ["Ort. öldürme", String(perf.avgKills)],
+              ["Ort. ölüm", String(perf.avgDeaths)],
+              ["Öldürme/ölüm", perf.kdr.toFixed(2)],
+              ["Ort. seri", String(perf.avgKillStreak)],
+              ["Ort. hasar", fmtDmg(perf.avgDamage)],
+              ["Ort. CC", perf.avgCc > 0 ? String(perf.avgCc) : "—"],
+            ] as [string, string][]).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2">
+                <span className="text-bdo-text-secondary truncate">{k}</span>
+                <span className="font-mono text-bdo-text-primary">{v}</span>
               </div>
-            )}
-            {perf.avgHeal > 0 && (
-              <div className="flex justify-between col-span-2">
-                <span className="text-bdo-text-muted">💊 Ort. Heal</span>
-                <span className="font-mono text-emerald-400 font-semibold">{fmtDmg(perf.avgHeal)}</span>
-              </div>
-            )}
+            ))}
           </div>
 
-          {/* Max records */}
-          <div className="mt-2 pt-2 border-t border-bdo-border/50 flex gap-3 text-[10px] text-bdo-text-muted">
-            <span>Max kill: <span className="text-green-400 font-mono">{perf.maxKills}</span></span>
-            <span>Max hasar: <span className="text-orange-400 font-mono">{fmtDmg(perf.maxDamage)}</span></span>
+          <div className="mt-2 pt-2 border-t border-bdo-border flex gap-3 text-[10px] text-bdo-text-secondary">
+            <span>En çok öldürme <span className="text-bdo-text-primary font-mono">{perf.maxKills}</span></span>
+            <span>En çok hasar <span className="text-bdo-text-primary font-mono">{fmtDmg(perf.maxDamage)}</span></span>
           </div>
         </div>
       )}
 
-      {/* Chip */}
       <div
         ref={chipRef}
         {...attributes}
         {...listeners}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setShowTooltip(false)}
-        className={`bg-bdo-surface border border-bdo-border rounded-lg px-2.5 py-1.5 cursor-grab active:cursor-grabbing select-none ${
-          isDragOverlay ? "shadow-lg border-bdo-gold/50" : "hover:border-bdo-gold/30"
-        }`}
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setTip(null)}
+        className={`relative overflow-hidden bg-bdo-surface-2 border border-bdo-border rounded-lg
+                    cursor-grab active:cursor-grabbing select-none transition-colors
+                    ${compact ? "pl-3 pr-2 py-1.5" : "pl-3 pr-2.5 py-2"}
+                    ${isDragOverlay ? "border-bdo-gold/50 shadow-lg" : "hover:border-bdo-gold/30"}`}
       >
-        {/* Row 1: avatar + name + class */}
-        <div className="flex items-center gap-1.5">
-          {user.avatarUrl && <img src={user.avatarUrl} alt="" className="w-5 h-5 rounded-full shrink-0" />}
-          <span className="text-xs font-semibold text-bdo-text-primary truncate">{user.familyName}</span>
-          <span className="text-[10px] text-bdo-text-muted shrink-0">
-            ({asClass ? BDO_CLASSES.find((c) => c.id === asClass)?.name ?? asClass : className})
+        {/* Bu savaştaki durum: rozet yerine sol kenar şeridi */}
+        {status && (
+          <span className="absolute left-0 inset-y-0 w-[3px]"
+                style={{ backgroundColor: status.color }} title={status.label} />
+        )}
+
+        <div className="flex items-center gap-2">
+          {icon
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={icon} alt="" className="w-4 h-4 opacity-75 shrink-0" title={className} />
+            : <span className="w-4 shrink-0" />}
+
+          <span className="text-xs font-semibold text-bdo-text-primary truncate flex-1">
+            {user.familyName}
           </span>
-          {asClass && asClass !== user.class && (
-            <span className="text-[9px] font-bold px-1 rounded bg-purple-500/15 text-purple-300 shrink-0"
-                  title={`Bu savaşa ${BDO_CLASSES.find((c) => c.id === asClass)?.name ?? asClass} ile geliyor`}>
-              ⇄
-            </span>
+
+          {swapped && (
+            <span className="text-[9px] font-bold px-1 rounded shrink-0
+                             bg-bdo-gold/15 text-bdo-gold"
+                  title={`Bu savaşa ${className} ile geliyor`}>⇄</span>
           )}
-        </div>
-        {/* Row 2: AP/DP + score */}
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-bdo-gold font-mono">{user.ap}/{user.dp}</span>
-          {(() => {
-            const cur = currentStatus ? markOf(currentStatus) : null;
-            return cur ? (
-              <span title={cur.label}
-                    className="text-[9px] font-semibold px-1 py-0.5 rounded"
-                    style={{ color: cur.color, backgroundColor: cur.bg }}>
-                {cur.mark} {cur.short}
-              </span>
-            ) : null;
-          })()}
+
+          <span className="text-[10px] font-mono text-bdo-text-muted shrink-0">
+            {user.ap}/{user.dp}
+          </span>
+
           {perf && (
-            <span className="text-[10px] font-mono font-semibold ml-auto" style={{ color: perf.score >= 20 ? "#22c55e" : perf.score >= 8 ? "#d4a853" : perf.score >= 0 ? "#f59e0b" : "#ef4444" }}>
-              {perf.score}p
+            <span className="text-[10px] font-mono font-bold shrink-0 w-7 text-right"
+                  style={{ color: scoreColor(perf.score) }}
+                  title={`Performans puanı — ${perf.wars} savaş`}>
+              {perf.score}
             </span>
           )}
         </div>
 
-        {onToggleShai && !isDragOverlay && (
-          <button
-            // Sürükleme başlatmasın
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleShai(user.id, asClass === "shai" ? null : "shai");
-            }}
-            title={asClass === "shai" ? "Shai işaretini kaldır" : "Bu savaşa Shai ile geliyor"}
-            className={`mt-1 w-full text-[9px] py-0.5 rounded transition-colors ${
-              asClass === "shai"
-                ? "bg-purple-500/20 text-purple-300"
-                : "bg-bdo-bg text-bdo-text-secondary hover:text-purple-300"
-            }`}
-          >
-            {asClass === "shai" ? "Shai ✓" : "Shai"}
-          </button>
-        )}
-        {/* Row 3: attendance dots */}
-        {!isDragOverlay && attendanceHistory && (
-          <AttendanceDots userId={user.id} history={attendanceHistory} />
+        {!isDragOverlay && !compact && attendanceHistory && attendanceHistory.length > 0 && (
+          <div className="flex items-center gap-2 mt-1.5 pl-6">
+            <AttendanceDots userId={user.id} history={attendanceHistory} />
+            {user.guild && (
+              <span className="ml-auto text-[9px] font-bold uppercase tracking-wider"
+                    style={{ color: user.guild.color }}>{user.guild.tag}</span>
+            )}
+          </div>
         )}
       </div>
     </div>

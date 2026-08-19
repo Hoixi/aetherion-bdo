@@ -140,7 +140,9 @@ export default function ForumPostPage() {
   const isAdmin = session?.user.isAdmin;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    // Dar bir kolona sıkışmak yerine sayfanın genişliğini kullanıyor;
+    // üst kabuk zaten 1500px'te sınırlıyor
+    <div>
       <button
         onClick={() => router.push("/forum")}
         className="inline-flex items-center gap-1.5 text-[12px] text-bdo-text-secondary hover:text-bdo-gold transition-colors mb-4"

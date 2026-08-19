@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Aetherion",
-  description: "Aetherion Guild Management",
+  description: "Aetherion Klan Yönetimi",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Aetherion",
-    description: "Aetherion Guild Management",
+    description: "Aetherion Klan Yönetimi",
     images: [{ url: "/icons/logo.png", width: 512, height: 512 }],
   },
 };

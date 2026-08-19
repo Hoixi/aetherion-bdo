@@ -114,7 +114,7 @@ export default function MemberProfilePage() {
               <p className="text-[10px] text-bdo-text-secondary mt-0.5">katılım oranı</p>
             </div>
             <div className="card px-4 py-3">
-              <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider mb-1">Gear Score</p>
+              <p className="text-[10px] text-bdo-text-secondary uppercase tracking-wider mb-1">Gear Puanı</p>
               <p className="text-xl font-bold font-mono text-bdo-gold">{member.ap + member.dp}</p>
               <p className="text-[10px] text-bdo-text-secondary mt-0.5">{member.ap} AP · {member.dp} DP</p>
             </div>

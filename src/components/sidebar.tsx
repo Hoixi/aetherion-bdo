@@ -12,14 +12,14 @@ const navGroups = [
   {
     label: "Genel",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+      { href: "/dashboard", label: "Panel", icon: LayoutGrid },
       { href: "/wars", label: "Savaşlar", icon: Swords },
       { href: "/members", label: "Üyeler", icon: Users },
       { href: "/hasar-raporu", label: "Hasar Raporu", icon: BarChart3 },
       { href: "/analiz", label: "Savaş Analizi", icon: LineChart },
       { href: "/etkinlikler", label: "Etkinlikler", icon: Zap },
       { href: "/calendar", label: "Takvim", icon: CalendarDays },
-      { href: "/ally", label: "Ally", icon: Handshake },
+      { href: "/ally", label: "Müttefikler", icon: Handshake },
     ],
   },
   {
@@ -66,7 +66,7 @@ export function Sidebar() {
           </div>
           <div>
             <p className="text-[13px] font-bold text-bdo-text-primary tracking-wide leading-none">AETHERION</p>
-            <p className="text-[10px] text-bdo-text-secondary mt-0.5 leading-none">Guild Management</p>
+            <p className="text-[10px] text-bdo-text-secondary mt-0.5 leading-none">Klan Yönetimi</p>
           </div>
         </Link>
       </div>

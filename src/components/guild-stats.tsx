@@ -105,7 +105,7 @@ export function GuildStats() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatTile label="Toplam Üye" value={stats.totalMembers} sub="kayıtlı" icon={Users} />
         <StatTile label="Ortalama GS" value={stats.avgGs} sub="klan ort." icon={Shield} tone="text-bdo-gold" accent />
-        <StatTile label="Win Rate" value={`%${winRate}`} sub={`${stats.warStats.wins}G ${stats.warStats.losses}M`} icon={Trophy} tone={winRate >= 50 ? "text-emerald-400" : "text-bdo-text-primary"} />
+        <StatTile label="Kazanma Oranı" value={`%${winRate}`} sub={`${stats.warStats.wins}G ${stats.warStats.losses}M`} icon={Trophy} tone={winRate >= 50 ? "text-emerald-400" : "text-bdo-text-primary"} />
         <StatTile label="Toplam Savaş" value={stats.warStats.totalWars} sub="tüm zamanlar" icon={Swords} />
       </div>
 
