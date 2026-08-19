@@ -15,6 +15,10 @@ const navItems = [
 ];
 
 export function MobileNav() {
+  // /test kendi ekranı — site kabuğu oraya girmesin
+  const _p = usePathname();
+  if (_p?.startsWith("/test")) return null;
+
   const { data: session } = useSession();
   const pathname = usePathname();
 

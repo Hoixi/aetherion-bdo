@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
  */
 export default function TestLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="fixed inset-0 overflow-y-auto z-30" style={{ background: "var(--t-canvas)" }}>
+    <div className="fixed inset-0 overflow-y-auto z-[60]" style={{ background: "var(--t-canvas)" }}>
       {children}
     </div>
   );

@@ -4,11 +4,39 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Swords, Users, Trophy, Flame, Shield, ArrowUpRight, ArrowDownRight,
-  Activity, Crown, Target, ChevronRight,
+  Activity, Crown, Target, ChevronRight, ChevronDown, BarChart3,
+  Wrench, Search, ClipboardList, Map, Sparkles, CalendarDays, ListOrdered,
 } from "lucide-react";
 import "./theme.css";
 
 /* Tema denemesi — veriler temsili, amaç görünümü değerlendirmek */
+
+/** Üst menü — her başlık kendi alt sayfalarını açar */
+const NAV = [
+  { key: "Savaşlar", icon: Swords, items: [
+    { label: "Savaş Listesi", href: "/wars", icon: Swords },
+    { label: "Parti Builder", href: "/wars", icon: Users },
+    { label: "Takvim", href: "/calendar", icon: CalendarDays },
+  ] },
+  { key: "İstatistik", icon: BarChart3, items: [
+    { label: "Savaş Analizi", href: "/analiz", icon: BarChart3 },
+    { label: "Hasar Raporu", href: "/hasar-raporu", icon: Flame },
+    { label: "Tier List", href: "/tier-list", icon: ListOrdered },
+  ] },
+  { key: "Araçlar", icon: Wrench, items: [
+    { label: "Harita", href: "/harita", icon: Map },
+    { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
+    { label: "Optimizer", href: "/optimizer", icon: Target },
+  ] },
+  { key: "Takip", icon: Search, items: [
+    { label: "Üyeler", href: "/members", icon: Users },
+    { label: "Grind Tracker", href: "/grind-tracker", icon: Activity },
+  ] },
+  { key: "Yönetim", icon: ClipboardList, items: [
+    { label: "Admin", href: "/admin", icon: Shield },
+    { label: "Başvurular", href: "/admin", icon: ClipboardList },
+  ] },
+] as const;
 
 const TABS = ["Genel", "Karakterler", "Performans", "Savaşlar"] as const;
 type Tab = (typeof TABS)[number];
@@ -46,6 +74,7 @@ const WARS = [
 
 export default function TestPage() {
   const [tab, setTab] = useState<Tab>("Genel");
+  const [open, setOpen] = useState<string | null>(null);
 
   return (
     <div className="t-root t-glow relative min-h-full">
@@ -65,11 +94,32 @@ export default function TestPage() {
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1 ml-2">
-            {TABS.map((t) => (
-              <button key={t} className="t-tab" data-on={tab === t} onClick={() => setTab(t)}>
-                {t}
-              </button>
+          <nav className="hidden lg:flex items-center gap-1 ml-2"
+               onMouseLeave={() => setOpen(null)}>
+            {NAV.map((n) => (
+              <div key={n.key} className="relative">
+                <button
+                  className="t-tab"
+                  data-on={open === n.key}
+                  onMouseEnter={() => setOpen(n.key)}
+                  onClick={() => setOpen(open === n.key ? null : n.key)}
+                >
+                  <n.icon className="w-3.5 h-3.5" strokeWidth={2} />
+                  {n.key}
+                  <ChevronDown className="w-3 h-3 opacity-60" strokeWidth={2.5} />
+                </button>
+
+                {open === n.key && (
+                  <div className="t-menu">
+                    {n.items.map((it) => (
+                      <Link key={it.label} href={it.href} onClick={() => setOpen(null)}>
+                        <it.icon className="w-3.5 h-3.5" strokeWidth={1.9} />
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
 
@@ -82,6 +132,15 @@ export default function TestPage() {
       </header>
 
       <main className="relative mx-auto max-w-[1400px] px-5 py-8 space-y-6">
+        {/* Sayfa içi sekmeler */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {TABS.map((t) => (
+            <button key={t} className="t-tab" data-on={tab === t} onClick={() => setTab(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+
         {/* Başlık */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
