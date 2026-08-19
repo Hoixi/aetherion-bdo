@@ -1,7 +1,10 @@
-# Garmoth kale konumları — çıkarma tarifi
+# Garmoth kale haritaları — veri ve koordinat uzayı
 
 Kullanım izni alındı (garmoth yöneticisi, site public olmadığı sürece, kaynak
-belirtmek şartıyla). Kaynak notu sayfada görünür yerde durmalı.
+belirtmek şartıyla). Kaynak notu `/test/kaleler` sayfasının altında duruyor.
+
+Ekran görüntüsü **almıyoruz**. Karolar, ikonlar ve şekiller kaynağından
+canlı çekiliyor; aşağıdaki dönüşüm üçünü aynı çerçeveye oturtuyor.
 
 ## Kaynak sayfalar
 
@@ -10,26 +13,22 @@ https://garmoth.com/guides/post/occupation-balenos-fort-locations
 https://garmoth.com/guides/post/occupation-serendia-fort-locations
 ```
 
-`curl` **403 dönüyor** — Cloudflare engelliyor. Tarayıcı üzerinden çekmek gerekiyor
-(`mcp__Claude_Browser__navigate` + `javascript_tool`).
+`curl` **403 dönüyor** — Cloudflare engelliyor. Tarayıcı üzerinden çekmek
+gerekiyor (`mcp__Claude_Browser__navigate` + `javascript_tool`).
 
-## Veri nerede
-
-Sayfada her gömülü harita için bir tane:
+Her sayfada 7 gömülü harita var: ilki bölge geneli, kalan 6'sı kale başına.
 
 ```html
 <script type="application/json" class="map-embed-data">{ ... }</script>
 ```
-
-Balenos'ta 7 tane var: ilki bölge geneli, kalan 6'sı kale başına.
 
 ## Şema
 
 ```jsonc
 {
   "v": 1,
-  "view": { "cx": 224, "cy": 224, "zoom": 3 },
-  "height": 300,
+  "view": { "cx": 224, "cy": 224, "zoom": 3 },   // varsayılan; gerçek görünüm
+  "height": 300,                                  // şekillere oturtuluyor
   "calibration": {
     "scaleX": 0.39, "scaleY": 0.39,
     "originX": 82.26, "originY": 94.38,
@@ -37,184 +36,111 @@ Balenos'ta 7 tane var: ilki bölge geneli, kalan 6'sı kale başına.
     "yFlip": -1
   },
   "shapes": [
-    { "type": "circle", "coords": [283.6, 195.8], "radius": 1.98,
+    { "type": "circle",    "coords": [283.6, 195.8], "radius": 1.98,
       "style": { "color": "#48bb78", "weight": 3, "fill": "#48bb78" } },
-    { "type": "text", "coords": [271.7, 190.1],
-      "props": { "text": "WESTERN GUARD CAMP", "color": "#48bb78", "size": 14 } },
-    { "type": "image", "coords": [...], "props": { "alt": "No-Retreat Flag" } }
+    { "type": "rectangle", "coords": [[282.9, 204.2], [288.1, 200.1]],
+      "style": { "color": "#f56565" } },
+    { "type": "image",     "coords": [284.3, 203.6],
+      "props": { "iconId": "notretreatingflag" } },
+    { "type": "text",      "coords": [284.3, 203.2],
+      "props": { "text": "[1] MADPOT", "color": "#f56565", "size": 14 } }
   ]
 }
 ```
 
-Şekil türleri: `circle`, `text`, `image` (ayrıca polyline/polygon olabilir —
-çıkarırken `type` alanını sabit varsayma).
+`calibration` 14 haritanın hepsinde birebir aynı — tek bir sabit dönüşüm
+yetiyor, harita başına ayrı kalibrasyon tutmaya gerek yok.
 
-## Etiket düzeni
+## Koordinat dönüşümü
 
-Kale haritalarındaki metinler kurulum noktalarını numaralandırıyor:
+**Bu belgenin asıl konusu bu.** İlk denemede dünya genişliği 448 birim
+varsayılmıştı; tahmindi ve yanlıştı, noktalar denize düşüyordu. Doğrusu
+kaynağın kendi DOM'undan ölçüldü.
 
-```
-[1] MADPOT
-[2]  [3]  [4]
-[5] POTENCIAL SPOT ... [8] POTENCIAL SPOT
-```
+### Ölçüm
 
-Bölge haritasında ise kale adları geçiyor: CRON CASTLE, FOREST OF PLUNDER,
-BARTALI FARM, WESTERN GUARD CAMP, ALTAR OF AGRIS, WOLF HILL. Ayrıca VELIA,
-OLVIA gibi şehir etiketleri de var — kale değiller, ayıklanmalı.
+Balenos sayfasının 2. gömülü haritasında, `scale(1)` ve panel kayması 0 olan
+temiz bir durumda:
 
-Not: kaynakta yazım tutarsızlıkları var (`OLIVA`/`OLVIA`,
-`WESTERN GUARDN CAMP`, `POTENCIAL`). Türkçeleştirirken düzeltilebilir.
+| Ne | Değer |
+|---|---|
+| Karo | `5/16/16`, konteynerde `translate3d(-39px, -6px)`, 200×200 |
+| İşaretçi | `translate3d(145px, 68px)` |
+| Aynı işaretçinin `coords` değeri | `[284.26082, 203.64022]` |
 
-## Karo piramidi
+Karo x=16'nın dünya pikseli `16 × 200 = 3200`, ekranda −39'da; yani
+`dünya = ekran + 3239`. İşaretçi ekranda (145, 68) → dünyada (3384, 3274).
 
-Garmoth kendi dünya haritasını servis ediyor, 256px karolar:
-
-```
-https://assets.garmoth.com/world-map/v2/tiles/{z}/{x}/{y}.webp
-```
-
-Kale koordinatları bu haritanın uzayında. Bizim `/harita` questlog karoları
-kullanıyor (336px) — iki uzay farklı, `calibration` bloğu dönüşümü veriyor.
-
-## Çıkarma betiği (tarayıcı konsolunda çalışır)
-
-```js
-(() => {
-  const E = [...document.querySelectorAll('.map-embed-data')];
-  const R = n => Math.round(n * 10) / 10;
-  return JSON.stringify(E.map(e => {
-    const j = JSON.parse(e.textContent);
-    return {
-      c: j.calibration,
-      s: (j.shapes || []).map(s => {
-        const o = { t: s.type[0], p: (s.coords || []).map(R) };
-        if (s.type === 'text')  o.x = s.props?.text;
-        if (s.type === 'image') o.x = s.props?.alt || '';
-        if (s.radius) o.r = R(s.radius);
-        return o;
-      }),
-    };
-  }));
-})();
-```
-
-Balenos çıktısı ~13KB, Serendia benzer. Bağlamı şişirmemek için doğrudan
-dosyaya yazdırmak, ajanın içinden geçirmemek gerekiyor.
-
-## Sayfa planı
-
-`/test/kaleler`
-
-1. Bölge seç (Balenos / Serendia)
-2. Kale seç — bölge haritası, kaleler işaretli
-3. Kurulum noktası seç — kale haritası, numaralı noktalar
-4. Çizim katmanı
-
-Çizim için ayrı bir format icat etmeye gerek yok: garmoth'un `shapes` dizisi
-zaten circle/text/image/polyline taşıyor. Aynı şemayı kullanırsak kendi
-çizimlerimiz garmoth verisiyle aynı yapıda olur, tek render yolu yeter.
-
-Kaydetmek için `MapPoint`'e benzer bir tablo ya da savaşa bağlı bir
-`WarPlan` tablosu (warId, fortKey, shapes JSON) uygun olur.
-
----
-
-## Çözüm: DOM'dan doğrudan al, koordinat dönüşümü yapma
-
-`calibration` bloğundan güvenilir bir dönüşüm çıkarmaya çalışmak gereksizdi.
-Leaflet zaten her şeyi ekrana yerleştirmiş durumda ve konumlar DOM'da yazıyor.
-
-### Karolar
+### Sonuç
 
 ```
-.leaflet-tile-container   → transform: translate3d(0,0,0) scale(S)
-img.leaflet-tile          → src + transform: translate3d(Xpx, Ypx, 0) + width/height
+dünya_pikseli(z) = 2^z × ( origin + scale × flip × (koordinat − pivot) )
 ```
 
-Karonun ekrandaki yeri `(X * S, Y * S)`, boyutu `width * S`. Örnekte
-`S = 0.707107`, karo 200px → ekranda 141.4px.
-
-### İşaretçiler
+Doğrulama:
 
 ```
-.leaflet-marker-icon      → transform: translate3d(Xpx, Ypx, 0)
-                            margin-left / margin-top  (çapa kayması)
+x: 82.26 + 0.39 × (284.26082 − 224) = 105.7602   × 32 = 3384.3   (ölçülen 3384)
+y: 94.38 + 0.39 × (224 − 203.64022) = 102.3204   × 32 = 3274.3   (ölçülen 3274)
 ```
 
-`translate3d` değeri doğrudan çapa noktası; margin'ler kutuyu ortalamak
-için, konumu değiştirmiyor. Marker pane karo konteynerindeki `scale`'i
-almıyor, yani bu değerler zaten ekran uzayında.
+Yani izdüşüm değeri **P**, 200 birimlik bir kareyi kaplıyor; zoom z'de
+`2^z × 2^z` karo, her biri 200 piksel.
 
-Alt türler:
-- `.bdo-draw-image` → içinde `img` (ikon), `alt` etiketi taşıyor
-- `.bdo-draw-text`  → içinde `span.bdo-draw-text__label`, rengi inline style'da
-- `.bdo-town-marker` → şehir etiketi (Velia, Heidel…), istenirse elenir
+`pivot` çıkarmayı atlarsan tutmaz — ilk denemede kaçan parça buydu.
 
-### Harita paneli kayması
+### Leaflet kurulumu
 
-`.leaflet-map-pane` üzerinde `transform: translate3d(-78px, 0, 0)` gibi bir
-kayma olabiliyor; hem karolara hem işaretçilere uygulanır.
+`CRS.Simple` y'yi ters çeviriyor; izdüşüm zaten ekran yönünde olduğu için
+düz dönüşüm kullanılıyor ve P doğrudan latlng oluyor:
 
-### Doğrulama
-
-Örnek veride iki metin işaretçisi:
-
-```
-GLISH   coords [278.54, 164.44] → translate3d(315px, 230px)
-HEIDEL  coords [289.76, 177.94] → translate3d(414px, 111px)
+```ts
+const crs = L.extend({}, L.CRS.Simple, {
+  transformation: new L.Transformation(1, 0, 1, 0),
+});
+// lat = Py, lng = Px, tileSize = 200
 ```
 
-Aradaki afin: `px = 8.82 * coord + sabit`, y ekseni ters. Tutarlı çıkıyor,
-ama üretimde kullanmaya gerek yok — piksel değerleri zaten elimizde.
+Uygulamada canlı sayfa üstünde tekrar ölçüldü — üç etikette de sapma
+1 pikselin altında (tamsayıya yuvarlanmış `translate3d` değerlerinden).
 
-### Çıkarma betiği
+## Varlıklar
 
-```js
-(() => {
-  const box = document.querySelector('.bdo-map-embed__map');
-  const pane = box.querySelector('.leaflet-map-pane');
-  const cont = box.querySelector('.leaflet-tile-container');
-  const num = (el, re) => { const m = (el.getAttribute('style')||'').match(re); return m ? parseFloat(m[1]) : 0; };
-  const tx = (el) => {
-    const m = (el.getAttribute('style')||'').match(/translate3d\(([-\d.]+)px,\s*([-\d.]+)px/);
-    return m ? [parseFloat(m[1]), parseFloat(m[2])] : [0, 0];
-  };
-  const S = num(cont, /scale\(([-\d.]+)\)/) || 1;
-  const [px, py] = tx(pane);
-  return JSON.stringify({
-    w: box.clientWidth, h: box.clientHeight, pane: [px, py], scale: S,
-    tiles: [...cont.querySelectorAll('img.leaflet-tile')].map(t => {
-      const [x, y] = tx(t);
-      return { src: t.src, x, y, w: parseFloat(t.style.width) };
-    }),
-    marks: [...box.querySelectorAll('.leaflet-marker-pane > div')].map(m => {
-      const [x, y] = tx(m);
-      const img = m.querySelector('img');
-      const lab = m.querySelector('.bdo-draw-text__label');
-      return {
-        x, y,
-        icon: img && !m.classList.contains('bdo-town-marker') ? img.src : null,
-        text: lab ? lab.textContent : null,
-        color: lab ? lab.style.color : null,
-        town: m.classList.contains('bdo-town-marker') || null,
-      };
-    }),
-  });
-})();
+```
+https://assets.garmoth.com/world-map/v2/tiles/{z}/{x}/{y}.webp   zoom 0–7
+https://assets.garmoth.com/icons/map-icons/nodeicon_<iconId>.webp
 ```
 
-### Birleştirme
+Karolar 256px geliyor ama Leaflet 200px'e ölçekliyor (`tileSize: 200`).
+Deniz karoları 404 dönüyor; `errorTileUrl` ile saydam geçiliyor.
 
-Bu çıktı `sharp` ile sunucuda birleştirilir:
+İkon adlandırmasında **tek istisna** var: `nodewarfort` →
+`nodewar_fort.png` (hem ad hem uzantı farklı). Diğerleri kalıba uyuyor.
 
-1. `w × h` boyutunda tuval
-2. Her karo: `assets.garmoth.com`'dan indir, `w*S` boyutuna getir,
-   `(x*S + paneX, y*S + paneY)` konumuna yapıştır
-3. İkonlar: indir, `(x + paneX - 24, y + paneY - 48)` konumuna yapıştır
-   (48×48 ikonun çapası alt-orta)
-4. Metinler: SVG katmanı olarak üstüne bindir
-5. `webp` olarak `public/map/forts/<id>.webp`
+## Kurulan yapı
 
-Veri ajanın bağlamından geçmesin diye, çıktıyı bir API ucuna yapıştırıp
-işlemi sunucuda yaptırmak en pratiği.
+| Dosya | İşi |
+|---|---|
+| `src/data/forts/balenos.json`, `serendia.json` | Çıkarılmış şekiller, 7'şer harita |
+| `src/lib/garmoth-forts.ts` | Dönüşüm, katalog, Türkçe etiketler, odak kutusu |
+| `src/components/fort-map.tsx` | Leaflet haritası — karolar + şekiller + çizim |
+| `src/app/test/kaleler/page.tsx` | Kale seçimi, araç çubuğu, efsane |
+
+Çizimlerimiz garmoth'un şekil şemasını kullanıyor, böylece tek bir çizim
+yolu ikisine birden yetiyor.
+
+### Odak kutusu
+
+Kale haritalarında Velia/Olvia gibi uzak referans daireleri de var; hepsini
+kapsayacak şekilde oturtunca kale ekranın köşesinde noktacık kalıyor.
+Kaynakta kale bölgesi zaten bir dikdörtgenle işaretli, `focusBounds()` varsa
+ona odaklanıyor. Bölge haritalarında dikdörtgen ya yok (Balenos) ya da
+bölgenin tamamını çevreliyor (Serendia) — ikisi de doğru sonuç veriyor.
+
+## Kalanlar
+
+- Çizimler şu an yalnızca `localStorage`'da. Sunucuya taşımak için savaşa
+  bağlı bir `WarPlan` tablosu (`warId`, `fortKey`, `shapes` JSON) uygun.
+- Kaynaktaki yazım hataları (`OLIVA`/`OLVIA`, `WESTERN GUARDN CAMP`,
+  `POTENCIAL`/`POTENICAL`/`POTENICIAL`) çeviri katmanında düzeltiliyor;
+  ham JSON'a dokunulmadı ki kaynakla karşılaştırılabilir kalsın.

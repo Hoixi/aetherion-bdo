@@ -15,13 +15,13 @@ const navItems = [
 ];
 
 export function MobileNav() {
-  // /test kendi ekranı — site kabuğu oraya girmesin
-  const _p = usePathname();
-  if (_p?.startsWith("/test")) return null;
-
   const { data: session } = useSession();
   const pathname = usePathname();
 
+  // /test kendi ekranı — site kabuğu oraya girmesin.
+  // Erken dönüş hook'lardan sonra: aksi halde render'lar arasında hook
+  // sırası değişir.
+  if (pathname?.startsWith("/test")) return null;
   if (!session) return null;
 
   return (
