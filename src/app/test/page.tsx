@@ -28,6 +28,7 @@ const NAV = [
     { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
     { label: "Optimizer", href: "/optimizer", icon: Target },
     { label: "GeoGuessr", href: "/geo", icon: MapIcon },
+    { label: "Kale Kurulumları", href: "/test/kaleler", icon: Castle },
   ] },
   { key: "Takip", icon: Search, items: [
     { label: "Üyeler", href: "/members", icon: Users },
