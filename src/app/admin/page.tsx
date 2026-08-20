@@ -52,6 +52,7 @@ interface War {
   deadline: string | null;
   result: string | null;
   maxParticipants: number | null;
+  tier?: string;
 }
 
 interface GuildRow {

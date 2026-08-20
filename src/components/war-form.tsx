@@ -5,7 +5,11 @@ import { Handshake, Lock } from "lucide-react";
 
 interface WarFormProps {
   onSubmit: () => void;
-  initial?: { id: number; title: string; type: string; date: string; notes: string; deadline: string | null; maxParticipants?: number | null; isAllyWar?: boolean };
+  initial?: {
+    id: number; title: string; type: string; date: string; notes: string;
+    deadline: string | null; maxParticipants?: number | null; isAllyWar?: boolean;
+    tier?: string;
+  };
 }
 
 // UTC ISO string'i local datetime-local input formatına çevir
@@ -23,6 +27,8 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
   const [deadline, setDeadline] = useState(initial?.deadline ? toLocalDatetimeValue(initial.deadline) : "");
   const [maxParticipants, setMaxParticipants] = useState(initial?.maxParticipants?.toString() ?? "");
   const [isAllyWar, setIsAllyWar] = useState(initial?.isAllyWar ?? true);
+  /** Node war kademesi — katılım yönergesi buna göre değişiyor */
+  const [tier, setTier] = useState(initial?.tier ?? "T1");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,6 +54,7 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
         deadline: deadline ? toISO(deadline) : null,
         maxParticipants: maxParticipants || null,
         isAllyWar,
+        tier,
       }),
     });
 
@@ -77,6 +84,18 @@ export function WarForm({ onSubmit, initial }: WarFormProps) {
           >
             <option value="NODE_WAR">Node War</option>
             <option value="SIEGE">Siege</option>
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm text-bdo-text-muted mb-1">Kademe</label>
+          <select
+            value={tier}
+            onChange={(e) => setTier(e.target.value)}
+            className="w-full bg-bdo-surface border border-bdo-border rounded-lg px-3 py-2 text-bdo-text-primary focus:border-bdo-gold focus:outline-none"
+          >
+            <option value="T1">T1</option>
+            <option value="T2">T2</option>
+            <option value="T3">T3</option>
           </select>
         </div>
         <div className="flex-1">

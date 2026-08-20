@@ -24,6 +24,7 @@ type War = {
   deadline: string | null;
   result: "WIN" | "LOSS" | null;
   isAllyWar: boolean;
+  tier?: string;
   maxParticipants: number | null;
   _count: { participants: number };
   /** Yalnızca kendi kaydımız gelir — boşsa cevap vermemişiz */
@@ -31,6 +32,11 @@ type War = {
 };
 
 const TYPES = ["Hepsi", "NODE_WAR", "SIEGE", "KARA_TAPINAK", "OTHER"];
+
+/** Node war kademesi — T1 en üst kademe */
+const TIER_COLOR: Record<string, string> = {
+  T1: "#e8b451", T2: "#9a9aa2", T3: "#b87333",
+};
 
 export default function SavaslarPage() {
   const [wars, setWars] = useState<War[] | null>(null);
@@ -145,6 +151,13 @@ function WarRow({ w, upcoming = false }: { w: War; upcoming?: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[13px] font-medium truncate">{w.title}</span>
+          {w.tier && (
+            <span className="t-chip flex-shrink-0"
+                  style={{ color: TIER_COLOR[w.tier] ?? "var(--t-dim)",
+                           borderColor: (TIER_COLOR[w.tier] ?? "#888") + "55" }}>
+              {w.tier}
+            </span>
+          )}
           {!w.isAllyWar && <span className="t-chip flex-shrink-0">KLAN İÇİ</span>}
         </div>
         <div className="text-[11px] mt-0.5" style={{ color: "var(--t-faint)" }}>
