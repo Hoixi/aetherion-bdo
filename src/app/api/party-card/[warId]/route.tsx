@@ -63,12 +63,17 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
 
   const parties = war.parties.filter((p) => p.members.length > 0);
   const total = parties.reduce((s, p) => s + p.members.length, 0);
-  const rows = Math.ceil(parties.length / COLS) || 1;
-  const maxMembers = Math.max(1, ...parties.map((p) => p.members.length));
 
-  // Başlık + kolon başlığı + üyeler + alt bilgi
-  const colH = 52 + maxMembers * 26 + 14;
-  const height = 118 + rows * (colH + 16) + 52;
+  // Yükseklik satır satır hesaplanıyor. Tek bir "en kalabalık parti"
+  // ölçüsünü bütün satırlara uygulamak, son satırda az kişi varsa kartın
+  // altında koca bir boşluk bırakıyordu — flex-wrap satır içinde zaten
+  // eşitliyor, satırlar arasında değil.
+  let height = 118 + 52;
+  for (let i = 0; i < parties.length; i += COLS) {
+    const rowMax = Math.max(1, ...parties.slice(i, i + COLS).map((p) => p.members.length));
+    height += 52 + rowMax * 26 + 14 + 16;
+  }
+  if (parties.length === 0) height += 90;
 
   const tier = war.tier ?? "T1";
   const when = new Date(war.date).toLocaleDateString("tr-TR", {
