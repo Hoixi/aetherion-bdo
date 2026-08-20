@@ -7,7 +7,7 @@ import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
   Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
-  Menu, X, ScrollText,
+  Menu, X, ScrollText, CalendarClock,
 } from "lucide-react";
 import { toTestRoute } from "@/lib/test-routes";
 import { UserMenu } from "@/components/test-user-menu";
@@ -27,6 +27,7 @@ type Item = { label: string; href: string; icon: React.ElementType };
 const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
   { key: "Savaşlar", icon: Swords, items: [
     { label: "Savaş Listesi", href: "/test/savaslar", icon: Swords },
+    { label: "Savaş Yönetimi", href: "/test/savaslar/yonetim", icon: CalendarClock },
     { label: "Takvim", href: "/test/takvim", icon: CalendarDays },
     { label: "Etkinlikler", href: "/test/etkinlikler", icon: Zap },
   ] },
