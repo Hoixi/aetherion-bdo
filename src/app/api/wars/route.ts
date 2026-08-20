@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { title, type, date, notes, deadline, maxParticipants, isAllyWar } = body;
+  const { title, type, date, notes, deadline, maxParticipants, isAllyWar, tier } = body;
 
   const war = await prisma.war.create({
     data: {
@@ -45,6 +45,8 @@ export async function POST(req: Request) {
       deadline: deadline ? new Date(deadline) : null,
       maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
       isAllyWar: isAllyWar !== false,
+      // Gecersiz deger gelirse T1 — varsayilan kademe
+      tier: ["T1", "T2", "T3"].includes(tier) ? tier : "T1",
       createdBy: session.user.id,
     },
   });

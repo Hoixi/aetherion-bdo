@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
         date:            warUtc,
         deadline,
         maxParticipants: schedule.maxParticipants ?? null,
+        // Program hangi kademeyi taşıyorsa savaş da onu alır
+        tier:            schedule.tier ?? "T1",
         notes:           schedule.notes ?? null,
         createdBy:       systemUser.id,
       },

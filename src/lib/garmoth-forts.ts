@@ -31,7 +31,13 @@ const PIVOT = 224;
 export const WORLD = 200;
 export const TILE_SIZE = 200;
 export const MIN_ZOOM = 0;
-export const MAX_ZOOM = 7;
+/**
+ * Karo piramidi 7'de bitiyor. Harita daha ileri açılabiliyor: Leaflet
+ * `maxNativeZoom` ile son karoyu büyüterek gösteriyor, kurulum
+ * noktaları da vektör olduğu için net kalıyor.
+ */
+export const MAX_TILE_ZOOM = 7;
+export const MAX_ZOOM = 10;
 
 export const TILE_URL =
   "https://assets.garmoth.com/world-map/v2/tiles/{z}/{x}/{y}.webp";
@@ -223,4 +229,57 @@ export function shapeBounds(shapes: Shape[]) {
   }
   if (!isFinite(x0)) return null;
   return { x0, y0, x1, y1 };
+}
+
+// ── Kale rehberi ────────────────────────────────────────────────────────
+
+/** Rehberdeki ekran görüntüleri garmoth'un guide klasöründen geliyor */
+export const guideImg = (file: string) =>
+  `https://assets.garmoth.com/guide/${file}`;
+
+/** Bir kurulum noktasının rehber kaydı (bkz. data/forts/spots-tr.json) */
+export type FortSpot = {
+  n: number;
+  dir: string;
+  madpot?: boolean;
+  tags: string[];
+  text: string;
+  img: string;
+};
+
+/** Kaynaktaki kale etiketi → katalog kimliği */
+const LABEL_TO_ID: Record<string, string> = {
+  "CRON CASTLE": "cron-castle",
+  "FOREST OF PLUNDER": "forest-plunder",
+  "BARTALI FARM": "bartali-farm",
+  "WESTERN GUARD CAMP": "western-guard",
+  "WESTERN GUARDN CAMP": "western-guard",
+  "ALTAR OF AGRIS": "altar-agris",
+  "WOLF HILL": "wolf-hill",
+  "BIRAGHI DEN": "biraghi-den",
+  "ORC CAMP": "orc-camp",
+  "ALEJANDRO FARM": "alejandro-farm",
+  "GLISH SWAMP": "glish-swamp",
+  "BLOODY MONASTERY": "bloody-monastery",
+  "CASTLE RUINS": "castle-ruins",
+};
+
+/**
+ * Bölge haritasındaki kale ikonunun hangi kaleye ait olduğunu bulur.
+ *
+ * Kaynak veride ikon ile adı ayrı şekiller; ikisini bağlayan bir alan yok.
+ * En yakın kale etiketine bakmak yetiyor — etiketler ikonların hemen
+ * üstünde duruyor ve kaleler birbirinden uzak, karışma ihtimali yok.
+ */
+export function fortIdAt(shapes: Shape[], x: number, y: number): string | null {
+  let best: { id: string; d: number } | null = null;
+  for (const s of shapes) {
+    if (s.t !== "t") continue;
+    const id = LABEL_TO_ID[s.x.trim()];
+    if (!id) continue;
+    const d = Math.hypot(s.p[0] - x, s.p[1] - y);
+    if (!best || d < best.d) best = { id, d };
+  }
+  // 6 koordinat birimi ~ kale çapı; ötesi başka bir kalenin etiketi
+  return best && best.d < 6 ? best.id : null;
 }

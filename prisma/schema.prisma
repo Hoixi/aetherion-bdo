@@ -259,6 +259,11 @@ model War {
   maxParticipants  Int?
   /** true = müttefikler de katılır ve görür; false = sadece ana klan */
   isAllyWar        Boolean    @default(true)
+  /**
+   * Node war kademesi: T1 / T2 / T3. Katılım yönergesi buna göre
+   * değişiyor — T1'de belirli kanallardan girmek gerekiyor.
+   */
+  tier             String     @default("T1")
   discordMessageId    String?
   /** JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse */
   discordMessages     String   @default("[]") @db.Text
@@ -287,6 +292,8 @@ model WarSchedule {
   createDaysBefore Int      @default(1)          // Kaç gün önce oluşturulsun
   deadlineHours    Int?                          // Savaştan X saat önce deadline (null = yok)
   maxParticipants  Int?
+  /** Bu programdan oluşan savaşların kademesi */
+  tier             String   @default("T1")
   notes            String?  @db.Text
   sendToDiscord    Boolean  @default(true)
   isActive         Boolean  @default(true)

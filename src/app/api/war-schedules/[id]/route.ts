@@ -9,7 +9,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { name, type, dayOfWeek, hour, minute, createDaysBefore, deadlineHours, maxParticipants, notes, sendToDiscord, isActive } = body;
+  const { name, type, dayOfWeek, hour, minute, createDaysBefore, deadlineHours, maxParticipants, notes, sendToDiscord, isActive, tier } = body;
 
   const schedule = await prisma.warSchedule.update({
     where: { id: Number(params.id) },
@@ -22,6 +22,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       createDaysBefore: createDaysBefore !== undefined ? Number(createDaysBefore) : undefined,
       deadlineHours:    deadlineHours    !== undefined ? (deadlineHours ? Number(deadlineHours) : null) : undefined,
       maxParticipants:  maxParticipants  !== undefined ? (maxParticipants ? Number(maxParticipants) : null) : undefined,
+      tier:             ["T1", "T2", "T3"].includes(tier) ? tier : undefined,
       notes:            notes            !== undefined ? (notes || null)  : undefined,
       sendToDiscord:    sendToDiscord    !== undefined ? Boolean(sendToDiscord) : undefined,
       isActive:         isActive         !== undefined ? Boolean(isActive): undefined,

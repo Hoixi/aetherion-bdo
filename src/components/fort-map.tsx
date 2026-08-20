@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
-  TILE_URL, TILE_SIZE, MIN_ZOOM, MAX_ZOOM, WORLD,
-  toProj, toCoord, toProjRadius, iconUrl, trLabel, iconLabel, focusBounds,
+  TILE_URL, TILE_SIZE, MIN_ZOOM, MAX_ZOOM, MAX_TILE_ZOOM, WORLD,
+  toProj, toCoord, toProjRadius, iconUrl, trLabel, iconLabel, focusBounds, fortIdAt,
   type Shape,
 } from "@/lib/garmoth-forts";
 
@@ -33,11 +33,14 @@ type Props = {
   onPick?: (cx: number, cy: number) => void;
   /** Değişince harita yeniden şekillere oturur */
   fitKey: string;
+  /** Bölge haritasında bir kale ikonuna tıklanınca kalenin kimliği döner */
+  onFortClick?: (fortId: string) => void;
   className?: string;
 };
 
 export default function FortMap({
-  shapes, drawn, draft, showSource, showLabels, tool, onPick, fitKey, className,
+  shapes, drawn, draft, showSource, showLabels, tool, onPick, fitKey,
+  onFortClick, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -51,8 +54,10 @@ export default function FortMap({
   // Olay işleyicileri ref üzerinden okunuyor ki harita bir kez kurulsun
   const pickRef = useRef(onPick);
   const toolRef = useRef(tool);
+  const fortRef = useRef(onFortClick);
   pickRef.current = onPick;
   toolRef.current = tool;
+  fortRef.current = onFortClick;
 
   // ── Kurulum
   useEffect(() => {
@@ -86,6 +91,9 @@ export default function FortMap({
         tileSize: TILE_SIZE,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
+        // Karo piramidi 7'de bitiyor; ötesinde son karo büyütülerek
+        // gösteriliyor, şekiller vektör olduğu için net kalıyor
+        maxNativeZoom: MAX_TILE_ZOOM,
         noWrap: true,
         // Deniz karoları 404 dönüyor; boş bırakmak yerine sessizce geçiyoruz
         errorTileUrl:
@@ -127,7 +135,12 @@ export default function FortMap({
     srcRef.current.clearLayers();
     ownRef.current.clearLayers();
 
-    if (showSource) paint(L, srcRef.current, shapes, showLabels, true);
+    if (showSource) {
+      paint(L, srcRef.current, shapes, showLabels, true, (x, y) => {
+        const id = fortIdAt(shapes, x, y);
+        if (id) fortRef.current?.(id);
+      });
+    }
     paint(L, ownRef.current, [...drawn, ...draft], true, false);
   }, [shapes, drawn, draft, showSource, showLabels, ready]);
 
@@ -162,6 +175,8 @@ function paint(
   shapes: Shape[],
   withLabels: boolean,
   fromSource: boolean,
+  /** Kale ikonuna tıklandığında koordinatını verir */
+  onFort?: (x: number, y: number) => void,
 ) {
   for (const s of shapes) {
     if (s.t === "c") {
@@ -196,21 +211,32 @@ function paint(
     }
 
     if (s.t === "i") {
-      const label = iconLabel(s.i);
-      L.marker(toProj(s.p[0], s.p[1]), {
+      const isFort = s.i === "nodewarfort" && Boolean(onFort);
+      const label = isFort ? iconLabel(s.i) + " — detay için tıkla" : iconLabel(s.i);
+      const marker = L.marker(toProj(s.p[0], s.p[1]), {
         icon: L.icon({
           iconUrl: iconUrl(s.i),
-          iconSize: [40, 40],
+          // Tıklanabilir kale ikonu biraz daha büyük dursun
+          iconSize: isFort ? [52, 52] : [40, 40],
           // Çapa alt-orta: ikon oyundaki nesnenin üstünde duruyor
-          iconAnchor: [20, 40],
+          iconAnchor: isFort ? [26, 52] : [20, 40],
         }),
         title: label,
         alt: label,
         interactive: true,
         keyboard: false,
       })
-        .bindTooltip(label, { direction: "top", offset: [0, -38] })
+        .bindTooltip(label, { direction: "top", offset: [0, isFort ? -50 : -38] })
         .addTo(group);
+
+      if (isFort) {
+        marker.on("click", (e) => {
+          // Harita tıklaması da tetiklenip çizim eklemesin
+          L.DomEvent.stopPropagation(e);
+          onFort!(s.p[0], s.p[1]);
+        });
+        marker.getElement()?.style.setProperty("cursor", "pointer");
+      }
       continue;
     }
 

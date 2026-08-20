@@ -247,10 +247,71 @@ export async function updateWarEmbedAll(
   );
 }
 
+/**
+ * Kanallara görsel ekli mesaj gönderir.
+ *
+ * Discord ek dosyayı yalnızca multipart/form-data ile kabul ediyor;
+ * embed alanları `payload_json` içinde gidiyor ve dosyaya
+ * `attachment://<ad>` ile referans veriliyor.
+ */
+async function sendToChannelsWithImage(
+  channelIds: string[],
+  content: string | null,
+  embed: DiscordEmbed,
+  image: { name: string; bytes: ArrayBuffer },
+): Promise<{ channelId: string; messageId: string }[]> {
+  if (!BOT_TOKEN) return [];
+
+  const results = await Promise.all(
+    channelIds.map(async (channelId) => {
+      try {
+        const form = new FormData();
+        form.append("payload_json", JSON.stringify({
+          content,
+          embeds: [{ ...embed, image: { url: `attachment://${image.name}` } }],
+          attachments: [{ id: 0, filename: image.name }],
+        }));
+        form.append("files[0]", new Blob([image.bytes], { type: "image/png" }), image.name);
+
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${BOT_TOKEN}` },
+          body: form,
+        });
+        if (!res.ok) {
+          console.error(`[discord] ${channelId} kanalına görsel gönderilemedi: ${res.status}`);
+          return null;
+        }
+        const data = await res.json();
+        return { channelId, messageId: data.id as string };
+      } catch (e) {
+        console.error(`[discord] ${channelId} hata:`, e);
+        return null;
+      }
+    }),
+  );
+  return results.filter(Boolean) as { channelId: string; messageId: string }[];
+}
+
+/**
+ * Kademeye göre katılım yönergesi.
+ *
+ * T1'de klanlar belirli kanallardan giriyor, T2/T3'te böyle bir kısıt yok.
+ * Metni burada tutuyoruz ki hem kanal duyurusu hem özel mesaj aynı şeyi
+ * söylesin.
+ */
+export function joinHint(tier: string): string {
+  if (tier === "T1") {
+    return "Serendia-1 veya Balenos-1 kanalından katıl — **katıl demeyi unutma.**";
+  }
+  return "**Katıl demeyi unutma.**";
+}
+
 export async function sendPartiesToDiscord(war: {
   id: number;
   title: string;
   type: string;
+  tier?: string;
   isAllyWar?: boolean;
   parties: {
     name: string;
@@ -258,35 +319,113 @@ export async function sendPartiesToDiscord(war: {
   }[];
 }) {
   const emoji = TYPE_EMOJI[war.type] || "📌";
+  const tier = war.tier ?? "T1";
+  const people = war.parties.reduce((s, p) => s + p.members.length, 0);
+
+  const embed: DiscordEmbed = {
+    title: `${emoji} ${war.title} — Parti Listesi`,
+    description:
+      `**${tier}** · ${war.parties.length} parti · ${people} kişi
+` +
+      `${joinHint(tier)}
+
+Seçilenlere özel mesaj gönderildi.`,
+    color: GOLD,
+    url: `${SITE_URL}/test/savaslar/${war.id}`,
+    footer: { text: "Aetherion • Parti Listesi" },
+    timestamp: new Date().toISOString(),
+  };
+
+  const channels = await getWarChannels(war.isAllyWar ?? true);
+
+  // Kart üretimi ya da gönderimi patlarsa duyuru hiç gitmesin istemiyoruz;
+  // görsel olmadan metin embed'ine düşüyoruz.
+  try {
+    const res = await fetch(`${SITE_URL}/api/party-card/${war.id}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`kart üretilemedi: ${res.status}`);
+    const bytes = await res.arrayBuffer();
+    await sendToChannelsWithImage(channels, "@everyone", embed, {
+      name: `parti-${war.id}.png`,
+      bytes,
+    });
+    return;
+  } catch (e) {
+    console.error("[discord] parti kartı gönderilemedi, metne düşülüyor:", e);
+  }
 
   const fields: EmbedField[] = war.parties.map((party) => {
-    const memberLines = party.members.map((m, i) => {
-      const gs = m.user.ap + m.user.dp;
-      return `\`${String(i + 1).padStart(2, " ")}.\` **${m.user.familyName}** — ${gs} GS`;
-    });
-
-    const avgGs = party.members.length > 0
+    const lines = party.members.map((m, i) =>
+      `\`${String(i + 1).padStart(2, " ")}.\` **${m.user.familyName}** — ${m.user.ap + m.user.dp} GS`);
+    const avgGs = party.members.length
       ? Math.round(party.members.reduce((s, m) => s + m.user.ap + m.user.dp, 0) / party.members.length)
       : 0;
-
     return {
       name: `🛡️ ${party.name} (${party.members.length} kişi • Ort. ${avgGs} GS)`,
-      value: memberLines.length > 0 ? memberLines.join("\n") : "_Boş_",
+      value: lines.length > 0 ? lines.join("\n") : "_Boş_",
     };
   });
 
-  const channels = await getWarChannels(war.isAllyWar ?? true);
-  await sendToChannels(channels, "@everyone", [
-    {
-      title: `${emoji} ${war.title} — Parti Listesi`,
-      description: `Toplam ${war.parties.length} parti, ${war.parties.reduce((s, p) => s + p.members.length, 0)} kişi atandı.`,
-      color: GOLD,
-      fields,
-      url: `${SITE_URL}/wars/${war.id}`,
-      footer: { text: "Aetherion • Parti Listesi" },
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  await sendToChannels(channels, "@everyone", [{ ...embed, fields }]);
+}
+
+/**
+ * Partiye alınan herkese özel mesaj.
+ *
+ * Kanal duyurusunu herkes okumuyor; seçildiğini ve hangi partide
+ * olduğunu doğrudan söylemek katılımı artırıyor. DM'i kapalı olanlar
+ * sessizce atlanıyor — Discord bunu 403 ile bildiriyor ve yapabileceğimiz
+ * bir şey yok.
+ */
+export async function dmPartyAssignments(war: {
+  id: number;
+  title: string;
+  date: Date;
+  tier?: string;
+  parties: {
+    name: string;
+    members: { user: { discordId: string | null; familyName: string } }[];
+  }[];
+}): Promise<{ sent: number; failed: number }> {
+  const tier = war.tier ?? "T1";
+  const when = new Date(war.date).toLocaleString("tr-TR", {
+    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+    timeZone: "Europe/Istanbul",
+  });
+
+  let sent = 0, failed = 0;
+
+  for (const party of war.parties) {
+    for (const m of party.members) {
+      if (!m.user.discordId) { failed++; continue; }
+      const channelId = await openDmChannel(m.user.discordId);
+      if (!channelId) { failed++; continue; }
+
+      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bot ${BOT_TOKEN}` },
+        body: JSON.stringify({
+          embeds: [{
+            title: "⚔️ Savaşa seçildin",
+            description:
+              `**${war.title}** (${tier}) · ${when}
+
+` +
+              `**${party.name}** partisindesin.
+
+` +
+              `${joinHint(tier)}`,
+            color: GOLD,
+            url: `${SITE_URL}/test/savaslar/${war.id}`,
+            footer: { text: "Aetherion • Görüşürüz" },
+            timestamp: new Date().toISOString(),
+          }],
+        }),
+      });
+      if (res.ok) sent++; else failed++;
+    }
+  }
+
+  return { sent, failed };
 }
 
 export async function sendAnnouncementToDiscord(announcement: {

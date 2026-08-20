@@ -184,6 +184,8 @@ export default function AdminPage() {
   const [schedCreateBefore, setSchedCreateBefore] = useState(1);
   const [schedDeadlineH, setSchedDeadlineH] = useState<string>("");
   const [schedMaxP, setSchedMaxP] = useState<string>("");
+  /** Node war kademesi — bu programdan doğan savaşlara geçiyor */
+  const [schedTier, setSchedTier] = useState("T1");
   const [schedNotes, setSchedNotes] = useState("");
   const [schedDiscord, setSchedDiscord] = useState(true);
   const [schedSaving, setSchedSaving] = useState(false);
@@ -600,6 +602,7 @@ export default function AdminPage() {
         hour: schedHour, minute: schedMinute, createDaysBefore: schedCreateBefore,
         deadlineHours: schedDeadlineH ? Number(schedDeadlineH) : null,
         maxParticipants: schedMaxP ? Number(schedMaxP) : null,
+        tier: schedTier,
         notes: schedNotes || null, sendToDiscord: schedDiscord,
       }),
     });
@@ -608,6 +611,7 @@ export default function AdminPage() {
       setSchedName(""); setSchedType("NODE_WAR"); setSchedDay(2);
       setSchedHour(21); setSchedMinute(0); setSchedCreateBefore(1);
       setSchedDeadlineH(""); setSchedMaxP(""); setSchedNotes(""); setSchedDiscord(true);
+      setSchedTier("T1");
       fetchWarSchedules();
       setMessage("Program oluşturuldu!");
       setTimeout(() => setMessage(null), 3000);
@@ -1078,6 +1082,14 @@ export default function AdminPage() {
                       <option value="SIEGE">Kuşatma</option>
                       <option value="KARA_TAPINAK">Kara Tapınak</option>
                       <option value="OTHER">Diğer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bdo-text-muted mb-1">Kademe</label>
+                    <select value={schedTier} onChange={(e) => setSchedTier(e.target.value)} className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:border-bdo-gold focus:outline-none">
+                      <option value="T1">T1 — Serendia-1 / Balenos-1</option>
+                      <option value="T2">T2</option>
+                      <option value="T3">T3</option>
                     </select>
                   </div>
                   <div>

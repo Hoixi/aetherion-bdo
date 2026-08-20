@@ -6,14 +6,16 @@ import dynamic from "next/dynamic";
 import {
   Circle as CircleIcon, Type as TypeIcon, Minus,
   Square, Trash2, MousePointer2, Save, Undo2, Eye, EyeOff, Tag, Check,
-  Cloud, HardDrive, Lock,
+  Cloud, HardDrive, Lock, X, Flag, ChevronRight,
 } from "lucide-react";
 import { TestShell } from "@/components/test-shell";
 import balenosRaw from "@/data/forts/balenos.json";
 import serendiaRaw from "@/data/forts/serendia.json";
 import {
-  buildForts, iconUrl, iconLabel, ICON_LABELS, type Shape,
+  buildForts, iconUrl, iconLabel, ICON_LABELS, guideImg, FORT_NAMES,
+  type Shape, type FortSpot,
 } from "@/lib/garmoth-forts";
+import spotsTr from "@/data/forts/spots-tr.json";
 import type { DrawTool } from "@/components/fort-map";
 
 /**
@@ -45,6 +47,8 @@ const FORTS = buildForts(
   serendiaRaw as unknown as RawMap[],
 );
 
+const SPOTS = spotsTr as Record<string, FortSpot[]>;
+
 const STORE = "aetherion_fort_draw_v1";
 const COLORS = ["#e8b451", "#48bb78", "#ef5f5f", "#6b93ff", "#b98cff", "#ffffff"];
 /** Yeni dairenin koordinat birimindeki yarıçapı — kale kutusu ~5 birim */
@@ -75,6 +79,8 @@ export default function KalelerPage() {
   const [showSource, setShowSource] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  /** Bölge haritasında bayrağa tıklayınca açılan kale rehberi */
+  const [guide, setGuide] = useState<string | null>(null);
   /** Kutu çizerken bekleyen ilk köşe */
   const cornerRef = useRef<[number, number] | null>(null);
 
@@ -129,6 +135,7 @@ export default function KalelerPage() {
   // Kale değişince yarım kalan çizim taşınmasın
   useEffect(() => {
     setDraft([]);
+    setGuide(null);
     cornerRef.current = null;
   }, [sel]);
 
@@ -336,8 +343,14 @@ export default function KalelerPage() {
               tool={tool}
               onPick={onPick}
               fitKey={fort.id}
+              onFortClick={setGuide}
               className="w-full h-[clamp(420px,64vh,760px)]"
             />
+
+            {guide && SPOTS[guide] && (
+              <FortGuide id={guide} onClose={() => setGuide(null)}
+                         onOpen={() => { setSel(guide); setGuide(null); }} />
+            )}
           </div>
 
           {/* Efsane */}
@@ -386,5 +399,95 @@ export default function KalelerPage() {
         </p>
       </>
     </TestShell>
+  );
+}
+
+/**
+ * Bölge haritasında bayrağa tıklayınca açılan kale rehberi.
+ *
+ * Garmoth'un her kurulum noktası için yazdığı değerlendirme ve ekran
+ * görüntüsü burada, Türkçeleştirilmiş hâliyle. Haritanın üstünde kayan
+ * bir panel olarak duruyor — ayrı sayfaya gitmek, haritadan kopardığı
+ * için tercih edilmedi.
+ */
+function FortGuide({ id, onClose, onOpen }: {
+  id: string; onClose: () => void; onOpen: () => void;
+}) {
+  const spots = SPOTS[id] ?? [];
+  const [shot, setShot] = useState<string | null>(null);
+
+  return (
+    <div className="absolute inset-0 z-[1000] flex justify-end">
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,.55)" }}
+           onClick={onClose} />
+
+      <aside className="relative w-full sm:w-[440px] h-full overflow-y-auto"
+             style={{ background: "var(--t-surface)", borderLeft: "1px solid var(--t-line-strong)" }}>
+        <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3"
+             style={{ background: "var(--t-surface)", borderBottom: "1px solid var(--t-line)" }}>
+          <Flag className="w-4 h-4 flex-shrink-0" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
+          <h3 className="text-[14px] font-semibold truncate">{FORT_NAMES[id] ?? id}</h3>
+          <button onClick={onOpen} className="t-tab ml-auto flex-shrink-0">
+            Haritası <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={onClose} className="t-tab flex-shrink-0" aria-label="Kapat">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {spots.map((sp) => (
+            <div key={sp.n} className="rounded-[var(--t-r)] overflow-hidden"
+                 style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={guideImg(sp.img)} alt="" loading="lazy"
+                   onClick={() => setShot(guideImg(sp.img))}
+                   className="w-full block cursor-zoom-in" />
+
+              <div className="p-3.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="t-num text-[12px] font-bold w-5 h-5 rounded grid place-items-center flex-shrink-0"
+                        style={{ background: "var(--t-gold-soft)", color: "var(--t-gold)" }}>
+                    {sp.n}
+                  </span>
+                  <span className="text-[13px] font-semibold">{sp.dir}</span>
+                  {sp.madpot && (
+                    <span className="t-chip" style={{ color: "var(--t-bad)", borderColor: "#ef5f5f55" }}>
+                      MADPOT
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1 mb-2.5">
+                  {sp.tags.map((t) => (
+                    <span key={t} className="text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ background: "rgba(255,255,255,.05)", color: "var(--t-dim)" }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="text-[12px] leading-relaxed" style={{ color: "var(--t-dim)" }}>
+                  {sp.text}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          <p className="text-[10.5px] pb-2" style={{ color: "var(--t-faint)" }}>
+            Değerlendirmeler garmoth.com occupation rehberinden, izniyle çevrildi.
+          </p>
+        </div>
+      </aside>
+
+      {/* Ekran görüntüsünü büyüt */}
+      {shot && (
+        <div className="fixed inset-0 z-[1100] grid place-items-center p-6"
+             style={{ background: "rgba(0,0,0,.85)" }} onClick={() => setShot(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shot} alt="" className="max-w-full max-h-full rounded-lg" />
+        </div>
+      )}
+    </div>
   );
 }

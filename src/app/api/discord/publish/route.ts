@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendWarToDiscord, sendAnnouncementToDiscord, sendPartiesToDiscord, sendAnnouncementDm } from "@/lib/discord-bot";
+import { sendWarToDiscord, sendAnnouncementToDiscord, sendPartiesToDiscord, sendAnnouncementDm, dmPartyAssignments } from "@/lib/discord-bot";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
@@ -120,7 +120,13 @@ export async function POST(req: Request) {
         parties: {
           include: {
             members: {
-              include: { user: { select: { familyName: true, ap: true, dp: true, class: true } } },
+              include: {
+                user: {
+                  select: {
+                    familyName: true, ap: true, dp: true, class: true, discordId: true,
+                  },
+                },
+              },
               orderBy: { order: "asc" },
             },
           },
@@ -130,8 +136,12 @@ export async function POST(req: Request) {
     });
     if (!war) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (war.parties.length === 0) return NextResponse.json({ error: "No parties" }, { status: 400 });
+
     await sendPartiesToDiscord(war);
-    return NextResponse.json({ ok: true });
+    // Kanal duyurusunu herkes okumuyor; seçilene ayrıca haber veriyoruz
+    const dm = await dmPartyAssignments(war);
+
+    return NextResponse.json({ ok: true, dm });
   }
 
   return NextResponse.json({ error: "Invalid type" }, { status: 400 });

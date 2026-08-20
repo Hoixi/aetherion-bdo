@@ -33,6 +33,7 @@ export async function POST(req: Request) {
       createDaysBefore: Number(createDaysBefore ?? 1),
       deadlineHours: deadlineHours ? Number(deadlineHours) : null,
       maxParticipants: maxParticipants ? Number(maxParticipants) : null,
+      tier: ["T1", "T2", "T3"].includes(body.tier) ? body.tier : "T1",
       notes: notes || null,
       sendToDiscord: sendToDiscord !== false,
     },
