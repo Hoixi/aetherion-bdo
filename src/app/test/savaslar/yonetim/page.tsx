@@ -123,6 +123,23 @@ export default function SavasYonetimiPage() {
     load();
   }
 
+  /** Savaş bitince sonucu buradan işaretleniyor — geçmiş savaşlarda görünür */
+  async function setResult(w: War, result: string | null) {
+    setBusy(w.id);
+    const res = await fetch(`/api/wars/${w.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ result }),
+    });
+    if (res.ok) {
+      setWars((prev) => prev?.map((x) => (x.id === w.id ? { ...x, result } : x)) ?? null);
+      setMsg(result ? "Sonuç kaydedildi." : "Sonuç kaldırıldı.");
+    } else {
+      setMsg("Sonuç kaydedilemedi.");
+    }
+    setBusy(null);
+  }
+
   async function toggleSchedule(s: Schedule) {
     await fetch(`/api/war-schedules/${s.id}`, {
       method: "PUT",
@@ -272,6 +289,22 @@ export default function SavasYonetimiPage() {
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  {!soon && (
+                    <select value={w.result ?? ""} disabled={busy === w.id}
+                            onChange={(e) => setResult(w, e.target.value || null)}
+                            title="Savaş sonucu"
+                            className="h-[30px] px-2 rounded-lg text-[11px] outline-none disabled:opacity-50"
+                            style={{
+                              background: "var(--t-raised)", border: "1px solid var(--t-line)",
+                              color: w.result === "WIN" ? "var(--t-good)"
+                                : w.result === "LOSS" ? "var(--t-bad)" : "var(--t-faint)",
+                            }}>
+                      <option value="">Sonuç yok</option>
+                      <option value="WIN">Kazandık</option>
+                      <option value="LOSS">Kaybettik</option>
+                      <option value="DRAW">Berabere</option>
+                    </select>
+                  )}
                   <button className="t-tab" title="Discord'a savaşı gönder"
                           disabled={busy === w.id} onClick={() => publish(w.id, "war")}>
                     <Send className="w-3.5 h-3.5" />
