@@ -32,6 +32,10 @@
   --t-r: 14px;
   --t-r-sm: 9px;
 
+  /* Zemini burası boyuyor: değişkenler bu elemanda tanımlı, dışarıdaki
+     sarmalayıcı onlara erişemiyor. Boyanmazsa altta globals.css'teki eski
+     lacivert gövde kalıyor ve tema siyah görünmüyordu. */
+  background: var(--t-canvas);
   color: var(--t-text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-feature-settings: "tnum" 1, "cv11" 1;
