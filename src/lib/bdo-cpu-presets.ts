@@ -5,7 +5,7 @@
  * onaltılık değerlerin ondalık karşılığı. Mantık şu: 0. çekirdeği Windows'a
  * bırak, SMT kardeşlerini kapat, yalnızca fiziksel çekirdekleri aç.
  *
- * Hem eski `/optimizer` ekranı hem yeni `/test/optimizer` buradan okuyor.
+ * Hem eski `/optimizer` ekranı hem yeni `/optimizer` buradan okuyor.
  */
 
 export type CpuPreset = {

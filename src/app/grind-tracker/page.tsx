@@ -1,63 +1,75 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
+import { Coins, Pencil, RotateCcw, Search, Swords, Package, Check, X } from "lucide-react";
+import { TestShell, Card, Head } from "@/components/app-shell";
 
-const GRADE_COLORS: Record<number, string> = {
-  0: "text-gray-400",
-  1: "text-white",
-  2: "text-green-400",
-  3: "text-blue-400",
-  4: "text-yellow-400",
-};
+/**
+ * Grind takibi.
+ *
+ * Drop listesi bdocodex node'undan, fiyatlar pazardan geliyor. Fiyatı
+ * çekilemeyen eşyalar için elle giriş var — pazarda listelenmeyen
+ * eşyaların NPC değeri her zaman doğru olmuyor.
+ */
 
-const GRADE_BORDER: Record<number, string> = {
-  0: "border-gray-600",
-  1: "border-gray-500",
-  2: "border-green-600",
-  3: "border-blue-600",
-  4: "border-yellow-500",
-};
+type PriceType = "market" | "npc" | "unknown" | "loading" | "custom";
 
-const GRIND_SPOTS = [
-  { label: "Orbita Kalesi", nodeId: "1571", refNodeId: "2003" },
-  { label: "Özel (elle gir)", nodeId: "custom", refNodeId: "" },
-];
-
-interface DropItem {
+type DropItem = {
   id: number;
   icon: string;
   name: string;
   grade: number;
   hasMarket: boolean;
   price: number;
-  priceType: "market" | "npc" | "unknown" | "loading" | "custom";
+  priceType: PriceType;
   quantity: number;
-}
+};
 
-function formatSilver(n: number): string {
+/** Oyun içi kalite renkleri */
+const GRADE_COLOR: Record<number, string> = {
+  0: "#8a8a92", 1: "#f4f4f5", 2: "#5fd39a", 3: "#6b93ff", 4: "#e8b451",
+};
+
+const PRICE_META: Record<PriceType, { label: string; color: string }> = {
+  loading: { label: "yükleniyor", color: "var(--t-faint)" },
+  market: { label: "Pazar", color: "#5fd39a" },
+  npc: { label: "NPC", color: "#6b93ff" },
+  custom: { label: "Özel", color: "var(--t-gold)" },
+  unknown: { label: "Bilinmiyor", color: "var(--t-faint)" },
+};
+
+const SPOTS = [
+  { label: "Orbita Kalesi", nodeId: "1571", refNodeId: "2003" },
+  { label: "Özel (elle gir)", nodeId: "custom", refNodeId: "" },
+];
+
+/** BDO gümüşü milyar mertebesine çıkıyor; tabloda hizayı bozmasın */
+function silver(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return n.toLocaleString("tr-TR");
 }
 
+const GRID = "grid-cols-[44px_1fr_96px_150px_100px_110px]";
+
 export default function GrindTrackerPage() {
-  const [selectedSpot, setSelectedSpot] = useState(GRIND_SPOTS[0].nodeId);
-  const [customNodeId, setCustomNodeId] = useState("");
+  const [spot, setSpot] = useState(SPOTS[0].nodeId);
+  const [customNode, setCustomNode] = useState("");
   const [drops, setDrops] = useState<DropItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [editingPrice, setEditingPrice] = useState<number | null>(null);
-  const [editPriceValue, setEditPriceValue] = useState("");
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
 
-  const currentSpot = GRIND_SPOTS.find((s) => s.nodeId === selectedSpot);
-  const nodeId = selectedSpot === "custom" ? customNodeId : selectedSpot;
-  const refNodeId = selectedSpot === "custom" ? customNodeId : (currentSpot?.refNodeId ?? selectedSpot);
+  const current = SPOTS.find((s) => s.nodeId === spot);
+  const nodeId = spot === "custom" ? customNode : spot;
+  const refNodeId = spot === "custom" ? customNode : (current?.refNodeId ?? spot);
 
-  const loadDrops = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!nodeId) return;
     setLoading(true);
-    setError("");
+    setErr("");
     setDrops([]);
 
     try {
@@ -65,247 +77,238 @@ export default function GrindTrackerPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      const initial: DropItem[] = data.items.map((item: any) => ({
-        ...item,
-        price: 0,
-        priceType: "loading" as const,
-        quantity: 0,
-      }));
+      const initial: DropItem[] = (data.items as Omit<DropItem, "price" | "priceType" | "quantity">[])
+        .map((item) => ({ ...item, price: 0, priceType: "loading" as const, quantity: 0 }));
       setDrops(initial);
 
-      // Fiyatları paralel fetch et
+      // Fiyatlar tek tek geliyor; hepsini bekleyip listeyi geciktirmek yerine
+      // geldikçe yerine yazılıyor
       initial.forEach(async (item, idx) => {
         try {
-          const pr = await fetch(`/api/grind/price?itemId=${item.id}`);
-          const pd = await pr.json();
-          setDrops((prev) =>
-            prev.map((d, i) =>
-              i === idx ? { ...d, price: pd.price, priceType: pd.type } : d
-            )
-          );
+          const pd = await (await fetch(`/api/grind/price?itemId=${item.id}`)).json();
+          setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: pd.price, priceType: pd.type } : d)));
         } catch {
-          setDrops((prev) =>
-            prev.map((d, i) =>
-              i === idx ? { ...d, price: 0, priceType: "unknown" } : d
-            )
-          );
+          setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: 0, priceType: "unknown" } : d)));
         }
       });
-    } catch (e: any) {
-      setError(e.message || "Hata oluştu");
+    } catch (e) {
+      setErr((e as Error).message || "Drop listesi alınamadı.");
     } finally {
       setLoading(false);
     }
-  }, [nodeId]);
+  }, [nodeId, refNodeId]);
 
-  const updateQuantity = (idx: number, val: string) => {
+  function setQty(idx: number, val: string) {
     const n = parseInt(val) || 0;
     setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, quantity: Math.max(0, n) } : d)));
-  };
+  }
 
-  const saveCustomPrice = (idx: number) => {
-    const n = parseInt(editPriceValue.replace(/\D/g, "")) || 0;
-    setDrops((prev) =>
-      prev.map((d, i) => (i === idx ? { ...d, price: n, priceType: "custom" } : d))
-    );
-    setEditingPrice(null);
-    setEditPriceValue("");
-  };
+  function saveCustomPrice(idx: number) {
+    const n = parseInt(editValue.replace(/\D/g, "")) || 0;
+    setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: n, priceType: "custom" } : d)));
+    setEditing(null);
+    setEditValue("");
+  }
 
-  const totalSilver = drops.reduce((sum, d) => sum + d.quantity * d.price, 0);
-  const filledDrops = drops.filter((d) => d.quantity > 0);
+  const total = drops.reduce((s, d) => s + d.quantity * d.price, 0);
+  const filled = drops.filter((d) => d.quantity > 0);
+  const totalDrops = drops.reduce((s, d) => s + d.quantity, 0);
 
   return (
-    <div className="py-4 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-bdo-text-primary">Grind Tracker</h1>
-        <p className="text-sm text-bdo-text-muted mt-1">Grind seansınızda düşen eşyaları ve toplam silver kazancınızı takip edin.</p>
-      </div>
-
-      {/* Spot Seçici */}
-      <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs text-bdo-text-muted mb-1">Grind Spotu</label>
-          <select
-            value={selectedSpot}
-            onChange={(e) => setSelectedSpot(e.target.value)}
-            className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:outline-none focus:border-bdo-gold"
-          >
-            {GRIND_SPOTS.map((s) => (
-              <option key={s.nodeId} value={s.nodeId}>{s.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {selectedSpot === "custom" && (
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-xs text-bdo-text-muted mb-1">Node ID (bdocodex)</label>
-            <input
-              type="text"
-              value={customNodeId}
-              onChange={(e) => setCustomNodeId(e.target.value)}
-              placeholder="örn. 1571"
-              className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2 text-sm text-bdo-text-primary focus:outline-none focus:border-bdo-gold"
-            />
+    <TestShell
+      title="Grind Tracker"
+      subtitle="Grind seansında düşen eşyaları gir, toplam gümüş kazancını gör."
+      aside={drops.length > 0 ? (
+        <span className="t-chip hidden sm:inline" style={{ color: "var(--t-gold)" }}>
+          {silver(total)}
+        </span>
+      ) : null}
+    >
+      {/* ── Spot seçimi ────────────────────────────────────────────── */}
+      <Card className="p-4">
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <Label>Grind spotu</Label>
+            <select value={spot} onChange={(e) => setSpot(e.target.value)}
+                    className="w-full h-[34px] px-3 rounded-[var(--t-r-sm)] text-[13px] outline-none"
+                    style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }}>
+              {SPOTS.map((s) => <option key={s.nodeId} value={s.nodeId}>{s.label}</option>)}
+            </select>
           </div>
-        )}
 
-        <button
-          onClick={loadDrops}
-          disabled={loading || !nodeId}
-          className="bg-bdo-gold text-bdo-bg font-semibold px-5 py-2 rounded-lg text-sm hover:bg-bdo-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Yükleniyor..." : "Drop Listesini Getir"}
-        </button>
+          {spot === "custom" && (
+            <div className="flex-1 min-w-[160px]">
+              <Label>Node ID (bdocodex)</Label>
+              <input value={customNode} onChange={(e) => setCustomNode(e.target.value)}
+                     placeholder="örn. 1571"
+                     className="w-full h-[34px] px-3 rounded-[var(--t-r-sm)] text-[13px] outline-none"
+                     style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }} />
+            </div>
+          )}
 
-        {drops.length > 0 && (
-          <button
-            onClick={() => setDrops((prev) => prev.map((d) => ({ ...d, quantity: 0 })))}
-            className="px-4 py-2 rounded-lg text-sm border border-bdo-border text-bdo-text-muted hover:text-red-400 hover:border-red-400/50 transition-colors"
-          >
-            Sıfırla
+          <button onClick={load} disabled={loading || !nodeId}
+                  className="text-[12px] font-semibold px-3.5 h-[34px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5 disabled:opacity-45"
+                  style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                           border: "1px solid rgba(232,180,81,.3)" }}>
+            <Search className="w-3.5 h-3.5" strokeWidth={2} />
+            {loading ? "Yükleniyor…" : "Drop listesini getir"}
           </button>
-        )}
-      </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-sm text-red-400">
-          {error}
+          {drops.length > 0 && (
+            <button onClick={() => setDrops((prev) => prev.map((d) => ({ ...d, quantity: 0 })))}
+                    className="text-[12px] font-semibold px-3 h-[34px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5"
+                    style={{ color: "var(--t-dim)", background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+              <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} /> Sıfırla
+            </button>
+          )}
+        </div>
+      </Card>
+
+      {err && <Card className="p-4"><p className="text-[13px]" style={{ color: "var(--t-bad)" }}>{err}</p></Card>}
+
+      {/* ── Özet ───────────────────────────────────────────────────── */}
+      {drops.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Stat label="Toplam Gümüş" value={silver(total)} color="var(--t-gold)" />
+          <Stat label="Farklı Eşya" value={String(filled.length)} />
+          <Stat label="Toplam Drop" value={String(totalDrops)} />
+          <Stat label="Drop Listesi" value={`${drops.length} eşya`} />
         </div>
       )}
 
-      {/* Özet */}
+      {/* ── Tablo ──────────────────────────────────────────────────── */}
       {drops.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <div className="text-xs text-bdo-text-muted mb-1">Toplam Silver</div>
-            <div className="text-xl font-bold text-bdo-gold">{formatSilver(totalSilver)}</div>
-          </div>
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <div className="text-xs text-bdo-text-muted mb-1">Farklı Eşya</div>
-            <div className="text-xl font-bold text-bdo-text-primary">{filledDrops.length}</div>
-          </div>
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <div className="text-xs text-bdo-text-muted mb-1">Toplam Drop</div>
-            <div className="text-xl font-bold text-bdo-text-primary">{drops.reduce((s, d) => s + d.quantity, 0)}</div>
-          </div>
-          <div className="bg-bdo-surface border border-bdo-border rounded-xl p-4">
-            <div className="text-xs text-bdo-text-muted mb-1">Drop Listesi</div>
-            <div className="text-xl font-bold text-bdo-text-primary">{drops.length} eşya</div>
-          </div>
-        </div>
-      )}
+        <Card className="overflow-hidden">
+          <Head icon={Package} title="Drop Listesi" meta={`${drops.length} EŞYA`} />
 
-      {/* Drop Tablosu */}
-      {drops.length > 0 && (
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[48px_1fr_120px_160px_120px_120px] text-xs text-bdo-text-muted px-4 py-2 border-b border-bdo-border bg-bdo-bg/50 font-medium">
-            <div></div>
-            <div>Eşya</div>
-            <div className="text-center">Adet</div>
-            <div className="text-right">Birim Fiyat</div>
-            <div className="text-right">Kaynak</div>
-            <div className="text-right">Toplam</div>
-          </div>
-
-          {drops.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`grid grid-cols-[48px_1fr_120px_160px_120px_120px] items-center px-4 py-2.5 border-b border-bdo-border/50 last:border-0 hover:bg-bdo-bg/30 transition-colors ${item.quantity > 0 ? "bg-bdo-gold/3" : ""}`}
-            >
-              {/* İkon */}
-              <div className={`w-9 h-9 rounded border ${GRADE_BORDER[item.grade]} overflow-hidden bg-bdo-bg flex-shrink-0`}>
-                {item.icon && (
-                  <img src={item.icon} alt={item.name} className="w-full h-full object-cover" />
-                )}
+          <div className="overflow-x-auto">
+            <div className="min-w-[720px]">
+              <div className={`grid ${GRID} text-[10px] uppercase tracking-[0.06em] px-4 py-2`}
+                   style={{ color: "var(--t-faint)", borderBottom: "1px solid var(--t-line)" }}>
+                <div />
+                <div>Eşya</div>
+                <div className="text-center">Adet</div>
+                <div className="text-right">Birim Fiyat</div>
+                <div className="text-right">Kaynak</div>
+                <div className="text-right">Toplam</div>
               </div>
 
-              {/* İsim */}
-              <div className={`text-sm font-medium px-3 ${GRADE_COLORS[item.grade]}`}>
-                {item.name}
-              </div>
+              {drops.map((item, idx) => {
+                const meta = PRICE_META[item.priceType];
+                return (
+                  <div key={item.id} className={`grid ${GRID} items-center px-4 py-2 t-row`}
+                       style={item.quantity > 0 ? { background: "rgba(232,180,81,.04)" } : undefined}>
+                    <div className="w-9 h-9 rounded-[var(--t-r-sm)] overflow-hidden flex-shrink-0"
+                         style={{ background: "var(--t-canvas)", border: `1px solid ${GRADE_COLOR[item.grade] ?? "var(--t-line)"}55` }}>
+                      {item.icon && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.icon} alt="" className="w-full h-full object-cover" />
+                      )}
+                    </div>
 
-              {/* Adet Input */}
-              <div className="flex justify-center">
-                <input
-                  type="number"
-                  min={0}
-                  value={item.quantity || ""}
-                  onChange={(e) => updateQuantity(idx, e.target.value)}
-                  placeholder="0"
-                  className="w-20 bg-bdo-bg border border-bdo-border rounded-lg px-2 py-1 text-sm text-center text-bdo-text-primary focus:outline-none focus:border-bdo-gold"
-                />
-              </div>
+                    <div className="text-[13px] font-medium px-3 truncate"
+                         style={{ color: GRADE_COLOR[item.grade] ?? "var(--t-text)" }}>
+                      {item.name}
+                    </div>
 
-              {/* Fiyat */}
-              <div className="flex items-center justify-end gap-1.5">
-                {editingPrice === idx ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={editPriceValue}
-                      onChange={(e) => setEditPriceValue(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && saveCustomPrice(idx)}
-                      placeholder="Gümüş"
-                      autoFocus
-                      className="w-28 bg-bdo-bg border border-bdo-gold rounded px-2 py-1 text-xs text-right text-bdo-text-primary focus:outline-none"
-                    />
-                    <button onClick={() => saveCustomPrice(idx)} className="text-bdo-gold text-xs hover:text-bdo-gold-dim">✓</button>
-                    <button onClick={() => setEditingPrice(null)} className="text-bdo-text-muted text-xs hover:text-red-400">✕</button>
+                    <div className="flex justify-center">
+                      <input type="number" min={0} value={item.quantity || ""} placeholder="0"
+                             onChange={(e) => setQty(idx, e.target.value)}
+                             className="w-[68px] h-[28px] px-2 rounded-[var(--t-r-sm)] text-[13px] text-center outline-none"
+                             style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }} />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1.5">
+                      {editing === idx ? (
+                        <>
+                          <input autoFocus value={editValue}
+                                 onChange={(e) => setEditValue(e.target.value)}
+                                 onKeyDown={(e) => e.key === "Enter" && saveCustomPrice(idx)}
+                                 placeholder="Gümüş"
+                                 className="w-[104px] h-[26px] px-2 rounded text-[12px] text-right outline-none"
+                                 style={{ background: "var(--t-raised)", border: "1px solid var(--t-gold)", color: "var(--t-text)" }} />
+                          <button onClick={() => saveCustomPrice(idx)} aria-label="Kaydet"
+                                  style={{ color: "var(--t-gold)" }}>
+                            <Check className="w-3.5 h-3.5" strokeWidth={2.4} />
+                          </button>
+                          <button onClick={() => setEditing(null)} aria-label="İptal"
+                                  style={{ color: "var(--t-faint)" }}>
+                            <X className="w-3.5 h-3.5" strokeWidth={2.4} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`t-num text-[13px] ${item.priceType === "loading" ? "animate-pulse" : ""}`}
+                                style={{ color: item.priceType === "loading" ? "var(--t-faint)" : "var(--t-text)" }}>
+                            {item.priceType === "loading" ? "…" : silver(item.price)}
+                          </span>
+                          <button onClick={() => { setEditing(idx); setEditValue(String(item.price)); }}
+                                  title="Fiyatı elle gir" aria-label="Fiyatı elle gir"
+                                  style={{ color: "var(--t-faint)" }}>
+                            <Pencil className="w-3 h-3" strokeWidth={2} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="text-right text-[11px]" style={{ color: meta.color }}>{meta.label}</div>
+
+                    <div className="text-right t-num text-[13px] font-semibold"
+                         style={{ color: item.quantity > 0 ? "var(--t-gold)" : "var(--t-faint)" }}>
+                      {item.quantity > 0 ? silver(item.quantity * item.price) : "—"}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <span className={`text-sm font-mono ${item.priceType === "loading" ? "text-bdo-text-muted animate-pulse" : "text-bdo-text-primary"}`}>
-                      {item.priceType === "loading" ? "..." : formatSilver(item.price)}
-                    </span>
-                    <button
-                      onClick={() => { setEditingPrice(idx); setEditPriceValue(String(item.price)); }}
-                      className="text-bdo-text-muted hover:text-bdo-gold transition-colors"
-                      title="Fiyatı düzenle"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-              </div>
+                );
+              })}
 
-              {/* Kaynak */}
-              <div className="text-right">
-                {item.priceType === "loading" && <span className="text-xs text-bdo-text-muted">yükleniyor</span>}
-                {item.priceType === "market" && <span className="text-xs text-green-400">Pazar</span>}
-                {item.priceType === "npc" && <span className="text-xs text-blue-400">NPC</span>}
-                {item.priceType === "custom" && <span className="text-xs text-bdo-gold">Özel</span>}
-                {item.priceType === "unknown" && <span className="text-xs text-bdo-text-muted">Bilinmiyor</span>}
-              </div>
-
-              {/* Toplam */}
-              <div className={`text-right text-sm font-mono font-semibold ${item.quantity > 0 ? "text-bdo-gold" : "text-bdo-text-muted"}`}>
-                {item.quantity > 0 ? formatSilver(item.quantity * item.price) : "-"}
+              <div className={`grid ${GRID} items-center px-4 py-3`}
+                   style={{ background: "var(--t-gold-soft)", borderTop: "1px solid rgba(232,180,81,.2)" }}>
+                <div />
+                <div className="text-[13px] font-semibold px-3">Toplam</div>
+                <div /><div /><div />
+                <div className="text-right t-num text-[15px] font-bold" style={{ color: "var(--t-gold)" }}>
+                  {silver(total)}
+                </div>
               </div>
             </div>
-          ))}
-
-          {/* Footer toplam */}
-          <div className="grid grid-cols-[48px_1fr_120px_160px_120px_120px] items-center px-4 py-3 bg-bdo-gold/8 border-t border-bdo-gold/20">
-            <div></div>
-            <div className="text-sm font-semibold text-bdo-text-primary">Toplam</div>
-            <div></div>
-            <div></div>
-            <div></div>
-            <div className="text-right text-base font-bold text-bdo-gold font-mono">{formatSilver(totalSilver)}</div>
           </div>
-        </div>
+        </Card>
       )}
 
-      {!loading && drops.length === 0 && !error && (
-        <div className="text-center py-16 text-bdo-text-muted">
-          <div className="text-4xl mb-3">⚔</div>
-          <div className="text-sm">Spot seçin ve drop listesini getirin</div>
-        </div>
+      {!loading && drops.length === 0 && !err && (
+        <Card className="p-12 flex flex-col items-center gap-3">
+          <Swords className="w-7 h-7" strokeWidth={1.4} style={{ color: "var(--t-faint)" }} />
+          <span className="text-[13px]" style={{ color: "var(--t-dim)" }}>
+            Spot seç ve drop listesini getir.
+          </span>
+        </Card>
       )}
-    </div>
+
+      <div className="pb-6" />
+    </TestShell>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[11px] uppercase tracking-[0.06em] mb-1.5" style={{ color: "var(--t-faint)" }}>
+      {children}
+    </label>
+  );
+}
+
+function Stat({ label, value, color = "var(--t-text)" }: {
+  label: string; value: string; color?: string;
+}) {
+  return (
+    <Card className="p-3.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Coins className="w-3 h-3" strokeWidth={2} style={{ color: "var(--t-faint)" }} />
+        <span className="text-[10px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>
+          {label}
+        </span>
+      </div>
+      <div className="t-num text-[20px] font-bold leading-none" style={{ color }}>{value}</div>
+    </Card>
   );
 }

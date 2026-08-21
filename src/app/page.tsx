@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (session) router.push("/test");
+    if (session) router.push("/panel");
   }, [session, router]);
 
   if (status === "loading" || session) {
@@ -44,7 +44,7 @@ export default function LoginPage() {
         </p>
 
         <button
-          onClick={() => signIn("discord", { callbackUrl: "/test" })}
+          onClick={() => signIn("discord", { callbackUrl: "/panel" })}
           className="w-full flex items-center justify-center gap-2.5 bg-bdo-gold text-bdo-bg font-semibold px-6 py-3 rounded-xl hover:bg-bdo-gold-dim transition-colors text-[14px]"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

@@ -3,10 +3,8 @@ import { withAuth } from "next-auth/middleware";
 /**
  * Oturum kapısı.
  *
- * Yeni tasarım `/test` altında ve buraya eklenmemişti; sayfalar yalnızca
- * istemci tarafında oturum kontrolü yapıyordu. Veri güvendeydi (API'ler
- * 401 dönüyor) ama giriş yapmamış kişi boş bir kabuk görüp ne olduğunu
- * anlamıyordu. Artık doğrudan giriş ekranına gidiyor.
+ * Giriş yapmamış kişi doğrudan giriş ekranına gidiyor; `callbackUrl` ile
+ * gitmek istediği sayfaya sonradan dönüyor.
  *
  * Tek istisna başvuru formu: klana katılmak isteyen kişinin henüz hesabı
  * yok, giriş isteyemeyiz.
@@ -15,19 +13,30 @@ export default withAuth({
   pages: { signIn: "/" },
   callbacks: {
     authorized: ({ req, token }) =>
-      req.nextUrl.pathname.startsWith("/test/basvuru") ? true : !!token,
+      req.nextUrl.pathname.startsWith("/basvuru") ? true : !!token,
   },
 });
 
 export const config = {
   matcher: [
-    "/test/:path*",
-    // Eski adresler artık next.config'de yönlendiriliyor; yönlendirme
-    // kaçarsa diye kapı burada da duruyor.
-    "/dashboard/:path*",
-    "/wars/:path*",
-    "/members/:path*",
-    "/profile/:path*",
+    "/panel/:path*",
+    "/savaslar/:path*",
+    "/uyeler/:path*",
+    "/profil/:path*",
+    "/takvim/:path*",
+    "/etkinlikler/:path*",
+    "/forum/:path*",
+    "/kaleler/:path*",
+    "/harita/:path*",
+    "/geo/:path*",
+    "/analiz/:path*",
+    "/hasar-raporu/:path*",
+    "/tier-list/:path*",
+    "/patch-notes/:path*",
+    "/grind-tracker/:path*",
+    "/ai-asistan/:path*",
+    "/optimizer/:path*",
+    "/ally/:path*",
     "/admin/:path*",
   ],
 };

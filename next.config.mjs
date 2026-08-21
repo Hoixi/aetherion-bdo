@@ -13,38 +13,28 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   async redirects() {
-    // Eski tasarımın adresleri yeni ekranlara taşınıyor. Discord'a
-    // gönderilmiş mesajlarda hâlâ `/wars/12` gibi linkler duruyor; onlar
-    // çalışmaya devam etsin diye siliniyor değil, yönlendiriliyor.
-    // Kalıcı değil (307): geri dönmek gerekirse tarayıcılar önbelleğe
-    // almış olmasın. Karşılıklar `src/lib/test-routes.ts` ile aynı.
-    const tasinan = [
-      ["/dashboard", "/test"],
-      ["/wars", "/test/savaslar"],
-      ["/members", "/test/uyeler"],
-      ["/calendar", "/test/takvim"],
-      ["/profile", "/test/profil/duzenle"],
-      ["/admin", "/test/admin"],
-      ["/analiz", "/test/analiz"],
-      ["/hasar-raporu", "/test/hasar-raporu"],
-      ["/tier-list", "/test/tier-list"],
-      ["/etkinlikler", "/test/etkinlikler"],
-      ["/harita", "/test/harita"],
-      ["/ai-asistan", "/test/ai-asistan"],
-      ["/optimizer", "/test/optimizer"],
-      ["/geo", "/test/geo"],
-      ["/grind-tracker", "/test/grind-tracker"],
-      ["/forum", "/test/forum"],
-      ["/basvuru", "/test/basvuru"],
-      ["/ally", "/test/ally"],
-      ["/patch-notes", "/test/patch-notes"],
+    // İki kuşak eski adres var ve ikisi de Discord'a gönderilmiş
+    // mesajların içinde duruyor:
+    //   1) ilk tasarımın İngilizce yolları (/wars/12, /members/5)
+    //   2) siyah temanın geçici /test öneki
+    // Sayfalar silindi, adresler yaşıyor. Kalıcı değil (307) — geri
+    // dönmek gerekirse tarayıcılar 301'i önbelleğe almış olmasın.
+    const eskiIngilizce = [
+      ["/dashboard", "/panel"],
+      ["/wars", "/savaslar"],
+      ["/members", "/uyeler"],
+      ["/calendar", "/takvim"],
+      ["/profile", "/profil/duzenle"],
     ];
 
     return [
-      ...tasinan.flatMap(([from, to]) => [
+      ...eskiIngilizce.flatMap(([from, to]) => [
         { source: from, destination: to, permanent: false },
         { source: `${from}/:path*`, destination: `${to}/:path*`, permanent: false },
       ]),
+      // /test öneki tek kuralla düşüyor; alt yolların adı zaten aynı
+      { source: "/test", destination: "/panel", permanent: false },
+      { source: "/test/:path*", destination: "/:path*", permanent: false },
       {
         // Tek kanonik adres: www → apex. Oturum cookie'si her ikisinde de
         // geçerli ama linklerin tek adrese düşmesi karışıklığı önler.
@@ -55,6 +45,7 @@ const nextConfig = {
       },
     ];
   },
+
   async headers() {
     return [
       {

@@ -1,23 +1,37 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { RichTextContent } from "@/components/rich-text-editor";
-import { ArrowLeft, Pin, PinOff, Pencil, Trash2, Eye, MessagesSquare, Send, X } from "lucide-react";
-import { Card, CardHeader, Button, Loading, Empty, Avatar, GuildTag, type GuildInfo } from "@/components/ui";
+import {
+  ArrowLeft, Pin, PinOff, Pencil, Trash2, MessagesSquare, Send, X, Clock,
+} from "lucide-react";
+import { TestShell, Card, Empty, GuildTag, loadJson, type Guild } from "@/components/app-shell";
+
+/**
+ * Forum konusu.
+ *
+ * Gövde solda geniş bir sütunda, konu bilgisi sağda sabit bir kenar
+ * çubuğunda: kim açmış, ne zaman, kaç yanıt, hangi etiketler, yönetim
+ * işlemleri. Eski hâli her şeyi dar tek bir kolona diziyordu.
+ */
 
 const RichTextEditor = dynamic(
   () => import("@/components/rich-text-editor").then((m) => m.RichTextEditor),
-  { ssr: false, loading: () => <div className="border border-bdo-border rounded-xl h-64 animate-pulse bg-bdo-bg" /> }
+  { ssr: false, loading: () => <div className="rounded-xl h-64 animate-pulse"
+                                    style={{ background: "var(--t-raised)" }} /> },
 );
 
 interface Tag { id: number; name: string; slug: string; type: string; color: string }
-interface Author { id: number; familyName: string; avatarUrl: string; siteRole: { name: string; color: string } | null; guild?: GuildInfo | null }
+interface Author {
+  id: number; familyName: string; avatarUrl: string;
+  siteRole: { name: string; color: string } | null;
+  guild?: Guild | null;
+}
 interface Comment { id: number; content: string; createdAt: string; author: Author }
-interface Reaction { emoji: string; count: number }
-
 interface Post {
   id: number; title: string; content: string; pinned: boolean; viewCount: number;
   createdAt: string; updatedAt: string;
@@ -33,289 +47,360 @@ function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000);
   if (m < 1) return "az önce";
-  if (m < 60) return `${m}dk önce`;
-  if (h < 24) return `${h}sa önce`;
+  if (m < 60) return `${m} dk önce`;
+  if (h < 24) return `${h} sa önce`;
   return new Date(date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function Who({ a, size = 32 }: { a: Author; size?: number }) {
+  return (
+    <Link href={`/uyeler/${a.id}`} className="flex items-center gap-2 min-w-0 group">
+      {a.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={a.avatarUrl} alt="" className="rounded-full flex-shrink-0"
+             style={{ width: size, height: size, outline: "1px solid var(--t-line)" }} />
+      ) : (
+        <div className="rounded-full flex-shrink-0"
+             style={{ width: size, height: size, background: "var(--t-raised)" }} />
+      )}
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5">
+          <span className="text-[13px] font-medium truncate group-hover:underline"
+                style={{ color: a.siteRole?.color ?? "var(--t-text)" }}>
+            {a.familyName}
+          </span>
+          <GuildTag g={a.guild ?? null} />
+        </span>
+        {a.siteRole && (
+          <span className="block text-[10px]" style={{ color: "var(--t-faint)" }}>
+            {a.siteRole.name}
+          </span>
+        )}
+      </span>
+    </Link>
+  );
 }
 
 export default function ForumPostPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const params = useParams();
-  const [post, setPost] = useState<Post | null>(null);
-  const [reactions, setReactions] = useState<Reaction[]>([]);
-  const [myReactions, setMyReactions] = useState<string[]>([]);
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const params = useParams<{ id: string }>();
 
+  const [post, setPost] = useState<Post | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [editBody, setEditBody] = useState("");
 
   useEffect(() => {
-    fetch(`/api/forum/posts/${params.id}`)
-      .then((r) => r.json())
-      .then((data: Post) => {
-        setPost(data);
-        setEditTitle(data.title);
-        setEditContent(data.content);
-        const grouped: Record<string, number> = {};
-        data.reactions.forEach((r) => { grouped[r.emoji] = (grouped[r.emoji] ?? 0) + 1; });
-        setReactions(Object.entries(grouped).map(([emoji, count]) => ({ emoji, count })));
-        if (session) {
-          setMyReactions(data.reactions.filter((r) => r.user.id === session.user.id).map((r) => r.emoji));
-        }
-      });
-  }, [params.id, session]);
+    if (!params?.id) return;
+    loadJson<Post>(`/api/forum/posts/${params.id}`)
+      .then((p) => { setPost(p); setEditTitle(p.title); setEditBody(p.content); })
+      .catch((e: Error) => setErr(e.message));
+  }, [params?.id]);
+
+  const isAuthor = post && session?.user.id === post.author.id;
+  const isAdmin = session?.user.isAdmin;
+  const canManage = Boolean(isAuthor || isAdmin);
+
+  /** Emoji başına sayı ve bizim basıp basmadığımız */
+  const reactions = EMOJIS.map((e) => ({
+    emoji: e,
+    count: post?.reactions.filter((r) => r.emoji === e).length ?? 0,
+    mine: post?.reactions.some((r) => r.emoji === e && r.user.id === session?.user.id) ?? false,
+  }));
 
   async function react(emoji: string) {
-    if (!session) return;
-    const res = await fetch(`/api/forum/posts/${params.id}/react`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emoji }),
+    if (!post) return;
+    const res = await fetch(`/api/forum/posts/${post.id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
     });
-    const data = await res.json();
-    setReactions(data.reactions);
-    setMyReactions(data.mine);
+    if (res.ok) setPost(await loadJson<Post>(`/api/forum/posts/${post.id}`));
   }
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
-    if (!comment.trim()) return;
-    setSubmitting(true);
-    const res = await fetch(`/api/forum/posts/${params.id}/comments`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: comment }),
+    if (!post || !comment.trim()) return;
+    setBusy(true);
+    const res = await fetch(`/api/forum/posts/${post.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: comment }),
     });
     if (res.ok) {
-      const newComment: Comment = await res.json();
-      setPost((p) => p ? { ...p, comments: [...p.comments, newComment] } : p);
       setComment("");
+      setPost(await loadJson<Post>(`/api/forum/posts/${post.id}`));
     }
-    setSubmitting(false);
+    setBusy(false);
   }
 
   async function deleteComment(commentId: number) {
-    if (!confirm("Yorumu silmek istediğinden emin misin?")) return;
-    await fetch(`/api/forum/posts/${params.id}/comments`, {
-      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commentId }),
+    if (!post || !window.confirm("Yorum silinsin mi?")) return;
+    await fetch(`/api/forum/posts/${post.id}/comments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
     });
-    setPost((p) => p ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) } : p);
+    setPost(await loadJson<Post>(`/api/forum/posts/${post.id}`));
   }
 
   async function deletePost() {
-    if (!confirm("Bu gönderiyi silmek istediğinden emin misin?")) return;
-    await fetch(`/api/forum/posts/${params.id}`, { method: "DELETE" });
+    if (!post || !window.confirm("Konu silinsin mi? Geri alınamaz.")) return;
+    await fetch(`/api/forum/posts/${post.id}`, { method: "DELETE" });
     router.push("/forum");
   }
 
   async function togglePin() {
     if (!post) return;
-    const res = await fetch(`/api/forum/posts/${params.id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pinned: !post.pinned }),
+    const res = await fetch(`/api/forum/posts/${post.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned: !post.pinned }),
     });
-    if (res.ok) setPost((p) => p ? { ...p, pinned: !p.pinned } : p);
+    if (res.ok) setPost({ ...post, pinned: !post.pinned });
   }
 
   async function saveEdit() {
-    if (!editTitle.trim()) return;
-    const plainText = editContent.replace(/<[^>]+>/g, "").trim();
-    if (!plainText) return;
-    setSaving(true);
-    const res = await fetch(`/api/forum/posts/${params.id}`, {
-      method: "PUT",
+    if (!post || !editTitle.trim()) return;
+    setBusy(true);
+    const res = await fetch(`/api/forum/posts/${post.id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle, content: editContent }),
+      body: JSON.stringify({ title: editTitle, content: editBody }),
     });
     if (res.ok) {
-      setPost((p) => p ? { ...p, title: editTitle, content: editContent } : p);
       setEditing(false);
+      setPost(await loadJson<Post>(`/api/forum/posts/${post.id}`));
     }
-    setSaving(false);
+    setBusy(false);
   }
 
-  if (!post) return <Loading />;
-
-  const canEdit = session?.user.id === post.author.id || session?.user.isAdmin;
-  const isAdmin = session?.user.isAdmin;
-
   return (
-    // Dar bir kolona sıkışmak yerine sayfanın genişliğini kullanıyor;
-    // üst kabuk zaten 1500px'te sınırlıyor
-    <div>
-      <button
-        onClick={() => router.push("/forum")}
-        className="inline-flex items-center gap-1.5 text-[12px] text-bdo-text-secondary hover:text-bdo-gold transition-colors mb-4"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
-        Foruma dön
-      </button>
+    <TestShell
+      title={post?.title ?? "Konu"}
+      subtitle={post ? `${post.comments.length} yanıt · ${post.viewCount} görüntülenme` : "Yükleniyor…"}
+      aside={
+        <Link href="/forum" className="t-tab">
+          <ArrowLeft className="w-3.5 h-3.5" /> Forum
+        </Link>
+      }
+    >
+      {err && <Card className="p-4"><p className="text-[13px]" style={{ color: "var(--t-bad)" }}>{err}</p></Card>}
+      {!post && !err && <Empty>Konu geliyor…</Empty>}
 
-      {/* Post */}
-      <div className={`card mb-4 ${post.pinned ? "card-accent" : ""}`}>
-        <div className="card-header">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Avatar src={post.author.avatarUrl} size={30} />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[13px] font-semibold text-bdo-text-primary">{post.author.familyName || "?"}</span>
-                <GuildTag guild={post.author.guild} />
-                {post.author.siteRole && (
-                  <span className="text-[10px] font-bold" style={{ color: post.author.siteRole.color }}>
-                    {post.author.siteRole.name}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-bdo-text-secondary leading-tight mt-0.5">
-                <span>{timeAgo(post.createdAt)}</span>
-                {post.updatedAt !== post.createdAt && <span className="italic">· düzenlendi</span>}
-                <span className="flex items-center gap-1">
-                  · <Eye className="w-3 h-3" strokeWidth={1.75} /> {post.viewCount}
+      {post && (
+        <div className="grid lg:grid-cols-[1fr_280px] gap-5 items-start">
+          <div className="min-w-0 space-y-4">
+            {/* Gövde */}
+            <Card className="overflow-hidden">
+              <div className="px-5 py-4 flex items-center gap-3"
+                   style={{ borderBottom: "1px solid var(--t-line)" }}>
+                <Who a={post.author} size={36} />
+                <span className="ml-auto flex items-center gap-1.5 text-[11px]"
+                      style={{ color: "var(--t-faint)" }}>
+                  <Clock className="w-3 h-3" /> {timeAgo(post.createdAt)}
                 </span>
               </div>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {post.pinned && !isAdmin && (
-              <Pin className="w-3.5 h-3.5 text-bdo-gold" strokeWidth={2.5} fill="currentColor" />
-            )}
-            {isAdmin && (
-              <Button variant="ghost" size="xs" icon={post.pinned ? PinOff : Pin} onClick={togglePin} />
-            )}
-            {canEdit && !editing && (
-              <Button
-                variant="ghost" size="xs" icon={Pencil}
-                onClick={() => { setEditTitle(post.title); setEditContent(post.content); setEditing(true); }}
-              />
-            )}
-            {canEdit && <Button variant="danger" size="xs" icon={Trash2} onClick={deletePost} />}
-          </div>
-        </div>
-
-        <div className="p-4">
-          {editing ? (
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                maxLength={120}
-                className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2.5 text-bdo-text-primary focus:border-bdo-gold/40 focus:outline-none text-[14px] font-semibold transition-colors"
-              />
-              <RichTextEditor content={editContent} onChange={setEditContent} minHeight={200} />
-              <div className="flex gap-2">
-                <Button variant="primary" size="md" onClick={saveEdit} disabled={saving}>
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
-                </Button>
-                <Button variant="ghost" size="md" icon={X} onClick={() => setEditing(false)}>İptal</Button>
+              <div className="p-5">
+                {editing ? (
+                  <div className="space-y-3">
+                    <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                           className="w-full px-3 py-2 rounded-lg text-[15px] font-semibold outline-none"
+                           style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)",
+                                    color: "var(--t-text)" }} />
+                    <RichTextEditor content={editBody} onChange={setEditBody} />
+                    <div className="flex gap-2">
+                      <button className="t-tab" data-on onClick={saveEdit} disabled={busy}>
+                        {busy ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                      <button className="t-tab" onClick={() => setEditing(false)}>
+                        <X className="w-3.5 h-3.5" /> Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <RichTextContent html={post.content} />
+                )}
               </div>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-[17px] font-bold text-bdo-text-primary leading-snug mb-2">{post.title}</h1>
-              {post.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
+
+              {!editing && (
+                <div className="px-5 pb-4 flex items-center gap-1.5 flex-wrap">
+                  {reactions.map((r) => (
+                    <button key={r.emoji} onClick={() => react(r.emoji)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-full text-[12px] transition-colors"
+                            style={{
+                              background: r.mine ? "var(--t-gold-soft)" : "var(--t-raised)",
+                              border: `1px solid ${r.mine ? "rgba(232,180,81,.4)" : "var(--t-line)"}`,
+                            }}>
+                      <span>{r.emoji}</span>
+                      {r.count > 0 && (
+                        <span className="t-num" style={{ color: "var(--t-dim)" }}>{r.count}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Yanıtlar */}
+            <Card className="overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-3.5"
+                   style={{ borderBottom: "1px solid var(--t-line)" }}>
+                <MessagesSquare className="w-4 h-4" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
+                <h2 className="text-[14px] font-semibold">Yanıtlar</h2>
+                <span className="t-chip ml-auto">{post.comments.length}</span>
+              </div>
+
+              {post.comments.length === 0 ? (
+                <p className="px-5 py-10 text-center text-[13px]" style={{ color: "var(--t-dim)" }}>
+                  Henüz yanıt yok. İlk yazan sen ol.
+                </p>
+              ) : post.comments.map((c) => (
+                <div key={c.id} className="px-5 py-4 flex gap-3"
+                     style={{ borderBottom: "1px solid var(--t-line)" }}>
+                  <div className="flex-shrink-0">
+                    {c.author.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.author.avatarUrl} alt="" className="w-8 h-8 rounded-full"
+                           style={{ outline: "1px solid var(--t-line)" }} />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full" style={{ background: "var(--t-raised)" }} />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/uyeler/${c.author.id}`}
+                            className="text-[12.5px] font-medium hover:underline"
+                            style={{ color: c.author.siteRole?.color ?? "var(--t-text)" }}>
+                        {c.author.familyName}
+                      </Link>
+                      <GuildTag g={c.author.guild ?? null} />
+                      <span className="text-[11px]" style={{ color: "var(--t-faint)" }}>
+                        {timeAgo(c.createdAt)}
+                      </span>
+                      {(isAdmin || session?.user.id === c.author.id) && (
+                        <button onClick={() => deleteComment(c.id)}
+                                className="ml-auto text-[11px] flex items-center gap-1 hover:opacity-80"
+                                style={{ color: "var(--t-faint)" }}>
+                          <Trash2 className="w-3 h-3" /> Sil
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-1.5 text-[13px] leading-relaxed whitespace-pre-wrap"
+                         style={{ color: "var(--t-dim)" }}>
+                      {c.content}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Yanıt yaz */}
+              {session ? (
+                <form onSubmit={submitComment} className="p-5">
+                  <textarea value={comment} onChange={(e) => setComment(e.target.value)}
+                            placeholder="Yanıtını yaz…" rows={3}
+                            className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none resize-y"
+                            style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)",
+                                     color: "var(--t-text)" }} />
+                  <div className="flex justify-end mt-2">
+                    <button type="submit" className="t-tab" data-on disabled={busy || !comment.trim()}>
+                      <Send className="w-3.5 h-3.5" /> {busy ? "Gönderiliyor…" : "Gönder"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="px-5 py-6 text-center text-[12px]" style={{ color: "var(--t-faint)" }}>
+                  Yanıt yazmak için giriş yapman gerekiyor.
+                </p>
+              )}
+            </Card>
+          </div>
+
+          {/* Kenar çubuğu */}
+          <div className="space-y-4 lg:sticky lg:top-[84px]">
+            <Card className="p-4">
+              <div className="text-[10px] uppercase tracking-[0.08em] mb-3"
+                   style={{ color: "var(--t-faint)" }}>Konu</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Yanıt", String(post.comments.length)],
+                  ["Görüntülenme", String(post.viewCount)],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <div className="text-[10px]" style={{ color: "var(--t-faint)" }}>{k}</div>
+                    <div className="t-num text-[18px] font-bold leading-none mt-1">{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 pt-3 space-y-2" style={{ borderTop: "1px solid var(--t-line)" }}>
+                <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--t-faint)" }}>
+                  <Clock className="w-3 h-3" />
+                  {new Date(post.createdAt).toLocaleString("tr-TR",
+                    { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </div>
+                {post.pinned && (
+                  <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--t-gold)" }}>
+                    <Pin className="w-3 h-3" /> Sabitlenmiş
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {post.tags.length > 0 && (
+              <Card className="p-4">
+                <div className="text-[10px] uppercase tracking-[0.08em] mb-2.5"
+                     style={{ color: "var(--t-faint)" }}>Etiketler</div>
+                <div className="flex flex-wrap gap-1.5">
                   {post.tags.map(({ tag }) => (
-                    <span
-                      key={tag.id}
-                      className="text-[10px] px-2 py-0.5 rounded font-medium border"
-                      style={{ color: tag.color, borderColor: `${tag.color}30`, backgroundColor: `${tag.color}12` }}
-                    >
+                    <span key={tag.id}
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded"
+                          style={{ color: tag.color, background: tag.color + "18" }}>
                       {tag.name}
                     </span>
                   ))}
                 </div>
-              )}
-              <div className="border-t border-bdo-border pt-4">
-                <RichTextContent html={post.content} />
-              </div>
-            </>
-          )}
-        </div>
+              </Card>
+            )}
 
-        {!editing && (
-          <div className="flex items-center gap-1.5 px-4 py-3 border-t border-bdo-border flex-wrap">
-            {EMOJIS.map((emoji) => {
-              const r = reactions.find((x) => x.emoji === emoji);
-              const mine = myReactions.includes(emoji);
-              return (
-                <button
-                  key={emoji}
-                  onClick={() => react(emoji)}
-                  className={`flex items-center gap-1.5 text-[13px] px-2.5 py-1 rounded-lg border transition-all ${
-                    mine
-                      ? "border-bdo-gold/40 bg-bdo-gold/10"
-                      : "border-bdo-border bg-bdo-bg hover:border-bdo-border-2"
-                  }`}
-                >
-                  <span>{emoji}</span>
-                  {r && (
-                    <span className={`text-[11px] font-mono font-semibold ${mine ? "text-bdo-gold" : "text-bdo-text-secondary"}`}>
-                      {r.count}
-                    </span>
-                  )}
+            {canManage && !editing && (
+              <Card className="p-2">
+                {isAuthor && (
+                  <button onClick={() => setEditing(true)}
+                          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-[var(--t-r-sm)]
+                                     text-[12.5px] transition-colors"
+                          style={{ color: "var(--t-dim)" }}>
+                    <Pencil className="w-3.5 h-3.5" /> Düzenle
+                  </button>
+                )}
+                {isAdmin && (
+                  <button onClick={togglePin}
+                          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-[var(--t-r-sm)]
+                                     text-[12.5px] transition-colors"
+                          style={{ color: "var(--t-dim)" }}>
+                    {post.pinned
+                      ? <><PinOff className="w-3.5 h-3.5" /> Sabitlemeyi kaldır</>
+                      : <><Pin className="w-3.5 h-3.5" /> Sabitle</>}
+                  </button>
+                )}
+                <button onClick={deletePost}
+                        className="flex items-center gap-2 w-full px-2.5 py-2 rounded-[var(--t-r-sm)]
+                                   text-[12.5px] transition-colors"
+                        style={{ color: "var(--t-bad)" }}>
+                  <Trash2 className="w-3.5 h-3.5" /> Konuyu sil
                 </button>
-              );
-            })}
+              </Card>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Comments */}
-      <Card className="mb-4">
-        <CardHeader title="Yorumlar" icon={MessagesSquare} meta={`${post.comments.length}`} />
-        {post.comments.length === 0 ? (
-          <Empty icon={MessagesSquare} text="Henüz yorum yok. İlk yorumu sen yaz." />
-        ) : (
-          post.comments.map((c) => (
-            <div key={c.id} className="card-row items-start gap-2.5 py-3">
-              <Avatar src={c.author.avatarUrl} size={26} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[12px] font-semibold text-bdo-text-primary">{c.author.familyName || "?"}</span>
-                  <GuildTag guild={c.author.guild} />
-                  {c.author.siteRole && (
-                    <span className="text-[10px] font-bold" style={{ color: c.author.siteRole.color }}>
-                      {c.author.siteRole.name}
-                    </span>
-                  )}
-                  <span className="text-[11px] text-bdo-text-secondary">{timeAgo(c.createdAt)}</span>
-                  {(session?.user.id === c.author.id || isAdmin) && (
-                    <button
-                      onClick={() => deleteComment(c.id)}
-                      className="ml-auto p-1 rounded text-bdo-text-secondary/50 hover:text-red-400 hover:bg-red-400/8 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" strokeWidth={2} />
-                    </button>
-                  )}
-                </div>
-                <p className="text-[13px] text-bdo-text-muted leading-relaxed whitespace-pre-wrap mt-1">{c.content}</p>
-              </div>
-            </div>
-          ))
-        )}
-      </Card>
-
-      {/* New comment */}
-      <Card>
-        <CardHeader title="Yorum Yaz" />
-        <form onSubmit={submitComment} className="p-4">
-          <textarea
-            ref={commentRef}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Yorumunu buraya yaz..."
-            rows={3}
-            className="w-full bg-bdo-bg border border-bdo-border rounded-lg px-3 py-2.5 text-[13px] text-bdo-text-primary placeholder-bdo-text-secondary focus:border-bdo-gold/40 focus:outline-none resize-none transition-colors"
-          />
-          <div className="flex justify-end mt-2.5">
-            <Button type="submit" variant="primary" size="md" icon={Send} disabled={submitting || !comment.trim()}>
-              {submitting ? "Gönderiliyor..." : "Gönder"}
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+      <div className="pb-6" />
+    </TestShell>
   );
 }

@@ -3,24 +3,28 @@
 @tailwind utilities;
 
 /**
- * Palet RGB uclusu olarak duruyor: Tailwind renkleri
- * `rgb(var(--bdo-x) / <alpha-value>)` diye kuruyor, boylece /test kabugu
- * ayni siniflari kendi temasina boyayabiliyor (bkz. test/theme.css).
- * Buradaki degerler eski tasarimin orijinal renkleri.
+ * Palet, RGB üçlüsü olarak duruyor: Tailwind renkleri
+ * `rgb(var(--bdo-x) / <alpha-value>)` diye kuruyor, böylece saydamlık
+ * türevleri (`bg-bdo-bg/80`) kendiliğinden doğru çalışıyor.
+ *
+ * Değerler siyah temanın karşılıkları — `theme.css`teki `--t-*` ile aynı
+ * tonlar. İki ad bir arada duruyor çünkü ortak bileşenler (parti builder,
+ * member-chip, war-form…) `bdo-*` sınıflarıyla yazılı; yeniden yazmak
+ * yerine paletin kendisi tek noktadan siyaha çekildi.
  */
 :root {
-  --bdo-bg: 12 15 21;
-  --bdo-surface: 19 24 32;
-  --bdo-surface-2: 26 34 51;
-  --bdo-border: 30 42 60;
-  --bdo-border-2: 42 58 82;
-  --bdo-gold: 212 160 48;
-  --bdo-gold-dim: 154 112 32;
-  --bdo-text-primary: 220 228 242;
-  --bdo-text-secondary: 77 92 115;
-  --bdo-text-muted: 122 139 163;
-  --bdo-sapphire: 74 124 245;
-  --bdo-silver: 122 139 163;
+  --bdo-bg: 0 0 0;                 /* --t-canvas */
+  --bdo-surface: 11 11 12;         /* --t-surface */
+  --bdo-surface-2: 20 20 22;       /* --t-raised */
+  --bdo-border: 38 38 42;          /* --t-line'ın opak karşılığı */
+  --bdo-border-2: 56 56 62;        /* --t-line-strong */
+  --bdo-gold: 232 180 81;          /* --t-gold */
+  --bdo-gold-dim: 184 135 58;
+  --bdo-text-primary: 244 244 245; /* --t-text */
+  --bdo-text-muted: 154 154 162;   /* --t-dim */
+  --bdo-text-secondary: 128 128 137; /* --t-faint */
+  --bdo-sapphire: 107 147 255;
+  --bdo-silver: 154 154 162;
 }
 
 /* AI Asistan markdown renderer */

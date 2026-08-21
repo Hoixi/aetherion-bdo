@@ -3,12 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  BarChart3, Sparkles, Check, Shield, Users, Swords, Skull,
-  Castle, TrendingDown, TrendingUp, Loader2, AlertTriangle, Target, Lightbulb,
+  BarChart3, Sparkles, Check, Shield, Users, Swords, Skull, Castle,
+  TrendingDown, TrendingUp, Loader2, AlertTriangle, Target, Lightbulb,
 } from "lucide-react";
-import { PageHeader, Card, CardHeader, Empty, Loading, Button } from "@/components/ui";
 import { getClassByID, getClassIconUrl } from "@/lib/classes";
 import { METRIC_WEIGHTS, METRIC_KEYS, type PlayerAnalysis } from "@/lib/war-analysis";
+import { TestShell, Card, Head, Empty, fmt } from "@/components/app-shell";
+
+/**
+ * Savaş analizi.
+ *
+ * Sayılar mutlak değil, savaş içi yüzdelik dilim: 50 o savaşın medyanı.
+ * Böylece kalabalık bir savaşla küçük bir savaş aynı ölçekte kıyaslanıyor.
+ * AI kısmı sadece bu dilimleri yorumluyor, kendi hesabını yapmıyor.
+ */
 
 type WarRow = { id: number; title: string; type: string; date: string; result: string | null };
 
@@ -17,7 +25,10 @@ type AiReport = {
   teamStrengths: string[];
   teamWeaknesses: string[];
   standouts: { name: string; reason: string }[];
-  concerns: { name: string; role?: string; issue: string; suggestion: string; severity: "high" | "medium" | "low"; lowSample: boolean }[];
+  concerns: {
+    name: string; role?: string; issue: string; suggestion: string;
+    severity: "high" | "medium" | "low"; lowSample: boolean;
+  }[];
   classNotes: { className: string; verdict: string; roleExpected: boolean }[];
   actions: { title: string; detail: string }[];
 };
@@ -30,13 +41,7 @@ type AnalysisData = {
   excludedCount: number;
 };
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 10_000) return Math.round(n / 1_000) + "K";
-  return String(Math.round(n));
-}
-
-/** Dilim değerine göre renk — 50 nötr, aşağısı kırmızı, yukarısı yeşil */
+/** 50 nötr; aşağısı kırmızıya, yukarısı yeşile gidiyor */
 function pctColor(pct: number): string {
   if (pct >= 75) return "#2bca6e";
   if (pct >= 55) return "#a3d977";
@@ -49,13 +54,17 @@ function PctBar({ pct, label }: { pct: number; label?: string }) {
   const color = pctColor(pct);
   return (
     <div className="flex items-center gap-2">
-      {label && <span className="text-[10px] text-bdo-text-secondary w-[74px] flex-shrink-0">{label}</span>}
-      <div className="flex-1 h-1.5 rounded-full bg-bdo-surface-2 overflow-hidden min-w-[40px]">
+      {label && (
+        <span className="text-[10px] w-[74px] flex-shrink-0" style={{ color: "var(--t-faint)" }}>{label}</span>
+      )}
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden min-w-[40px]"
+           style={{ background: "var(--t-raised)" }}>
         <div className="h-full rounded-full transition-all"
-             style={{ width: Math.max(2, pct) + "%", backgroundColor: color }} />
+             style={{ width: Math.max(2, pct) + "%", background: color }} />
       </div>
-      <span className="text-[10px] font-mono font-semibold w-7 text-right flex-shrink-0"
-            style={{ color }}>{Math.round(pct)}</span>
+      <span className="t-num text-[10px] font-semibold w-7 text-right flex-shrink-0" style={{ color }}>
+        {Math.round(pct)}
+      </span>
     </div>
   );
 }
@@ -82,7 +91,7 @@ export default function AnalizPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((w: WarRow[]) => {
         setWars(w);
-        // Varsayılan olarak son 5 savaş seçili gelsin
+        // Son 5 savaş varsayılan; tek savaşta dilimler oynak oluyor
         setPicked(new Set(w.slice(0, 5).map((x) => x.id)));
       })
       .finally(() => setLoading(false));
@@ -119,7 +128,7 @@ export default function AnalizPage() {
     setAiBusy(false);
   }
 
-  /** AI bir isimden bahsedince listedeki oyuncuya bağla */
+  /** AI bir isimden bahsedince listedeki oyuncuya bağlanabilsin */
   function focusPlayer(name: string) {
     const p = data?.players.find((x) => x.name.toLowerCase() === name.toLowerCase());
     if (p) setSelected(p.userId != null ? "u" + p.userId : "n" + p.name);
@@ -130,42 +139,42 @@ export default function AnalizPage() {
     [data, selected],
   );
 
-  if (status === "loading" || loading) return <Loading />;
+  if (status === "loading" || loading) {
+    return <TestShell title="Savaş Analizi" subtitle="Yükleniyor…"><Empty>Savaşlar geliyor…</Empty></TestShell>;
+  }
   if (!session?.user.canManageWars) {
-    return <Empty text="Bu sayfa yalnızca savaş yöneticileri içindir." />;
+    return (
+      <TestShell title="Savaş Analizi" subtitle="Yetki gerekiyor">
+        <Empty>Bu ekran yalnızca savaş yöneticileri içindir.</Empty>
+      </TestShell>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        icon={BarChart3}
-        title="Savaş Analizi"
-        desc="Seçtiğin savaşları her iki klan için birlikte inceler. Sayılar savaş içi yüzdelik dilimdir — 50 o savaşın medyanı."
-      />
-
-      {/* Savaş seçimi */}
+    <TestShell
+      title="Savaş Analizi"
+      subtitle="Seçtiğin savaşları iki klan için birlikte inceler. Sayılar savaş içi yüzdelik dilimdir — 50 o savaşın medyanı."
+      aside={data ? <span className="t-chip hidden sm:inline">{data.players.length} oyuncu</span> : null}
+    >
+      {/* ── Savaş seçimi ───────────────────────────────────────────── */}
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-            Savaş Seç ({picked.size})
+          <span className="text-[11px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>
+            Savaş seç ({picked.size})
           </span>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="ghost" size="sm"
-                    onClick={() => setPicked(new Set(wars.slice(0, 5).map((w) => w.id)))}>
-              Son 5
-            </Button>
-            <Button variant="ghost" size="sm"
-                    onClick={() => setPicked(new Set(wars.map((w) => w.id)))}>
-              Hepsi
-            </Button>
-            <Button variant="ghost" size="sm" icon={Shield}
-                    onClick={() => setExcludeDefense((v) => !v)}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Ghost onClick={() => setPicked(new Set(wars.slice(0, 5).map((w) => w.id)))}>Son 5</Ghost>
+            <Ghost onClick={() => setPicked(new Set(wars.map((w) => w.id)))}>Hepsi</Ghost>
+            <Ghost onClick={() => setExcludeDefense((v) => !v)} icon={Shield}>
               {excludeDefense ? "Savunma hariç" : "Savunma dahil"}
-            </Button>
-            <Button variant="primary" size="sm" icon={BarChart3}
-                    onClick={run} disabled={running || picked.size === 0}>
-              {running ? "Analiz ediliyor..." : "Analiz Et"}
-            </Button>
+            </Ghost>
+            <button onClick={run} disabled={running || picked.size === 0}
+                    className="text-[12px] font-semibold px-3 h-[32px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5 disabled:opacity-45"
+                    style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                             border: "1px solid rgba(232,180,81,.3)" }}>
+              <BarChart3 className="w-3.5 h-3.5" strokeWidth={2} />
+              {running ? "Analiz ediliyor…" : "Analiz et"}
+            </button>
           </div>
         </div>
 
@@ -173,21 +182,18 @@ export default function AnalizPage() {
           {wars.map((w) => {
             const on = picked.has(w.id);
             return (
-              <button
-                key={w.id}
-                onClick={() => setPicked((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(w.id)) next.delete(w.id); else next.add(w.id);
-                  return next;
-                })}
-                className={`text-[11px] px-2 py-1 rounded-lg border transition-colors ${
-                  on
-                    ? "border-bdo-gold/40 bg-bdo-gold/10 text-bdo-text-primary"
-                    : "border-bdo-border bg-bdo-bg text-bdo-text-secondary hover:border-bdo-border-2"
-                }`}
-              >
+              <button key={w.id}
+                      onClick={() => setPicked((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(w.id)) next.delete(w.id); else next.add(w.id);
+                        return next;
+                      })}
+                      className="text-[11px] px-2 py-1 rounded-[var(--t-r-sm)] transition-colors"
+                      style={on
+                        ? { color: "var(--t-text)", background: "var(--t-gold-soft)", border: "1px solid rgba(232,180,81,.4)" }
+                        : { color: "var(--t-faint)", background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
                 {w.title}
-                <span className="ml-1.5 text-bdo-text-secondary">
+                <span className="ml-1.5" style={{ color: "var(--t-faint)" }}>
                   {new Date(w.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
                 </span>
               </button>
@@ -196,44 +202,44 @@ export default function AnalizPage() {
         </div>
       </Card>
 
-      {error && (
-        <Card className="p-3">
-          <p className="text-[13px] text-red-400">{error}</p>
-        </Card>
-      )}
+      {error && <Card className="p-4"><p className="text-[13px]" style={{ color: "var(--t-bad)" }}>{error}</p></Card>}
 
       {data && (
         <>
-          {/* Toplamlar */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* ── Toplamlar ──────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { icon: Swords, label: "Toplam Hasar", value: fmt(data.totals.damageDealt), color: "#e0b040" },
-              { icon: Castle, label: "Kale Hasarı", value: fmt(data.totals.castleDamage), color: "#e09832" },
-              { icon: Check, label: "Kill", value: String(data.totals.kills), color: "#dce4f2" },
-              { icon: Skull, label: "Ölüm", value: String(data.totals.deaths), color: "#e05252" },
+              { icon: Swords, label: "Toplam Hasar", value: fmt(data.totals.damageDealt), color: "#e8b451" },
+              { icon: Castle, label: "Kale Hasarı", value: fmt(data.totals.castleDamage), color: "#f0994c" },
+              { icon: Check, label: "Kill", value: String(data.totals.kills), color: "var(--t-text)" },
+              { icon: Skull, label: "Ölüm", value: String(data.totals.deaths), color: "#ef5f5f" },
               { icon: Users, label: "Oyuncu", value: String(data.players.length), color: "#6b93ff" },
             ].map((s) => (
-              <Card key={s.label} className="p-3">
-                <div className="flex items-center gap-1.5 mb-1">
+              <Card key={s.label} className="p-3.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
                   <s.icon className="w-3 h-3" strokeWidth={2} style={{ color: s.color }} />
-                  <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary">{s.label}</span>
+                  <span className="text-[10px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>
+                    {s.label}
+                  </span>
                 </div>
-                <div className="text-[19px] font-bold" style={{ color: s.color }}>{s.value}</div>
+                <div className="t-num text-[20px] font-bold leading-none" style={{ color: s.color }}>
+                  {s.value}
+                </div>
               </Card>
             ))}
           </div>
 
           {data.excludedCount > 0 && (
-            <p className="text-[11px] text-bdo-text-secondary">
-              {data.excludedCount} savunma kaydı analiz dışında tutuldu — savunmadakiler farklı iş yapar,
-              hasarları saldırıyla kıyaslanamaz.
+            <p className="text-[11.5px]" style={{ color: "var(--t-faint)" }}>
+              {data.excludedCount} savunma kaydı analiz dışında tutuldu — savunmadakiler farklı iş
+              yapıyor, hasarları saldırıyla kıyaslanamaz.
             </p>
           )}
 
-          <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-            {/* Oyuncu tablosu */}
-            <Card>
-              <CardHeader title="Oyuncular" icon={Users} meta={`${data.players.length} kişi`} />
+          <div className="grid lg:grid-cols-[1fr_340px] gap-4">
+            {/* ── Oyuncu listesi ───────────────────────────────────── */}
+            <Card className="overflow-hidden">
+              <Head icon={Users} title="Oyuncular" meta={`${data.players.length} KİŞİ`} />
               <div className="max-h-[560px] overflow-y-auto">
                 {data.players.map((p, i) => {
                   const key = p.userId != null ? "u" + p.userId : "n" + p.name;
@@ -241,12 +247,10 @@ export default function AnalizPage() {
                   const icon = getClassIconUrl(p.class);
                   const active = selected === key;
                   return (
-                    <button
-                      key={key}
-                      onClick={() => setSelected(active ? null : key)}
-                      className={`w-full card-row gap-2.5 text-left ${active ? "card-row-active" : ""}`}
-                    >
-                      <span className="text-[11px] font-mono text-bdo-text-secondary w-5 flex-shrink-0">
+                    <button key={key} onClick={() => setSelected(active ? null : key)}
+                            className="t-row w-full px-5 py-2.5 flex items-center gap-2.5 text-left"
+                            style={active ? { background: "var(--t-gold-soft)" } : undefined}>
+                      <span className="t-num text-[11px] w-5 flex-shrink-0" style={{ color: "var(--t-faint)" }}>
                         {i + 1}
                       </span>
                       {icon ? (
@@ -256,16 +260,20 @@ export default function AnalizPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] text-bdo-text-primary truncate">{p.name}</span>
+                          <span className="text-[13px] truncate">{p.name}</span>
                           {p.guildTag && (
-                            <span className="text-[9px] text-bdo-text-secondary flex-shrink-0">{p.guildTag}</span>
+                            <span className="text-[9px] flex-shrink-0" style={{ color: "var(--t-faint)" }}>
+                              {p.guildTag}
+                            </span>
                           )}
                           {p.wars <= 2 && (
-                            <span className="text-[9px] text-orange-400/70 flex-shrink-0"
-                                  title="Az savaş — örneklem küçük">{p.wars} savaş</span>
+                            <span className="text-[9px] flex-shrink-0" style={{ color: "#e09832" }}
+                                  title="Az savaş — örneklem küçük">
+                              {p.wars} savaş
+                            </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-bdo-text-secondary">
+                        <span className="text-[10px]" style={{ color: "var(--t-faint)" }}>
                           {cls?.name ?? "—"}
                           {p.classRank ? ` · sınıfında ${p.classRank.rank}/${p.classRank.of}` : ""}
                         </span>
@@ -276,8 +284,8 @@ export default function AnalizPage() {
                       </div>
 
                       {p.weaknesses.length > 0 && (
-                        <TrendingDown className="w-3.5 h-3.5 text-red-400/70 flex-shrink-0"
-                                      strokeWidth={2} aria-label="Zayıf yön var" />
+                        <TrendingDown className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2}
+                                      style={{ color: "#ef5f5f" }} aria-label="Zayıf yön var" />
                       )}
                     </button>
                   );
@@ -285,7 +293,7 @@ export default function AnalizPage() {
               </div>
             </Card>
 
-            {/* Detay */}
+            {/* ── Seçilen oyuncu + class ortalaması ────────────────── */}
             <div className="space-y-4">
               <Card className="p-4 lg:sticky lg:top-4">
                 {sel ? (
@@ -296,18 +304,19 @@ export default function AnalizPage() {
                         <img src={getClassIconUrl(sel.class)} alt="" className="w-7 h-7 opacity-80" />
                       )}
                       <div className="min-w-0">
-                        <h3 className="text-[15px] font-bold text-bdo-text-primary truncate">{sel.name}</h3>
-                        <p className="text-[11px] text-bdo-text-secondary">
+                        <h3 className="text-[15px] font-bold truncate">{sel.name}</h3>
+                        <p className="text-[11px]" style={{ color: "var(--t-faint)" }}>
                           {getClassByID(sel.class)?.name ?? "—"}
                           {sel.spec ? ` · ${sel.spec === "succession" ? "Succ" : "Awak"}` : ""}
                           {sel.guildTag ? ` · ${sel.guildTag}` : ""}
                         </p>
                       </div>
                       <div className="ml-auto text-right">
-                        <div className="text-[20px] font-bold" style={{ color: pctColor(sel.rating) }}>
+                        <div className="t-num text-[22px] font-bold leading-none"
+                             style={{ color: pctColor(sel.rating) }}>
                           {sel.rating}
                         </div>
-                        <div className="text-[9px] text-bdo-text-secondary">PUAN</div>
+                        <div className="text-[9px] mt-1" style={{ color: "var(--t-faint)" }}>PUAN</div>
                       </div>
                     </div>
 
@@ -315,67 +324,68 @@ export default function AnalizPage() {
                       {METRIC_KEYS.map((k) => (
                         <div key={k}>
                           <PctBar pct={sel.metrics[k].pct} label={METRIC_WEIGHTS[k].label} />
-                          <div className="text-[9px] text-bdo-text-secondary pl-[82px] -mt-0.5">
-                            savaş başı {fmt(sel.metrics[k].avg)}
-                            <span className="text-bdo-text-secondary/70">
-                              {" · "}girdiği savaşların ortası {fmt(sel.metrics[k].baseline)}
-                            </span>
+                          <div className="text-[9px] pl-[82px] -mt-0.5" style={{ color: "var(--t-faint)" }}>
+                            savaş başı {fmt(sel.metrics[k].avg)} · girdiği savaşların ortası{" "}
+                            {fmt(sel.metrics[k].baseline)}
                           </div>
                         </div>
                       ))}
                     </div>
 
-                    <div className="text-[11px] text-bdo-text-secondary pt-1 border-t border-bdo-border">
+                    <div className="text-[11px] pt-2" style={{ color: "var(--t-faint)", borderTop: "1px solid var(--t-line)" }}>
                       {sel.wars} savaş
                       {sel.classRank && ` · ${getClassByID(sel.class)?.name} içinde ${sel.classRank.rank}/${sel.classRank.of}`}
                     </div>
 
                     {sel.strengths.length > 0 && (
                       <div className="flex items-start gap-1.5">
-                        <TrendingUp className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
-                        <span className="text-[11px] text-bdo-text-muted">
+                        <TrendingUp className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" strokeWidth={2}
+                                    style={{ color: "var(--t-good)" }} />
+                        <span className="text-[11px]" style={{ color: "var(--t-dim)" }}>
                           Güçlü: {sel.strengths.map((k) => METRIC_WEIGHTS[k].label).join(", ")}
                         </span>
                       </div>
                     )}
                     {sel.weaknesses.length > 0 && (
                       <div className="flex items-start gap-1.5">
-                        <TrendingDown className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
-                        <span className="text-[11px] text-bdo-text-muted">
+                        <TrendingDown className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" strokeWidth={2}
+                                      style={{ color: "var(--t-bad)" }} />
+                        <span className="text-[11px]" style={{ color: "var(--t-dim)" }}>
                           Zayıf: {sel.weaknesses.map((k) => METRIC_WEIGHTS[k].label).join(", ")}
                         </span>
                       </div>
                     )}
                     {sel.wars <= 2 && (
-                      <p className="text-[10px] text-orange-400/80">
+                      <p className="text-[10px]" style={{ color: "#e09832" }}>
                         Yalnızca {sel.wars} savaş — bu sayılardan kesin sonuç çıkarma.
                       </p>
                     )}
                   </div>
                 ) : (
-                  <p className="text-[12px] text-bdo-text-muted leading-relaxed">
+                  <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--t-dim)" }}>
                     Listeden bir oyuncu seç. Her metrikte o savaşların medyanına göre nerede
                     durduğunu görürsün.
                   </p>
                 )}
               </Card>
 
-              {/* Class ortalamaları */}
-              <Card>
-                <CardHeader title="Class Ortalaması" icon={Swords} />
+              <Card className="overflow-hidden">
+                <Head icon={Swords} title="Class Ortalaması" />
                 <div className="max-h-56 overflow-y-auto">
                   {data.classAvg.map((c) => (
-                    <div key={c.class} className="card-row gap-2">
+                    <div key={c.class} className="t-row px-5 py-2 flex items-center gap-2">
                       {getClassIconUrl(c.class) && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={getClassIconUrl(c.class)} alt="" className="w-4 h-4 opacity-60" />
                       )}
-                      <span className="text-[12px] text-bdo-text-primary flex-1 truncate">
+                      <span className="text-[12px] flex-1 truncate">
                         {getClassByID(c.class)?.name ?? c.class}
                       </span>
-                      <span className="text-[10px] text-bdo-text-secondary">{c.count}</span>
-                      <span className="text-[12px] font-mono font-semibold w-8 text-right"
-                            style={{ color: pctColor(c.rating) }}>{c.rating}</span>
+                      <span className="text-[10px]" style={{ color: "var(--t-faint)" }}>{c.count}</span>
+                      <span className="t-num text-[12px] font-semibold w-8 text-right"
+                            style={{ color: pctColor(c.rating) }}>
+                        {c.rating}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -383,125 +393,107 @@ export default function AnalizPage() {
             </div>
           </div>
 
-          {/* AI yorumu */}
-          <Card className="card-accent p-4">
+          {/* ── AI yorumu ──────────────────────────────────────────── */}
+          <Card hi className="p-4">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <Sparkles className="w-4 h-4 text-bdo-gold" strokeWidth={1.75} />
-              <span className="text-[13px] font-bold text-bdo-text-primary">AI Yorumu</span>
-              <span className="text-[11px] text-bdo-text-secondary flex-1 min-w-[160px]">
+              <Sparkles className="w-4 h-4" strokeWidth={1.8} style={{ color: "var(--t-gold)" }} />
+              <span className="text-[13.5px] font-bold">AI Yorumu</span>
+              <span className="text-[11.5px] flex-1 min-w-[160px]" style={{ color: "var(--t-faint)" }}>
                 Hesaplanmış dilimleri yorumlar — sayıları yeniden hesaplamaz.
               </span>
-              <input
-                value={focus}
-                onChange={(e) => setFocus(e.target.value)}
-                placeholder="Özel soru (isteğe bağlı)"
-                className="bg-bdo-bg border border-bdo-border rounded-lg px-3 py-1.5 text-[12px] text-bdo-text-primary placeholder-bdo-text-secondary focus:outline-none focus:border-bdo-gold/40 min-w-[180px]"
-              />
-              <Button variant="primary" size="sm" icon={aiBusy ? Loader2 : Sparkles}
-                      onClick={askAi} disabled={aiBusy}>
-                {aiBusy ? "Düşünüyor..." : "Analiz Ettir"}
-              </Button>
+              <input value={focus} onChange={(e) => setFocus(e.target.value)}
+                     placeholder="Özel soru (isteğe bağlı)"
+                     className="h-[32px] px-3 rounded-[var(--t-r-sm)] text-[12px] outline-none min-w-[180px]"
+                     style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }} />
+              <button onClick={askAi} disabled={aiBusy}
+                      className="text-[12px] font-semibold px-3 h-[32px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5 disabled:opacity-50"
+                      style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                               border: "1px solid rgba(232,180,81,.3)" }}>
+                {aiBusy
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2} />
+                  : <Sparkles className="w-3.5 h-3.5" strokeWidth={2} />}
+                {aiBusy ? "Düşünüyor…" : "Analiz ettir"}
+              </button>
             </div>
 
-            {aiErr && <p className="text-[12px] text-red-400">{aiErr}</p>}
+            {aiErr && <p className="text-[12px]" style={{ color: "var(--t-bad)" }}>{aiErr}</p>}
 
             {ai && (
               <div className="space-y-3">
-                {/* Manşet */}
-                <div className="bg-bdo-bg rounded-lg p-3 border border-bdo-border">
-                  <p className="text-[14px] text-bdo-text-primary leading-snug">{ai.headline}</p>
-                </div>
+                <Box>
+                  <p className="text-[14px] leading-snug">{ai.headline}</p>
+                </Box>
 
-                {/* Güçlü / zayıf yönler */}
                 <div className="grid sm:grid-cols-2 gap-3">
                   {[
                     { title: "Güçlü Yönler", items: ai.teamStrengths, color: "#2bca6e", Icon: TrendingUp },
                     { title: "Zayıf Yönler", items: ai.teamWeaknesses, color: "#e05252", Icon: TrendingDown },
                   ].map((box) => (
-                    <div key={box.title} className="bg-bdo-bg rounded-lg p-3 border border-bdo-border">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <box.Icon className="w-3.5 h-3.5" strokeWidth={2} style={{ color: box.color }} />
-                        <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-                          {box.title}
-                        </span>
-                      </div>
+                    <Box key={box.title}>
+                      <Label icon={box.Icon} color={box.color}>{box.title}</Label>
                       <ul className="space-y-1">
                         {box.items.map((t, i) => (
-                          <li key={i} className="flex gap-1.5 text-[12px] text-bdo-text-muted leading-snug">
+                          <li key={i} className="flex gap-1.5 text-[12px] leading-snug"
+                              style={{ color: "var(--t-dim)" }}>
                             <span style={{ color: box.color }}>•</span>
                             <span>{t}</span>
                           </li>
                         ))}
                       </ul>
-                    </div>
+                    </Box>
                   ))}
                 </div>
 
-                {/* Öne çıkanlar */}
                 {ai.standouts.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <TrendingUp className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
-                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-                        Öne Çıkanlar
-                      </span>
-                    </div>
+                    <Label icon={TrendingUp} color="#2bca6e">Öne Çıkanlar</Label>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {ai.standouts.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => focusPlayer(s.name)}
-                          className="text-left bg-bdo-bg rounded-lg p-2.5 border border-emerald-500/20
-                                     hover:border-emerald-500/45 transition-colors"
-                        >
-                          <div className="text-[13px] font-semibold text-emerald-400 mb-0.5">{s.name}</div>
-                          <div className="text-[11px] text-bdo-text-muted leading-snug">{s.reason}</div>
+                        <button key={i} onClick={() => focusPlayer(s.name)}
+                                className="text-left p-2.5 rounded-[var(--t-r-sm)] transition-colors"
+                                style={{ background: "var(--t-raised)", border: "1px solid rgba(43,202,110,.22)" }}>
+                          <div className="text-[13px] font-semibold mb-0.5" style={{ color: "#2bca6e" }}>
+                            {s.name}
+                          </div>
+                          <div className="text-[11px] leading-snug" style={{ color: "var(--t-dim)" }}>
+                            {s.reason}
+                          </div>
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Dikkat gerektirenler */}
                 {ai.concerns.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <AlertTriangle className="w-3.5 h-3.5 text-orange-400" strokeWidth={2} />
-                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-                        Dikkat Gerektirenler
-                      </span>
-                    </div>
+                    <Label icon={AlertTriangle} color="#e09832">Dikkat Gerektirenler</Label>
                     <div className="space-y-2">
                       {ai.concerns.map((c, i) => {
                         const tone = c.severity === "high" ? "#e05252"
                           : c.severity === "medium" ? "#e09832" : "#7a8ba3";
                         return (
-                          <button
-                            key={i}
-                            onClick={() => focusPlayer(c.name)}
-                            className="w-full text-left bg-bdo-bg rounded-lg p-2.5 border transition-colors
-                                       hover:border-bdo-border-2"
-                            style={{ borderColor: tone + "33" }}
-                          >
+                          <button key={i} onClick={() => focusPlayer(c.name)}
+                                  className="w-full text-left p-2.5 rounded-[var(--t-r-sm)] transition-colors"
+                                  style={{ background: "var(--t-raised)", border: `1px solid ${tone}33` }}>
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: tone }} />
-                              <span className="text-[13px] font-semibold text-bdo-text-primary">{c.name}</span>
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tone }} />
+                              <span className="text-[13px] font-semibold">{c.name}</span>
                               {c.role && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-bdo-surface-2 text-bdo-text-secondary">
-                                  {c.role}
-                                </span>
+                                <span className="t-chip">{c.role}</span>
                               )}
                               {c.lowSample && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-400/10 text-orange-400/90"
+                                <span className="text-[9px] px-1.5 py-0.5 rounded"
+                                      style={{ color: "#e09832", background: "rgba(224,152,50,.12)" }}
                                       title="Örneklem küçük, kesin yargı için yeterli değil">
                                   az savaş
                                 </span>
                               )}
-                              <span className="text-[11px] text-bdo-text-secondary">{c.issue}</span>
+                              <span className="text-[11px]" style={{ color: "var(--t-faint)" }}>{c.issue}</span>
                             </div>
-                            <div className="flex gap-1.5 text-[11px] text-bdo-text-muted leading-snug pl-3.5">
-                              <Lightbulb className="w-3 h-3 text-bdo-gold/70 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                            <div className="flex gap-1.5 text-[11px] leading-snug pl-3.5"
+                                 style={{ color: "var(--t-dim)" }}>
+                              <Lightbulb className="w-3 h-3 flex-shrink-0 mt-0.5" strokeWidth={2}
+                                         style={{ color: "var(--t-gold)" }} />
                               <span>{c.suggestion}</span>
                             </div>
                           </button>
@@ -511,55 +503,46 @@ export default function AnalizPage() {
                   </div>
                 )}
 
-                {/* Class notları */}
                 {ai.classNotes.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Swords className="w-3.5 h-3.5 text-bdo-text-secondary" strokeWidth={2} />
-                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-                        Class Değerlendirmesi
-                      </span>
-                    </div>
+                    <Label icon={Swords} color="var(--t-dim)">Class Değerlendirmesi</Label>
                     <div className="grid sm:grid-cols-2 gap-2">
                       {ai.classNotes.map((c, i) => (
-                        <div key={i} className="bg-bdo-bg rounded-lg p-2.5 border border-bdo-border">
+                        <Box key={i}>
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[12px] font-semibold text-bdo-text-primary">
-                              {c.className}
-                            </span>
+                            <span className="text-[12px] font-semibold">{c.className}</span>
                             {c.roleExpected && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-bdo-surface-2 text-bdo-text-secondary"
+                              <span className="t-chip"
                                     title="Düşük puan class'ın rolünden kaynaklanıyor, oyuncudan değil">
                                 rol gereği
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-bdo-text-muted leading-snug">{c.verdict}</div>
-                        </div>
+                          <div className="text-[11px] leading-snug" style={{ color: "var(--t-dim)" }}>
+                            {c.verdict}
+                          </div>
+                        </Box>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Adımlar */}
                 {ai.actions.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Target className="w-3.5 h-3.5 text-bdo-gold" strokeWidth={2} />
-                      <span className="text-[11px] uppercase tracking-wider text-bdo-text-secondary">
-                        Somut Adımlar
-                      </span>
-                    </div>
+                    <Label icon={Target} color="var(--t-gold)">Somut Adımlar</Label>
                     <div className="space-y-1.5">
                       {ai.actions.map((a, i) => (
-                        <div key={i} className="flex gap-2.5 bg-bdo-bg rounded-lg p-2.5 border border-bdo-border">
-                          <span className="w-5 h-5 rounded-full bg-bdo-gold/12 text-bdo-gold text-[11px]
-                                           font-bold grid place-items-center flex-shrink-0">
+                        <div key={i} className="flex gap-2.5 p-2.5 rounded-[var(--t-r-sm)]"
+                             style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+                          <span className="w-5 h-5 rounded-full text-[11px] font-bold grid place-items-center flex-shrink-0"
+                                style={{ background: "var(--t-gold-soft)", color: "var(--t-gold)" }}>
                             {i + 1}
                           </span>
                           <div className="min-w-0">
-                            <div className="text-[12px] font-semibold text-bdo-text-primary">{a.title}</div>
-                            <div className="text-[11px] text-bdo-text-muted leading-snug">{a.detail}</div>
+                            <div className="text-[12px] font-semibold">{a.title}</div>
+                            <div className="text-[11px] leading-snug" style={{ color: "var(--t-dim)" }}>
+                              {a.detail}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -572,9 +555,46 @@ export default function AnalizPage() {
         </>
       )}
 
-      {!data && !running && !error && (
-        <Empty text="Savaş seç ve Analiz Et'e bas." />
-      )}
+      {!data && !running && !error && <Empty>Savaş seç ve &quot;Analiz et&quot;e bas.</Empty>}
+
+      <div className="pb-6" />
+    </TestShell>
+  );
+}
+
+// ── Parçalar ───────────────────────────────────────────────────────────
+
+function Ghost({ onClick, icon: Icon, children }: {
+  onClick: () => void; icon?: React.ElementType; children: React.ReactNode;
+}) {
+  return (
+    <button onClick={onClick}
+            className="text-[12px] font-semibold px-2.5 h-[32px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5"
+            style={{ color: "var(--t-dim)", background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+      {Icon && <Icon className="w-3.5 h-3.5" strokeWidth={2} />}
+      {children}
+    </button>
+  );
+}
+
+function Box({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="p-3 rounded-[var(--t-r-sm)]"
+         style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+      {children}
+    </div>
+  );
+}
+
+function Label({ icon: Icon, color, children }: {
+  icon: React.ElementType; color: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 mb-2">
+      <Icon className="w-3.5 h-3.5" strokeWidth={2} style={{ color }} />
+      <span className="text-[11px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>
+        {children}
+      </span>
     </div>
   );
 }

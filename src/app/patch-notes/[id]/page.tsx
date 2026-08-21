@@ -1,48 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
-import { useParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ChevronLeft, ExternalLink, ListTree, FileText } from "lucide-react";
 import type { StructuredPatchNote, StructuredChange } from "@/lib/patch-notes-types";
 import { BDO_CLASSES, getClassImageUrl } from "@/lib/classes";
+import { TestShell, Card, Empty } from "@/components/app-shell";
 
-// ─── Class splash art helper ──────────────────────────────────────────────────
+/**
+ * Yama notu detayı.
+ *
+ * İçerik yapılandırılmışsa bölüm bölüm, değişiklik tipiyle etiketli
+ * gösteriliyor; değilse kaynaktaki HTML olduğu gibi basılıyor.
+ * Bölüm başlıklarında class adı geçiyorsa arkasına o class'ın görseli
+ * konuyor — uzun listede hangi class'ta olduğunu kaydırırken görmek için.
+ */
 
-const CLASS_NAME_MAP: Record<string, number> = Object.fromEntries(
-  BDO_CLASSES.flatMap((c) => [
-    [c.name.toLowerCase(), c.classType],
-    [c.id.toLowerCase(), c.classType],
-  ])
-);
-// Extra English name aliases used in patch notes
-const EXTRA_ALIASES: Record<string, number> = {
-  warrior: 0, hashashin: 1, sage: 2, wukong: 3, ranger: 4, guardian: 5,
-  scholar: 6, drakania: 7, sorceress: 8, nova: 9, corsair: 10, lahn: 11,
-  berserker: 12, maegu: 15, archer: 16, shai: 17, striker: 19, musa: 20,
-  maehwa: 21, mystic: 23, valkyrie: 24, kunoichi: 25, ninja: 26,
-  "dark knight": 27, wizard: 28, "dark archer": 29, witch: 31, woosa: 30,
-  seraph: 32, dosa: 33, deadeye: 34,
-};
-
-function getSectionSplash(heading: string): string | null {
-  const h = heading.toLowerCase();
-  const spec: "awakening" | "succession" = h.includes("succession") ? "succession" : "awakening";
-  // Remove spec words to get class name
-  const cleaned = h.replace(/\b(awakening|succession|uyanış|devam)\b/g, "").trim();
-
-  const classType =
-    EXTRA_ALIASES[cleaned] ??
-    CLASS_NAME_MAP[cleaned] ??
-    // Try partial match
-    Object.entries({ ...EXTRA_ALIASES, ...CLASS_NAME_MAP }).find(([k]) => cleaned.includes(k))?.[1] ??
-    null;
-
-  if (classType === null || classType === undefined) return null;
-  return getClassImageUrl(classType, spec);
-}
-
-interface PatchNote {
+type PatchNote = {
   id: number;
   boardNo: number;
   title: string;
@@ -52,210 +27,259 @@ interface PatchNote {
   structured: string | null;
   thumbnail: string | null;
   publishedAt: string;
-}
-
-// ─── Change type config ───────────────────────────────────────────────────────
-
-const TYPE_META: Record<
-  StructuredChange["type"],
-  { labelTr: string; bg: string; text: string; border: string; icon: React.ReactNode }
-> = {
-  BUFF: {
-    labelTr: "Güçlendirme",
-    bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30",
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
-        <path d="M6 1L10.5 9H1.5L6 1Z" />
-      </svg>
-    ),
-  },
-  NERF: {
-    labelTr: "Zayıflatma",
-    bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30",
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
-        <path d="M6 11L1.5 3H10.5L6 11Z" />
-      </svg>
-    ),
-  },
-  FIX: {
-    labelTr: "Düzeltme",
-    bg: "bg-sky-500/10", text: "text-sky-400", border: "border-sky-500/30",
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <path d="M9.5 2.5L7 5l-1.5-.5L5 3l2.5-2.5A3 3 0 002 4.5L5.5 8 3 10.5h3l1-1L10.5 6A3 3 0 009.5 2.5z" />
-      </svg>
-    ),
-  },
-  NEW: {
-    labelTr: "Yeni",
-    bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/30",
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
-        <path d="M6 0l1.2 3.8H11l-3 2.2 1.1 3.8L6 7.5l-3.1 2.3L4 6 1 3.8h3.8L6 0z" />
-      </svg>
-    ),
-  },
-  CHANGE: {
-    labelTr: "Değişiklik",
-    bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30",
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
-        <path d="M6 0l1.5 4.5H12L8 7.5l1.5 4.5L6 9l-3.5 3L4 7.5 0 4.5h4.5L6 0z" />
-      </svg>
-    ),
-  },
 };
 
-function ChangeBadge({ type }: { type: StructuredChange["type"] }) {
-  const meta = TYPE_META[type] ?? TYPE_META.CHANGE;
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}>
-      {meta.icon}
-      <span>{meta.labelTr}</span>
-    </span>
-  );
+type ChangeType = StructuredChange["type"];
+
+const TYPE_META: Record<ChangeType, { label: string; color: string }> = {
+  BUFF: { label: "Güçlendirme", color: "#2bca6e" },
+  NERF: { label: "Zayıflatma", color: "#e05252" },
+  FIX: { label: "Düzeltme", color: "#5aa9e6" },
+  NEW: { label: "Yeni", color: "#a855f7" },
+  CHANGE: { label: "Değişiklik", color: "#e8b451" },
+};
+
+const TYPES: ChangeType[] = ["BUFF", "NERF", "FIX", "NEW", "CHANGE"];
+
+// ── Class görseli eşlemesi ────────────────────────────────────────────
+
+const CLASS_NAMES: Record<string, number> = Object.fromEntries(
+  BDO_CLASSES.flatMap((c) => [
+    [c.name.toLowerCase(), c.classType],
+    [c.id.toLowerCase(), c.classType],
+  ]),
+);
+
+/** Yama notlarında geçen İngilizce adlar — site içi adlarla birebir değil */
+const ALIASES: Record<string, number> = {
+  warrior: 0, hashashin: 1, sage: 2, wukong: 3, ranger: 4, guardian: 5,
+  scholar: 6, drakania: 7, sorceress: 8, nova: 9, corsair: 10, lahn: 11,
+  berserker: 12, maegu: 15, archer: 16, shai: 17, striker: 19, musa: 20,
+  maehwa: 21, mystic: 23, valkyrie: 24, kunoichi: 25, ninja: 26,
+  "dark knight": 27, wizard: 28, "dark archer": 29, witch: 31, woosa: 30,
+  seraph: 32, dosa: 33, deadeye: 34,
+};
+
+function sectionSplash(heading: string): string | null {
+  const h = heading.toLowerCase();
+  const spec: "awakening" | "succession" = h.includes("succession") ? "succession" : "awakening";
+  const cleaned = h.replace(/\b(awakening|succession|uyanış|devam)\b/g, "").trim();
+
+  const classType =
+    ALIASES[cleaned] ??
+    CLASS_NAMES[cleaned] ??
+    Object.entries({ ...ALIASES, ...CLASS_NAMES }).find(([k]) => cleaned.includes(k))?.[1];
+
+  return classType === undefined ? null : getClassImageUrl(classType, spec);
 }
 
-// ─── Tam Metin: Turkish flat view from structured data ────────────────────────
-
-function FlatTurkishView({ data }: { data: StructuredPatchNote }) {
-  return (
-    <div className="flex flex-col gap-5">
-      {data.sections.map((sec) => (
-        <div key={sec.id} className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden">
-          {(() => {
-            const splash = getSectionSplash(sec.heading);
-            return (
-              <div className="relative flex items-end gap-3 px-6 pb-6 pt-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
-                {splash && (
-                  <>
-                    <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-50 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
-                  </>
-                )}
-                <div className="relative">
-                  <h2 className="text-2xl font-bold text-bdo-text-primary drop-shadow-lg">{sec.headingTr}</h2>
-                  {sec.heading !== sec.headingTr && (
-                    <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-          <div>
-            {groupBySkill(sec.changes).map((group, gi) => (
-              <div key={gi} className="border-t border-bdo-border/40 first:border-t-0">
-                {group.skillName && (
-                  <div className="flex items-center gap-2.5 px-5 py-2 bg-bdo-bg/20">
-                    {group.skillImageUrl && (
-                      <img src={group.skillImageUrl} alt={group.skillNameTr || group.skillName}
-                        className="w-8 h-8 object-contain rounded"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    )}
-                    <span className="text-xs font-semibold text-bdo-text-muted">{group.skillNameTr || group.skillName}</span>
-                  </div>
-                )}
-                <ul className="divide-y divide-bdo-border/30">
-                  {group.changes.map((c, i) => (
-                    <li key={i} className="px-5 py-2.5 flex items-start gap-3">
-                      <ChangeBadge type={c.type} />
-                      <p className="text-sm text-bdo-text-primary leading-relaxed">{c.tr}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Group changes by skill ───────────────────────────────────────────────────
-
+/** Aynı skill'in ardışık değişiklikleri tek başlık altında toplanıyor */
 function groupBySkill(changes: StructuredChange[]) {
-  const groups: { skillName?: string; skillNameTr?: string; skillImageUrl?: string; changes: StructuredChange[] }[] = [];
-  for (const change of changes) {
+  const groups: {
+    skillName?: string; skillNameTr?: string; skillImageUrl?: string;
+    changes: StructuredChange[];
+  }[] = [];
+  for (const c of changes) {
     const last = groups[groups.length - 1];
-    if (last && last.skillName === change.skillName) {
-      last.changes.push(change);
-    } else {
-      groups.push({
-        skillName: change.skillName,
-        skillNameTr: change.skillNameTr,
-        skillImageUrl: change.skillImageUrl,
-        changes: [change],
-      });
-    }
+    if (last && last.skillName === c.skillName) last.changes.push(c);
+    else groups.push({
+      skillName: c.skillName, skillNameTr: c.skillNameTr,
+      skillImageUrl: c.skillImageUrl, changes: [c],
+    });
   }
   return groups;
 }
 
-// ─── Structured view ─────────────────────────────────────────────────────────
-
-function StructuredView({ data }: { data: StructuredPatchNote }) {
-  const [activeId, setActiveId] = useState<string>(data.sections[0]?.id ?? "");
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+export default function PatchNoteDetailPage() {
+  const params = useParams<{ id: string }>();
+  const [note, setNote] = useState<PatchNote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<"structured" | "flat">("structured");
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    fetch(`/api/patch-notes/${params?.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setNote(data);
+        if (!data?.structured) setMode("flat");
+      })
+      .finally(() => setLoading(false));
+  }, [params?.id]);
+
+  const structured: StructuredPatchNote | null = useMemo(() => {
+    if (!note?.structured) return null;
+    try { return JSON.parse(note.structured); } catch { return null; }
+  }, [note?.structured]);
+
+  if (loading) {
+    return <TestShell title="Yama Notu" subtitle="Yükleniyor…"><Empty>Yama notu geliyor…</Empty></TestShell>;
+  }
+  if (!note) {
+    return <TestShell title="Yama Notu" subtitle="Bulunamadı"><Empty>Bu yama notu bulunamadı.</Empty></TestShell>;
+  }
+
+  const title = structured?.titleTr || note.titleTr || note.title;
+  const allChanges = structured?.sections.flatMap((s) => s.changes) ?? [];
+
+  return (
+    <TestShell bare title={title}>
+      <div className="space-y-5 pb-8 max-w-6xl mx-auto">
+        <Link href="/patch-notes"
+              className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"
+              style={{ color: "var(--t-dim)" }}>
+          <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.2} /> Tüm yama notları
+        </Link>
+
+        {/* ── Künye ──────────────────────────────────────────────── */}
+        <Card className="overflow-hidden">
+          {note.thumbnail && (
+            <div className="max-h-64 overflow-hidden" style={{ background: "var(--t-canvas)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={note.thumbnail} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+
+          <div className="p-5">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                    style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)" }}>
+                Global Lab
+              </span>
+              <span className="text-[12px]" style={{ color: "var(--t-faint)" }}>
+                {new Date(note.publishedAt).toLocaleDateString("tr-TR", {
+                  day: "numeric", month: "long", year: "numeric",
+                })}
+              </span>
+              <a href={`https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Notice/Detail?_boardNo=${note.boardNo}`}
+                 target="_blank" rel="noopener noreferrer"
+                 className="ml-auto text-[12px] inline-flex items-center gap-1 transition-colors hover:opacity-80"
+                 style={{ color: "var(--t-faint)" }}>
+                Orijinal <ExternalLink className="w-3 h-3" strokeWidth={2} />
+              </a>
+            </div>
+
+            <h1 className="text-[19px] font-bold leading-snug mb-2">{title}</h1>
+
+            {structured?.summary && (
+              <p className="text-[13px] leading-relaxed mb-4 pl-3"
+                 style={{ color: "var(--t-dim)", borderLeft: "2px solid rgba(232,180,81,.4)" }}>
+                {structured.summary}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              {structured && (
+                <div className="flex items-center gap-0.5 p-0.5 rounded-[var(--t-r-sm)]"
+                     style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+                  {([
+                    ["structured", "Değişiklikler", ListTree],
+                    ["flat", "Tam Metin", FileText],
+                  ] as const).map(([m, label, Icon]) => (
+                    <button key={m} onClick={() => setMode(m)}
+                            className="text-[12px] px-3 h-[28px] rounded-md font-semibold inline-flex items-center gap-1.5 transition-colors"
+                            style={mode === m
+                              ? { background: "var(--t-gold)", color: "#0b0b0c" }
+                              : { color: "var(--t-faint)" }}>
+                      <Icon className="w-3.5 h-3.5" strokeWidth={2} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {allChanges.length > 0 && (
+                <div className="flex flex-wrap gap-1 ml-auto">
+                  {TYPES.map((t) => {
+                    const n = allChanges.filter((c) => c.type === t).length;
+                    if (!n) return null;
+                    const meta = TYPE_META[t];
+                    return (
+                      <span key={t} className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                            style={{ color: meta.color, borderColor: meta.color + "35", background: meta.color + "12" }}>
+                        {meta.label} ({n})
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* ── İçerik ─────────────────────────────────────────────── */}
+        {structured ? (
+          <Sections data={structured} toc={mode === "structured"} />
+        ) : (
+          <Card className="p-6">
+            <div className="patch-note-content text-[13px] leading-relaxed"
+                 dangerouslySetInnerHTML={{ __html: note.content }} />
+          </Card>
+        )}
+      </div>
+    </TestShell>
+  );
+}
+
+// ── Bölümler ───────────────────────────────────────────────────────────
+
+/**
+ * İki görünüm de aynı bölümleri çiziyor; tek fark içindekiler şeridi ve
+ * bölüm başlığındaki sayaçlar. Ayrı iki bileşen tutmak yerine bayrakla
+ * ayrılıyor.
+ */
+function Sections({ data, toc }: { data: StructuredPatchNote; toc: boolean }) {
+  const [active, setActive] = useState(data.sections[0]?.id ?? "");
+  const refs = useRef<Record<string, HTMLElement | null>>({});
+
+  useEffect(() => {
+    if (!toc) return;
+    const io = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActiveId(entry.target.id);
-        }
+        for (const e of entries) if (e.isIntersecting) setActive(e.target.id);
       },
       { rootMargin: "-20% 0px -70% 0px" },
     );
-    Object.values(sectionRefs.current).forEach((el) => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, [data.sections]);
+    Object.values(refs.current).forEach((el) => el && io.observe(el));
+    return () => io.disconnect();
+  }, [data.sections, toc]);
 
-  const scrollTo = (id: string) => {
+  const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   return (
     <div className="flex gap-6 relative">
-      {/* Sidebar TOC */}
-      <aside className="hidden lg:block w-52 shrink-0">
-        <div className="sticky top-20">
-          <p className="text-[10px] font-bold uppercase text-bdo-text-muted tracking-widest mb-3">İçerik</p>
-          <nav className="flex flex-col gap-0.5">
-            {data.sections.map((sec) => (
-              <button
-                key={sec.id}
-                onClick={() => scrollTo(sec.id)}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors ${
-                  activeId === sec.id
-                    ? "bg-bdo-gold/15 text-bdo-gold font-semibold"
-                    : "text-bdo-text-muted hover:text-bdo-text-primary hover:bg-bdo-bg/60"
-                }`}
-              >
-                <span className="text-sm shrink-0">{sec.emoji}</span>
-                <span className="truncate">{sec.headingTr}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </aside>
+      {toc && (
+        <aside className="hidden lg:block w-52 flex-shrink-0">
+          <div className="sticky top-20">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] mb-3" style={{ color: "var(--t-faint)" }}>
+              İçerik
+            </p>
+            <nav className="flex flex-col gap-0.5">
+              {data.sections.map((sec) => (
+                <button key={sec.id} onClick={() => scrollTo(sec.id)}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-[var(--t-r-sm)] text-left text-[12px] transition-colors"
+                        style={active === sec.id
+                          ? { background: "var(--t-gold-soft)", color: "var(--t-gold)", fontWeight: 600 }
+                          : { color: "var(--t-faint)" }}>
+                  <span className="text-[13px] flex-shrink-0">{sec.emoji}</span>
+                  <span className="truncate">{sec.headingTr}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        </aside>
+      )}
 
-      {/* Sections */}
-      <div className="flex-1 min-w-0 flex flex-col gap-6">
-        {/* Mobile TOC */}
-        {data.sections.length > 1 && (
+      <div className="flex-1 min-w-0 flex flex-col gap-5">
+        {toc && data.sections.length > 1 && (
           <div className="lg:hidden flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {data.sections.map((sec) => (
-              <button
-                key={sec.id}
-                onClick={() => scrollTo(sec.id)}
-                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                  activeId === sec.id
-                    ? "border-bdo-gold bg-bdo-gold/10 text-bdo-gold font-semibold"
-                    : "border-bdo-border text-bdo-text-muted hover:border-bdo-gold/50"
-                }`}
-              >
+              <button key={sec.id} onClick={() => scrollTo(sec.id)}
+                      className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] transition-colors"
+                      style={active === sec.id
+                        ? { border: "1px solid var(--t-gold)", background: "var(--t-gold-soft)",
+                            color: "var(--t-gold)", fontWeight: 600 }
+                        : { border: "1px solid var(--t-line)", color: "var(--t-faint)" }}>
                 <span>{sec.emoji}</span>
                 <span>{sec.headingTr}</span>
               </button>
@@ -263,213 +287,89 @@ function StructuredView({ data }: { data: StructuredPatchNote }) {
           </div>
         )}
 
-        {data.sections.map((sec) => (
-          <section
-            key={sec.id}
-            id={sec.id}
-            ref={(el) => { sectionRefs.current[sec.id] = el; }}
-            className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden scroll-mt-20"
-          >
-            {/* Section header */}
-            {(() => {
-              const splash = getSectionSplash(sec.heading);
-              return (
-                <div className="relative flex items-end gap-3 px-6 pb-6 pt-8 border-b border-bdo-border overflow-hidden min-h-[300px]">
-                  {/* Splash background */}
+        {data.sections.map((sec) => {
+          const splash = sectionSplash(sec.heading);
+          return (
+            <Card key={sec.id} className="overflow-hidden scroll-mt-20">
+              <section id={sec.id} ref={(el) => { refs.current[sec.id] = el; }}>
+                {/* Bölüm başlığı */}
+                <div className="relative flex items-end gap-3 px-6 pb-6 pt-8 overflow-hidden min-h-[260px]"
+                     style={{ borderBottom: "1px solid var(--t-line)" }}>
                   {splash && (
                     <>
-                      <img src={splash} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-top opacity-50 pointer-events-none select-none" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      <div className="absolute inset-0 bg-gradient-to-r from-bdo-bg/80 via-bdo-bg/40 to-transparent pointer-events-none" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={splash} alt="" aria-hidden
+                           className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none select-none"
+                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <div className="absolute inset-0 pointer-events-none"
+                           style={{ background: "linear-gradient(90deg, rgba(11,11,12,.92) 0%, rgba(11,11,12,.62) 45%, rgba(11,11,12,.15) 100%)" }} />
                     </>
                   )}
-                  <div className="relative">
-                    <h2 className="text-2xl font-bold text-bdo-text-primary drop-shadow-lg">{sec.headingTr}</h2>
+
+                  <div className="relative" style={{ textShadow: "0 2px 10px rgba(0,0,0,.9)" }}>
+                    <h2 className="text-[22px] font-bold">{sec.headingTr}</h2>
                     {sec.heading !== sec.headingTr && (
-                      <p className="text-[10px] text-bdo-text-muted">{sec.heading}</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: "var(--t-dim)" }}>{sec.heading}</p>
                     )}
                   </div>
-              {/* Count pills */}
-              <div className="relative ml-auto flex items-center gap-1 flex-wrap justify-end">
-                {(["BUFF", "NERF", "FIX", "NEW", "CHANGE"] as const).map((t) => {
-                  const count = sec.changes.filter((c) => c.type === t).length;
-                  if (!count) return null;
-                  const meta = TYPE_META[t];
-                  return (
-                    <span key={t} className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}>
-                      {meta.icon} {count}
-                    </span>
-                  );
-                })}
-              </div>
-                </div>
-              );
-            })()}
 
-            {/* Changes — grouped by skill */}
-            <div>
-              {groupBySkill(sec.changes).map((group, gi) => (
-                <div key={gi} className="border-t border-bdo-border/50 first:border-t-0">
-                  {/* Skill sub-header */}
-                  {group.skillName && (
-                    <div className="flex items-center gap-2.5 px-5 py-2 bg-bdo-bg/20">
-                      {group.skillImageUrl && (
-                        <img
-                          src={group.skillImageUrl}
-                          alt={group.skillNameTr || group.skillName}
-                          className="w-8 h-8 object-contain rounded"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      )}
-                      <span className="text-xs font-semibold text-bdo-text-muted">
-                        {group.skillNameTr || group.skillName}
-                      </span>
+                  {toc && (
+                    <div className="relative ml-auto flex items-center gap-1 flex-wrap justify-end">
+                      {TYPES.map((t) => {
+                        const n = sec.changes.filter((c) => c.type === t).length;
+                        if (!n) return null;
+                        const meta = TYPE_META[t];
+                        return (
+                          <span key={t} className="t-num text-[10px] font-bold px-1.5 py-0.5 rounded border"
+                                style={{ color: meta.color, borderColor: meta.color + "35",
+                                         background: meta.color + "18" }}>
+                            {meta.label.slice(0, 3)} {n}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
-                  <ul className="divide-y divide-bdo-border/30">
-                    {group.changes.map((change, i) => (
-                      <li key={i} className="px-5 py-2.5 flex items-start gap-2.5">
-                        <div className="mt-0.5 shrink-0">
-                          <ChangeBadge type={change.type} />
-                        </div>
-                        <p className="text-sm text-bdo-text-primary leading-relaxed">{change.tr}</p>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
+
+                {/* Değişiklikler */}
+                {groupBySkill(sec.changes).map((group, gi) => (
+                  <div key={gi} style={gi > 0 ? { borderTop: "1px solid var(--t-line)" } : undefined}>
+                    {group.skillName && (
+                      <div className="flex items-center gap-2.5 px-5 py-2"
+                           style={{ background: "rgba(255,255,255,.02)" }}>
+                        {group.skillImageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={group.skillImageUrl} alt="" className="w-8 h-8 object-contain rounded"
+                               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        )}
+                        <span className="text-[12px] font-semibold" style={{ color: "var(--t-dim)" }}>
+                          {group.skillNameTr || group.skillName}
+                        </span>
+                      </div>
+                    )}
+                    <ul>
+                      {group.changes.map((c, i) => {
+                        const meta = TYPE_META[c.type] ?? TYPE_META.CHANGE;
+                        return (
+                          <li key={i} className="px-5 py-2.5 flex items-start gap-3"
+                              style={{ borderTop: i > 0 ? "1px solid var(--t-line)" : undefined }}>
+                            <span className="text-[10px] font-bold px-2 py-1 rounded-md border flex-shrink-0 mt-0.5"
+                                  style={{ color: meta.color, borderColor: meta.color + "35",
+                                           background: meta.color + "12" }}>
+                              {meta.label}
+                            </span>
+                            <p className="text-[13px] leading-relaxed">{c.tr}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </section>
+            </Card>
+          );
+        })}
       </div>
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function PatchNoteDetailPage() {
-  const { data: session } = useSession();
-  const params = useParams();
-  const [note, setNote] = useState<PatchNote | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"structured" | "flat">("structured");
-
-  useEffect(() => {
-    fetch(`/api/patch-notes/${params.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setNote(data);
-        setLoading(false);
-        if (!data.structured) setViewMode("flat");
-      });
-  }, [params.id]);
-
-  if (!session) return null;
-  if (loading) return (
-    <div className="flex items-center justify-center py-20 gap-2 text-bdo-text-muted">
-      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-      </svg>
-      Yükleniyor...
-    </div>
-  );
-  if (!note) return <div className="text-center py-20 text-bdo-text-muted">Yama notu bulunamadı.</div>;
-
-  const structured: StructuredPatchNote | null = note.structured
-    ? (() => { try { return JSON.parse(note.structured!); } catch { return null; } })()
-    : null;
-
-  const displayTitle = structured?.titleTr || note.titleTr || note.title;
-  const summary = structured?.summary;
-
-  // Total change counts for header legend
-  const allChanges = structured?.sections.flatMap((s) => s.changes) ?? [];
-
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-6 pb-24 md:pb-8">
-      <Link href="/patch-notes" className="inline-flex items-center gap-1 text-sm text-bdo-text-muted hover:text-bdo-text-primary mb-5 transition-colors">
-        ← Tüm Yama Notları
-      </Link>
-
-      {/* Hero */}
-      <div className="bg-bdo-surface border border-bdo-border rounded-xl overflow-hidden mb-6">
-        {note.thumbnail && (
-          <div className="aspect-video bg-bdo-bg overflow-hidden max-h-64">
-            <img src={note.thumbnail} alt={displayTitle} className="w-full h-full object-cover" />
-          </div>
-        )}
-        <div className="p-5">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="bg-bdo-gold/10 text-bdo-gold px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Global Lab</span>
-            <span className="text-xs text-bdo-text-muted">
-              {new Date(note.publishedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
-            </span>
-            <a
-              href={`https://blackdesert.pearlabyss.com/GlobalLab/en-US/News/Notice/Detail?_boardNo=${note.boardNo}`}
-              target="_blank" rel="noopener noreferrer"
-              className="text-xs text-bdo-text-muted hover:text-bdo-gold transition-colors ml-auto"
-            >
-              Orjinal ↗
-            </a>
-          </div>
-
-          <h1 className="text-lg font-bold text-bdo-text-primary leading-snug mb-2">{displayTitle}</h1>
-
-          {summary && (
-            <p className="text-sm text-bdo-text-muted leading-relaxed mb-4 border-l-2 border-bdo-gold/40 pl-3">{summary}</p>
-          )}
-
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View toggle */}
-            {structured && (
-              <div className="flex items-center gap-1 bg-bdo-bg rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode("structured")}
-                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${viewMode === "structured" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}
-                >
-                  📋 Değişiklikler
-                </button>
-                <button
-                  onClick={() => setViewMode("flat")}
-                  className={`text-xs px-3 py-1 rounded-md font-semibold transition-colors ${viewMode === "flat" ? "bg-bdo-gold text-bdo-bg" : "text-bdo-text-muted hover:text-bdo-text-primary"}`}
-                >
-                  📄 Tam Metin
-                </button>
-              </div>
-            )}
-
-            {/* Legend counts */}
-            {structured && allChanges.length > 0 && (
-              <div className="flex flex-wrap gap-1 ml-auto">
-                {(["BUFF", "NERF", "FIX", "NEW", "CHANGE"] as const).map((t) => {
-                  const count = allChanges.filter((c) => c.type === t).length;
-                  if (!count) return null;
-                  const meta = TYPE_META[t];
-                  return (
-                    <span key={t} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}>
-                      {meta.icon} {meta.labelTr} ({count})
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      {viewMode === "structured" && structured ? (
-        <StructuredView data={structured} />
-      ) : structured ? (
-        <FlatTurkishView data={structured} />
-      ) : (
-        <div className="bg-bdo-surface border border-bdo-border rounded-xl p-6">
-          <div className="patch-note-content text-sm text-bdo-text-primary leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: note.content }} />
-        </div>
-      )}
     </div>
   );
 }

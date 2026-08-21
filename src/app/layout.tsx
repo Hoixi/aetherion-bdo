@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "./theme.css";
 import { Providers } from "@/components/providers";
-import { Sidebar } from "@/components/sidebar";
-import { MobileNav } from "@/components/mobile-nav";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -27,13 +26,26 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0c0f15",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
 };
 
+/**
+ * Uygulama kabuğu.
+ *
+ * Menü artık burada değil: her ekran `TestShell` ile kendi üst çubuğunu
+ * kuruyor. Eskiden burada sabit bir kenar menüsü ve ona yer açan
+ * `md:ml-56` payı vardı; yeni tasarım tam genişlik istediği için o pay
+ * kalktı.
+ *
+ * `t-root` gövdede duruyor ki palet ve zemin giriş ekranı dahil her yerde
+ * geçerli olsun. Kaydırma da gövdede — içeride sabit bir kaydırma
+ * kapsayıcısı olsaydı tarayıcının konum hatırlaması ve mobilde adres
+ * çubuğunun toplanması bozulurdu.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr" className={`${inter.variable} ${jetbrains.variable}`}>
@@ -41,17 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/icons/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/logo.png" />
       </head>
-      <body className="bg-bdo-bg text-bdo-text-primary font-sans min-h-screen">
-        <Providers>
-          <Sidebar />
-          <div className="md:ml-56 min-h-screen flex flex-col">
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-5 pb-20 md:pb-6">{children}</main>
-            <footer className="hidden md:block text-center py-4 text-[11px] text-bdo-text-secondary/50 select-none">
-              Made by <span className="text-bdo-gold/50">Hoixi</span> · Aetherion 2026
-            </footer>
-          </div>
-          <MobileNav />
-        </Providers>
+      <body className="t-root font-sans min-h-screen">
+        <Providers>{children}</Providers>
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`,

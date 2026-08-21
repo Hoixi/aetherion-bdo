@@ -1,140 +1,126 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { ChevronLeft, Check, Trophy, Gamepad2, MapPin, ArrowRight } from "lucide-react";
 import type { MapMarker } from "@/components/bdo-leaflet-map";
+import "@/app/theme.css";
 
-// Leaflet cannot run on the server — dynamic import with SSR off
+/**
+ * GeoGuessr turu.
+ *
+ * Oyun ekranı bilerek tam ekran: solda ekran görüntüsü, sağda harita.
+ * Kabuğun menüsü burada yok — tahmin ederken dikkat dağıtıyor, çıkış
+ * için sol üstte bağlantı var.
+ */
+
+// Leaflet sunucuda çalışmıyor
 const BdoLeafletMap = dynamic(
   () => import("@/components/bdo-leaflet-map").then((m) => ({ default: m.BdoLeafletMap })),
-  { ssr: false, loading: () => <div className="w-full h-full bg-[#1a1a2e] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="w-full h-full animate-pulse" style={{ background: "var(--t-raised)" }} /> },
 );
 
-interface RoundImage {
-  id: number;
-  imageUrl: string;
-  mapX: number | null;
-  mapY: number | null;
-  hint: string | null;
-}
-
-interface Round {
-  id: number;
-  roundNum: number;
-  guessX: number | null;
-  guessY: number | null;
-  score: number;
-  distance: number;
-  completed: boolean;
+type RoundImage = { id: number; imageUrl: string; mapX: number | null; mapY: number | null; hint: string | null };
+type Round = {
+  id: number; roundNum: number;
+  guessX: number | null; guessY: number | null;
+  score: number; distance: number; completed: boolean;
   image: RoundImage;
-}
+};
+type Game = { id: number; totalScore: number; completed: boolean; rounds: Round[] };
+type GuessResult = { score: number; distance: number; totalScore: number; gameCompleted: boolean };
 
-interface Game {
-  id: number;
-  totalScore: number;
-  completed: boolean;
-  rounds: Round[];
-}
+const PER_ROUND = 5000;
 
-interface GuessResult {
-  score: number;
-  distance: number;
-  totalScore: number;
-  gameCompleted: boolean;
-}
-
-export default function GeoGamePage() {
+export default function GeoOyunPage() {
   const { gameId } = useParams<{ gameId: string }>();
   const router = useRouter();
 
   const [game, setGame] = useState<Game | null>(null);
-  const [currentRound, setCurrentRound] = useState(1);
-  const [pendingGuess, setPendingGuess] = useState<{ x: number; y: number } | null>(null);
+  const [round, setRound] = useState(1);
+  const [guess, setGuess] = useState<{ x: number; y: number } | null>(null);
   const [result, setResult] = useState<GuessResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadGame = useCallback(async () => {
+  const load = useCallback(async () => {
     const res = await fetch(`/api/geo/game/${gameId}`);
     if (!res.ok) { router.push("/geo"); return; }
     const data: Game = await res.json();
     setGame(data);
-    const firstIncomplete = data.rounds.find((r) => !r.completed);
-    if (firstIncomplete) setCurrentRound(firstIncomplete.roundNum);
+    // Yarıda bırakılmış oyunda kaldığı turdan devam etsin
+    const next = data.rounds.find((r) => !r.completed);
+    if (next) setRound(next.roundNum);
     setLoading(false);
   }, [gameId, router]);
 
-  useEffect(() => { loadGame(); }, [loadGame]);
+  useEffect(() => { load(); }, [load]);
 
-  async function submitGuess() {
-    if (!pendingGuess || submitting) return;
+  async function submit() {
+    if (!guess || submitting) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/geo/game/${gameId}/guess`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roundNum: currentRound,
-          guessX: pendingGuess.x,
-          guessY: pendingGuess.y,
-        }),
+        body: JSON.stringify({ roundNum: round, guessX: guess.x, guessY: guess.y }),
       });
       const data: GuessResult = await res.json();
       setResult(data);
-      setGame((g) => g ? { ...g, totalScore: data.totalScore, completed: data.gameCompleted } : g);
+      setGame((g) => (g ? { ...g, totalScore: data.totalScore, completed: data.gameCompleted } : g));
     } finally {
       setSubmitting(false);
     }
   }
 
-  function nextRound() {
+  function next() {
     if (!result) return;
-    if (result.gameCompleted) {
-      loadGame();
-      setResult(null);
-      return;
-    }
+    if (result.gameCompleted) { load(); setResult(null); return; }
     setResult(null);
-    setPendingGuess(null);
-    setCurrentRound((r) => r + 1);
+    setGuess(null);
+    setRound((r) => r + 1);
   }
 
-  if (loading || !game) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] flex items-center justify-center text-gray-400">
-        Yükleniyor…
-      </div>
-    );
+  async function playAgain() {
+    const res = await fetch("/api/geo/game", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) router.push(`/geo/${data.id}`);
   }
 
-  const round = game.rounds.find((r) => r.roundNum === currentRound);
+  if (loading || !game) return <FullScreen>Yükleniyor…</FullScreen>;
 
-  // ── Final screen ─────────────────────────────────────────────────────────
+  // ── Bitiş ekranı ─────────────────────────────────────────────────────
   if (game.completed && !result) {
-    const maxScore = game.rounds.length * 5000;
-    const pct = Math.round((game.totalScore / maxScore) * 100);
+    const max = game.rounds.length * PER_ROUND;
+    const pct = Math.round((game.totalScore / max) * 100);
+    const Icon = pct >= 80 ? Trophy : pct >= 50 ? MapPin : Gamepad2;
+
     return (
-      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] text-white flex items-center justify-center px-4">
+      <div className="t-root fixed inset-0 z-[100] flex items-center justify-center px-4"
+           style={{ background: "var(--t-canvas)", color: "var(--t-text)" }}>
         <div className="max-w-lg w-full text-center">
-          <div className="text-6xl mb-4">
-            {pct >= 80 ? "🏆" : pct >= 50 ? "🎯" : "💀"}
-          </div>
-          <h1 className="text-3xl font-bold text-[#d4a853] mb-2">Oyun Bitti!</h1>
-          <p className="text-gray-400 mb-6">Toplam {game.rounds.length} tur oynadın</p>
+          <Icon className="w-12 h-12 mx-auto mb-4" strokeWidth={1.4} style={{ color: "var(--t-gold)" }} />
+          <h1 className="text-[28px] font-bold mb-1" style={{ color: "var(--t-gold)" }}>Oyun bitti</h1>
+          <p className="text-[13px] mb-6" style={{ color: "var(--t-dim)" }}>
+            {game.rounds.length} tur oynadın
+          </p>
 
-          <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-6 mb-6">
-            <div className="text-5xl font-bold text-[#d4a853] mb-1">
-              {game.totalScore.toLocaleString()}
+          <div className="rounded-[var(--t-r)] p-6 mb-6"
+               style={{ background: "var(--t-surface)", border: "1px solid var(--t-line)" }}>
+            <div className="t-num text-[44px] font-bold leading-none mb-1.5" style={{ color: "var(--t-gold)" }}>
+              {game.totalScore.toLocaleString("tr-TR")}
             </div>
-            <div className="text-gray-500 text-sm">/ {maxScore.toLocaleString()} puan</div>
+            <div className="text-[12px]" style={{ color: "var(--t-faint)" }}>
+              / {max.toLocaleString("tr-TR")} puan
+            </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-1.5">
               {game.rounds.map((r) => (
-                <div key={r.id} className="flex justify-between text-sm">
-                  <span className="text-gray-400">Tur {r.roundNum}</span>
-                  <span className="text-[#d4a853] font-semibold">
-                    {r.score.toLocaleString()} puan
+                <div key={r.id} className="flex justify-between text-[13px]">
+                  <span style={{ color: "var(--t-dim)" }}>Tur {r.roundNum}</span>
+                  <span className="t-num font-semibold" style={{ color: "var(--t-gold)" }}>
+                    {r.score.toLocaleString("tr-TR")}
                   </span>
                 </div>
               ))}
@@ -142,21 +128,15 @@ export default function GeoGamePage() {
           </div>
 
           <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => router.push("/geo")}
-              className="px-6 py-3 bg-[#2a2a2a] text-white rounded-lg hover:bg-[#333] transition font-semibold"
-            >
-              🏆 Skor Tablosu
+            <button onClick={() => router.push("/geo")}
+                    className="px-5 h-[42px] rounded-[var(--t-r-sm)] text-[13px] font-semibold inline-flex items-center gap-2"
+                    style={{ color: "var(--t-dim)", background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+              <Trophy className="w-4 h-4" strokeWidth={2} /> Skor tablosu
             </button>
-            <button
-              onClick={async () => {
-                const res = await fetch("/api/geo/game", { method: "POST" });
-                const data = await res.json();
-                if (res.ok) router.push(`/geo/${data.id}`);
-              }}
-              className="px-6 py-3 bg-[#d4a853] text-black rounded-lg hover:bg-[#e8bf6a] transition font-bold"
-            >
-              🎮 Tekrar Oyna
+            <button onClick={playAgain}
+                    className="px-5 h-[42px] rounded-[var(--t-r-sm)] text-[13px] font-bold inline-flex items-center gap-2"
+                    style={{ background: "var(--t-gold)", color: "#0b0b0c" }}>
+              <Gamepad2 className="w-4 h-4" strokeWidth={2} /> Tekrar oyna
             </button>
           </div>
         </div>
@@ -164,118 +144,113 @@ export default function GeoGamePage() {
     );
   }
 
-  if (!round) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-[#0d0d0d] flex items-center justify-center text-gray-400">
-        Tur bulunamadı
-      </div>
-    );
-  }
+  const current = game.rounds.find((r) => r.roundNum === round);
+  if (!current) return <FullScreen>Tur bulunamadı.</FullScreen>;
 
-  // Markers to show on the map
-  const mapMarkers: MapMarker[] = [];
-  if (result) {
-    if (pendingGuess) {
-      mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue", label: "Sen" });
-    }
-  } else if (pendingGuess) {
-    mapMarkers.push({ x: pendingGuess.x, y: pendingGuess.y, color: "blue" });
-  }
+  const markers: MapMarker[] = guess ? [{ x: guess.x, y: guess.y, color: "blue", label: result ? "Sen" : undefined }] : [];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#0d0d0d] text-white flex flex-col">
-      {/* Top bar */}
-      <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3 flex items-center justify-between flex-shrink-0">
+    <div className="t-root fixed inset-0 z-[100] flex flex-col"
+         style={{ background: "var(--t-canvas)", color: "var(--t-text)" }}>
+      {/* Üst şerit */}
+      <div className="px-4 py-3 flex items-center justify-between flex-shrink-0"
+           style={{ background: "var(--t-surface)", borderBottom: "1px solid var(--t-line)" }}>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push("/geo")}
-            className="text-gray-500 hover:text-white transition text-sm"
-          >
-            ← Çık
+          <button onClick={() => router.push("/geo")}
+                  className="text-[13px] inline-flex items-center gap-1 transition-colors hover:opacity-80"
+                  style={{ color: "var(--t-faint)" }}>
+            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={2.2} /> Çık
           </button>
-          <span className="text-gray-400 text-sm">
-            Tur <span className="text-white font-bold">{currentRound}</span> / {game.rounds.length}
+          <span className="text-[13px]" style={{ color: "var(--t-dim)" }}>
+            Tur <span className="t-num font-bold" style={{ color: "var(--t-text)" }}>{round}</span> / {game.rounds.length}
           </span>
         </div>
-        <div className="text-right">
-          <span className="text-gray-400 text-sm">Toplam: </span>
-          <span className="text-[#d4a853] font-bold">{game.totalScore.toLocaleString()}</span>
+        <div className="text-[13px]" style={{ color: "var(--t-dim)" }}>
+          Toplam:{" "}
+          <span className="t-num font-bold" style={{ color: "var(--t-gold)" }}>
+            {game.totalScore.toLocaleString("tr-TR")}
+          </span>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-[#2a2a2a] flex-shrink-0">
-        <div
-          className="h-full bg-[#d4a853] transition-all"
-          style={{ width: `${((currentRound - 1) / game.rounds.length) * 100}%` }}
-        />
+      <div className="h-1 flex-shrink-0" style={{ background: "var(--t-raised)" }}>
+        <div className="h-full transition-all"
+             style={{ width: `${((round - 1) / game.rounds.length) * 100}%`, background: "var(--t-gold)" }} />
       </div>
 
-      {/* Main area — two equal columns side by side */}
+      {/* Ekran görüntüsü | harita */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Screenshot — left half */}
-        <div className="lg:w-1/2 bg-black flex items-center justify-center relative overflow-hidden" style={{ minHeight: "45vh" }}>
-          <img
-            src={round.image.imageUrl}
-            alt="BDO Konum"
-            className="w-full h-full object-contain"
-          />
+        <div className="lg:w-1/2 flex items-center justify-center relative overflow-hidden"
+             style={{ minHeight: "45vh", background: "#000" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={current.image.imageUrl} alt="BDO konumu" className="w-full h-full object-contain" />
           {result && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 rounded-xl px-5 py-3 text-center pointer-events-none backdrop-blur-sm">
-              <div className="text-3xl font-bold text-[#d4a853]">+{result.score.toLocaleString()}</div>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-xl px-5 py-3 text-center pointer-events-none"
+                 style={{ background: "rgba(0,0,0,.85)", backdropFilter: "blur(4px)" }}>
+              <div className="t-num text-[28px] font-bold" style={{ color: "var(--t-gold)" }}>
+                +{result.score.toLocaleString("tr-TR")}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Map — right half */}
         <div className="lg:w-1/2 flex flex-col" style={{ minHeight: "45vh" }}>
-          {/* Map hint bar */}
-          <div className="px-4 py-1.5 text-xs text-gray-500 bg-[#111] border-b border-[#2a2a2a] flex-shrink-0 flex items-center justify-between">
-            <span>{result ? "Mavi = tahminin" : "Haritada konuma tıkla"}</span>
-            {pendingGuess && !result && (
-              <span className="text-[#d4a853]">📍 Konum seçildi</span>
+          <div className="px-4 py-1.5 text-[11.5px] flex items-center justify-between flex-shrink-0"
+               style={{ background: "var(--t-shell)", borderBottom: "1px solid var(--t-line)",
+                        color: "var(--t-faint)" }}>
+            <span>{result ? "Mavi işaret = senin tahminin" : "Haritada konuma tıkla"}</span>
+            {guess && !result && (
+              <span className="inline-flex items-center gap-1" style={{ color: "var(--t-gold)" }}>
+                <MapPin className="w-3 h-3" strokeWidth={2} /> Konum seçildi
+              </span>
             )}
           </div>
 
-          {/* Leaflet map — fills remaining space */}
-          <BdoLeafletMap
-            className="flex-1 w-full"
-            onPick={result ? undefined : (x, y) => setPendingGuess({ x, y })}
-            markers={mapMarkers}
-          />
+          <BdoLeafletMap className="flex-1 w-full" markers={markers}
+                         onPick={result ? undefined : (x, y) => setGuess({ x, y })} />
 
-          {/* Action bar */}
-          <div className="px-4 py-3 bg-[#111] border-t border-[#2a2a2a] flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0"
+               style={{ background: "var(--t-shell)", borderTop: "1px solid var(--t-line)" }}>
             {!result ? (
               <>
-                <span className="text-xs text-gray-500">
-                  {pendingGuess ? "Onayla veya başka yere tıkla" : "Konumu bulmaya çalış"}
+                <span className="text-[11.5px]" style={{ color: "var(--t-faint)" }}>
+                  {guess ? "Onayla ya da başka yere tıkla" : "Konumu bulmaya çalış"}
                 </span>
-                <button
-                  onClick={submitGuess}
-                  disabled={!pendingGuess || submitting}
-                  className="px-6 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
-                >
-                  {submitting ? "Gönderiliyor…" : "✅ Tahmin Et"}
+                <button onClick={submit} disabled={!guess || submitting}
+                        className="px-5 h-[36px] rounded-[var(--t-r-sm)] text-[13px] font-bold inline-flex items-center gap-2 disabled:opacity-40"
+                        style={{ background: "var(--t-gold)", color: "#0b0b0c" }}>
+                  <Check className="w-4 h-4" strokeWidth={2.4} />
+                  {submitting ? "Gönderiliyor…" : "Tahmin et"}
                 </button>
               </>
             ) : (
               <>
                 <div>
-                  <span className="text-[#d4a853] font-bold text-xl">+{result.score.toLocaleString()}</span>
-                  <span className="text-gray-500 text-xs ml-2">puan</span>
+                  <span className="t-num text-[19px] font-bold" style={{ color: "var(--t-gold)" }}>
+                    +{result.score.toLocaleString("tr-TR")}
+                  </span>
+                  <span className="text-[11.5px] ml-2" style={{ color: "var(--t-faint)" }}>puan</span>
                 </div>
-                <button
-                  onClick={nextRound}
-                  className="px-6 py-2 bg-[#d4a853] text-black font-bold rounded-lg hover:bg-[#e8bf6a] transition text-sm"
-                >
-                  {result.gameCompleted ? "🏆 Sonuçlar" : "Sonraki Tur →"}
+                <button onClick={next}
+                        className="px-5 h-[36px] rounded-[var(--t-r-sm)] text-[13px] font-bold inline-flex items-center gap-2"
+                        style={{ background: "var(--t-gold)", color: "#0b0b0c" }}>
+                  {result.gameCompleted ? "Sonuçlar" : "Sonraki tur"}
+                  <ArrowRight className="w-4 h-4" strokeWidth={2.4} />
                 </button>
               </>
             )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function FullScreen({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="t-root fixed inset-0 z-[100] grid place-items-center text-[13px]"
+         style={{ background: "var(--t-canvas)", color: "var(--t-dim)" }}>
+      {children}
     </div>
   );
 }
