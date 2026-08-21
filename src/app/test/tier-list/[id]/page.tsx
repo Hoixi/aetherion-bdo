@@ -193,7 +193,7 @@ export default function TierListDetayPage({ params }: { params: { id: string } }
   return (
     <DndContext sensors={sensors} onDragStart={(e: DragStartEvent) => setDragging(String(e.active.id))}
                 onDragEnd={onDragEnd}>
-      <TestShell bare>
+      <TestShell bare title={data.title}>
         <div className="space-y-4 pb-8">
           <Link href="/test/tier-list"
                 className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"

@@ -26,8 +26,8 @@ const DAYS = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", 
 const TIERS = ["T1", "T2", "T3"] as const;
 
 /** Form alanları tek biçim dursun diye */
-const INP = "w-full px-3 h-[34px] rounded-lg text-[12.5px] outline-none bg-bdo-surface-2 " +
-  "border border-bdo-border focus:border-bdo-gold text-bdo-text-primary";
+const INP = "w-full px-3 h-[34px] rounded-[var(--t-r-sm)] text-[12.5px] outline-none " +
+  "bg-[var(--t-raised)] border border-[var(--t-line)] text-[var(--t-text)]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

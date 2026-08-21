@@ -91,7 +91,7 @@ export default function YeniTierListPage() {
   }
 
   return (
-    <TestShell bare>
+    <TestShell bare title="Yeni Tier List">
       <div className="max-w-2xl mx-auto space-y-5 pb-8">
         <Link href="/test/tier-list"
               className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"

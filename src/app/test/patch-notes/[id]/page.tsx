@@ -122,7 +122,7 @@ export default function PatchNoteDetailPage() {
   const allChanges = structured?.sections.flatMap((s) => s.changes) ?? [];
 
   return (
-    <TestShell bare>
+    <TestShell bare title={title}>
       <div className="space-y-5 pb-8 max-w-6xl mx-auto">
         <Link href="/test/patch-notes"
               className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"

@@ -100,7 +100,7 @@ export default function YeniGonderiPage() {
   const pickedNames = tags.filter((t) => picked.includes(t.id)).map((t) => t.name);
 
   return (
-    <TestShell bare>
+    <TestShell bare title="Yeni Gönderi">
       <div className="max-w-3xl mx-auto space-y-5 pb-8">
         <Link href="/test/forum"
               className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"

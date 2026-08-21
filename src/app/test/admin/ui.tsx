@@ -97,7 +97,7 @@ export function Btn({
   return (
     <button type={type} onClick={onClick} disabled={disabled} title={title}
             className={`rounded-[var(--t-r-sm)] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-45 whitespace-nowrap ${
-              small ? "text-[11.5px] px-2.5 h-[28px]" : "text-[12.5px] px-3.5 h-[34px]"
+              small ? "text-[11.5px] px-2.5 h-[30px]" : "text-[12.5px] px-3.5 h-[36px]"
             } ${children ? "" : small ? "!px-2" : "!px-2.5"} ${className}`}
             style={TONES[tone]}>
       {Icon && <Icon className={small ? "w-3 h-3" : "w-3.5 h-3.5"} strokeWidth={2} />}

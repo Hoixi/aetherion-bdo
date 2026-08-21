@@ -238,7 +238,7 @@ export default function SavasDetayPage() {
   ];
 
   return (
-    <TestShell bare>
+    <TestShell bare title={war.title}>
       <div className="space-y-5 pb-8">
         <Link href="/test/savaslar"
               className="inline-flex items-center gap-1 text-[12px] transition-colors hover:opacity-80"

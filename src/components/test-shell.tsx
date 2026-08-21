@@ -66,8 +66,8 @@ export function TestShell({
   /** Menü çubuğunun sağ ucu — klan rozetleri gibi */
   aside?: ReactNode;
   /**
-   * Eski sayfalar kendi başlıklarını taşıyor; onları sarmalarken kabuk
-   * kendi başlık bloğunu çizmesin diye.
+   * Kendi başlığını taşıyan sayfalar için: kabuk başlık bloğunu çizmez.
+   * `title` yine verilebilir — çizilmez ama sekme adına geçer.
    */
   bare?: boolean;
   children: ReactNode;
@@ -87,6 +87,15 @@ export function TestShell({
 
   // Gidilen yer değişince çekmece açık kalmasın
   useEffect(() => { setDrawer(false); }, [pathname]);
+
+  /**
+   * Sekme adı. Sayfalar istemci bileşeni olduğu için `metadata`
+   * dışa aktaramıyor; otuz sekmenin hepsi "Aetherion" diye duruyordu ve
+   * birkaç sekme açıkken hangisinin ne olduğu ayırt edilemiyordu.
+   */
+  useEffect(() => {
+    document.title = title ? `${title} · Aetherion` : "Aetherion";
+  }, [title]);
 
   /**
    * Taşınan ekranlar içeride hâlâ eski adreslere link veriyor; bir savaşa
