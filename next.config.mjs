@@ -13,7 +13,38 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   async redirects() {
+    // Eski tasarımın adresleri yeni ekranlara taşınıyor. Discord'a
+    // gönderilmiş mesajlarda hâlâ `/wars/12` gibi linkler duruyor; onlar
+    // çalışmaya devam etsin diye siliniyor değil, yönlendiriliyor.
+    // Kalıcı değil (307): geri dönmek gerekirse tarayıcılar önbelleğe
+    // almış olmasın. Karşılıklar `src/lib/test-routes.ts` ile aynı.
+    const tasinan = [
+      ["/dashboard", "/test"],
+      ["/wars", "/test/savaslar"],
+      ["/members", "/test/uyeler"],
+      ["/calendar", "/test/takvim"],
+      ["/profile", "/test/profil/duzenle"],
+      ["/admin", "/test/admin"],
+      ["/analiz", "/test/analiz"],
+      ["/hasar-raporu", "/test/hasar-raporu"],
+      ["/tier-list", "/test/tier-list"],
+      ["/etkinlikler", "/test/etkinlikler"],
+      ["/harita", "/test/harita"],
+      ["/ai-asistan", "/test/ai-asistan"],
+      ["/optimizer", "/test/optimizer"],
+      ["/geo", "/test/geo"],
+      ["/grind-tracker", "/test/grind-tracker"],
+      ["/forum", "/test/forum"],
+      ["/basvuru", "/test/basvuru"],
+      ["/ally", "/test/ally"],
+      ["/patch-notes", "/test/patch-notes"],
+    ];
+
     return [
+      ...tasinan.flatMap(([from, to]) => [
+        { source: from, destination: to, permanent: false },
+        { source: `${from}/:path*`, destination: `${to}/:path*`, permanent: false },
+      ]),
       {
         // Tek kanonik adres: www → apex. Oturum cookie'si her ikisinde de
         // geçerli ama linklerin tek adrese düşmesi karışıklığı önler.

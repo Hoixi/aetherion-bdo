@@ -466,7 +466,7 @@ async function handleCommand(
         { name: "DP", value: `${dp}`, inline: true },
         { name: "GS", value: `**${ap + dp}**`, inline: true },
       ],
-      url: `${SITE_URL}/members/${user.id}`,
+      url: `${SITE_URL}/test/uyeler/${user.id}`,
       footer: { text: "Aetherion" },
     }]);
   }
@@ -578,7 +578,7 @@ async function handleCommand(
         embeds: [{
           color: GOLD,
           image: { url: cardUrl },
-          url: `${SITE_URL}/members/${user.id}`,
+          url: `${SITE_URL}/test/uyeler/${user.id}`,
           footer: { text: `Aetherion • ${user.familyName || "İsimsiz"} profili görüntüle →` },
         }],
         flags: 0,
@@ -604,7 +604,7 @@ async function handleCommand(
         { name: "GS", value: `**${user.ap + user.dp}**`, inline: true },
         { name: "Class", value: classData?.name || user.class || "?", inline: true },
       ],
-      url: `${SITE_URL}/members/${user.id}`,
+      url: `${SITE_URL}/test/uyeler/${user.id}`,
       footer: { text: "Aetherion" },
     }]);
   }
@@ -951,7 +951,7 @@ async function handleCommand(
             body: JSON.stringify({
               embeds: [{
                 title: "⚠️ GS Bilgisi Eksik!",
-                description: `Merhaba! **Aetherion** klanında GS bilgilerin eksik görünüyor.\n\nLütfen Discord'da şu komutu kullan:\n\`/gs-güncelle aile:<AileAdın> ap:<AP> dp:<DP> class:<Sınıfın>\`\n\nVeya sitemizden güncelleyebilirsin:\n${SITE_URL}/profile`,
+                description: `Merhaba! **Aetherion** klanında GS bilgilerin eksik görünüyor.\n\nLütfen Discord'da şu komutu kullan:\n\`/gs-güncelle aile:<AileAdın> ap:<AP> dp:<DP> class:<Sınıfın>\`\n\nVeya sitemizden güncelleyebilirsin:\n${SITE_URL}/test/profil/duzenle`,
                 color: 0xe67e22,
                 footer: { text: "Aetherion" },
               }],
@@ -1017,7 +1017,7 @@ async function handleCommand(
       title: "🗓️ Aktif Etkinlikler",
       color: GOLD,
       fields,
-      footer: { text: `${activities.length} etkinlik • ${SITE_URL}/etkinlikler` },
+      footer: { text: `${activities.length} etkinlik • ${SITE_URL}/test/etkinlikler` },
     }]);
   }
 

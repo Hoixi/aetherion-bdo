@@ -27,7 +27,7 @@ function MobileLoginContent() {
         if (result?.ok) {
           setStatus("success");
           setTimeout(() => {
-            window.location.href = "/dashboard";
+            window.location.href = "/test";
           }, 1500);
         } else {
           setStatus("error");
