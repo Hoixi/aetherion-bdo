@@ -8,7 +8,8 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { Search, Plus, Users, AlertTriangle } from "lucide-react";
-import { MemberChip, UserPerfStats, scoreColor } from "./member-chip";
+import { MemberChip, UserPerfStats, scoreColor, LOW_SAMPLE } from "./member-chip";
+import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
 import { getClassByID } from "@/lib/classes";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
@@ -61,11 +62,22 @@ interface PartyBuilderProps {
 
 type PoolSort = "gs" | "score" | "name" | "class";
 
-const POOL_SORTS: [PoolSort, string][] = [
-  ["gs", "Gear"],
-  ["score", "Puan"],
-  ["class", "Class"],
-  ["name", "İsim"],
+/**
+ * Form sıralaması üç bant hâlinde: önce yeterli örneklemi olanlar, sonra
+ * bir-iki savaşlık gürültülü puanlar, en sonda son savaşlarda hiç
+ * oynamamışlar. Düz puana göre sıralayınca tek gecede parlamış biri
+ * beş savaştır istikrarlı olanın üstüne çıkıyordu.
+ */
+function formRank(p?: UserPerfStats): number {
+  if (!p) return -1e6;
+  return (p.wars > LOW_SAMPLE ? 1000 : 0) + p.score;
+}
+
+const POOL_SORTS: [PoolSort, string, string][] = [
+  ["gs", "Gear", "Gear skoruna göre"],
+  ["score", "Form", `Son ${RECENT_WAR_WINDOW} savaşın performans puanına göre`],
+  ["class", "Class", "Class'a göre"],
+  ["name", "İsim", "Aile adına göre"],
 ];
 
 function DroppablePool({ children, empty }: { children: React.ReactNode; empty: boolean }) {
@@ -109,7 +121,7 @@ export function PartyBuilder({
     }
     return [...list].sort((a, b) => {
       if (sort === "name") return a.familyName.localeCompare(b.familyName, "tr");
-      if (sort === "score") return (memberStats?.[b.id]?.score ?? -99) - (memberStats?.[a.id]?.score ?? -99);
+      if (sort === "score") return formRank(memberStats?.[b.id]) - formRank(memberStats?.[a.id]);
       if (sort === "class") {
         const an = getClassByID(a.class)?.name ?? a.class;
         const bn = getClassByID(b.class)?.name ?? b.class;
@@ -321,8 +333,8 @@ export function PartyBuilder({
               <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary mr-1">
                 Sırala
               </span>
-              {POOL_SORTS.map(([k, label]) => (
-                <button key={k} onClick={() => setSort(k)}
+              {POOL_SORTS.map(([k, label, hint]) => (
+                <button key={k} onClick={() => setSort(k)} title={hint}
                         className="text-[11px] px-2 py-1 rounded-md transition-colors"
                         style={sort === k
                           ? { background: "rgb(var(--bdo-gold) / .14)", color: "rgb(var(--bdo-gold))" }

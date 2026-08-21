@@ -3,15 +3,39 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 
-export async function GET() {
+/**
+ * Parti kurarken kullanılan performans puanı.
+ *
+ * Ortalamalar bütün geçmişten değil, rapor girilmiş son birkaç savaştan
+ * çıkıyor — gerekçesi `@/lib/perf-window` içinde. Pencere `?wars=` ile
+ * değiştirilebiliyor; savaş sonrası "bu sefer ne oldu" diye bakmak için
+ * 1 vermek işe yarıyor.
+ */
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Kullanıcı bazlı toplu ortalama performans
+  const asked = Number(new URL(req.url).searchParams.get("wars"));
+  const window = Number.isFinite(asked) && asked > 0 ? Math.min(asked, 50) : RECENT_WAR_WINDOW;
+
+  // Penceredeki savaşlar: rapor girilmemiş savaşlar sırayı yemesin diye
+  // yalnızca performans kaydı olanlar sayılıyor
+  const recent = await prisma.war.findMany({
+    where: { performances: { some: {} } },
+    orderBy: { date: "desc" },
+    take: window,
+    select: { id: true },
+  });
+
+  if (recent.length === 0) return NextResponse.json({});
+
+  const warIds = recent.map((w) => w.id);
+
   const grouped = await prisma.warPerformance.groupBy({
     by: ["userId"],
-    where: { userId: { not: null } },
+    where: { userId: { not: null }, warId: { in: warIds } },
     _count: { warId: true },
     _avg: {
       kills: true,

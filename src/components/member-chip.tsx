@@ -6,6 +6,7 @@ import { BDO_CLASSES, getClassIconUrl } from "@/lib/classes";
 import { useState, useRef, useEffect } from "react";
 import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { displayOf, DISPLAY_META } from "@/lib/attendance";
+import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 
 /**
  * Parti kurarken sürüklenen üye kartı.
@@ -38,6 +39,13 @@ function markOf(status: AttendanceStatus) {
   const d = displayOf(status);
   return d ? DISPLAY_META[d] : null;
 }
+
+/**
+ * Bu kadar veya daha az savaş oynamışın puanı tek gecenin gürültüsü —
+ * üretimde tek savaşlık örneklemler ±40 puan oynatıyordu. Sayı gizlenmiyor
+ * ama "buna dayanma" diye soluk gösteriliyor.
+ */
+export const LOW_SAMPLE = 2;
 
 export function scoreColor(score: number): string {
   if (score >= 20) return "#38d07f";
@@ -129,7 +137,10 @@ export function MemberChip({
              style={{ top: tip.top, left: tip.left, transform: "translateY(-100%)" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-bdo-text-primary">{user.familyName}</span>
-            <span className="text-[10px] text-bdo-text-muted">{perf.wars} savaş</span>
+            <span className="text-[10px] text-bdo-text-muted"
+                  title={`Son ${RECENT_WAR_WINDOW} savaşın ${perf.wars} tanesinde oynadı`}>
+              son {RECENT_WAR_WINDOW}&apos;te {perf.wars} savaş
+            </span>
           </div>
 
           <div className="h-1 rounded-full bg-bdo-border overflow-hidden">
@@ -143,7 +154,15 @@ export function MemberChip({
             Puan <span className="font-mono font-bold" style={{ color: scoreColor(perf.score) }}>
               {perf.score}
             </span>
+            <span className="text-bdo-text-secondary"> · son {RECENT_WAR_WINDOW} savaşın ortalaması</span>
           </div>
+
+          {perf.wars <= LOW_SAMPLE && (
+            <div className="text-[10px] mb-2 px-2 py-1 rounded-md"
+                 style={{ color: "#e09832", background: "rgba(224,152,50,.12)" }}>
+              Yalnızca {perf.wars} savaş — tek gecenin sayıları, kadro kurarken tek başına yeterli değil.
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
             {([
@@ -207,8 +226,10 @@ export function MemberChip({
 
           {perf && (
             <span className="text-[10px] font-mono font-bold shrink-0 w-7 text-right"
-                  style={{ color: scoreColor(perf.score) }}
-                  title={`Performans puanı — ${perf.wars} savaş`}>
+                  style={{ color: scoreColor(perf.score), opacity: perf.wars <= LOW_SAMPLE ? 0.45 : 1 }}
+                  title={perf.wars <= LOW_SAMPLE
+                    ? `Form puanı ${perf.score} — ama son ${RECENT_WAR_WINDOW} savaşın yalnızca ${perf.wars} tanesinde oynadı, güvenilir değil`
+                    : `Form puanı — son ${RECENT_WAR_WINDOW} savaşın ${perf.wars} tanesinden`}>
               {perf.score}
             </span>
           )}

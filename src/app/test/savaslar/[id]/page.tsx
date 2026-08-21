@@ -13,6 +13,7 @@ import type { UserPerfStats } from "@/components/member-chip";
 import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { getTypeName, BDO_CLASSES } from "@/lib/classes";
 import { classifyAttendance, ATTENDANCE_META, attendanceKnown } from "@/lib/attendance";
+import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import {
   TestShell, Card, Head, Empty, GuildTag, fmt, type Guild,
 } from "@/components/test-shell";
@@ -578,6 +579,9 @@ function AdminPartiler({
             <span><b style={{ color: "#6b93ff" }}>✓</b> başvurdu, seçilmedi</span>
             <span><b style={{ color: "#e05252" }}>✕</b> seçildi, gelmedi</span>
             <span><b style={{ color: "#2bca6e" }}>✓</b> savaşa geldi</span>
+            <span style={{ color: "var(--t-faint)" }}>
+              · Sağdaki puan son {RECENT_WAR_WINDOW} savaşın form ortalaması
+            </span>
           </div>
         </Card>
       )}
