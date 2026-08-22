@@ -22,6 +22,8 @@ type DropItem = {
   hasMarket: boolean;
   price: number;
   priceType: PriceType;
+  /** Fiyatın alındığı pazar — bdocodex TR verisi vermiyor, EU'ya düşülüyor */
+  region?: string;
   quantity: number;
 };
 
@@ -38,10 +40,22 @@ const PRICE_META: Record<PriceType, { label: string; color: string }> = {
   unknown: { label: "Bilinmiyor", color: "var(--t-faint)" },
 };
 
+/**
+ * Hazır spotlar. `nodeId` drop tablosunun kimliği, `refNodeId` adres
+ * çubuğundaki node numarası — ikisi farklı ve bdocodex hotlink koruması
+ * için ikisi de lazım. Özel seçimde numara linkten çözülüyor.
+ */
 const SPOTS = [
   { label: "Orbita Kalesi", nodeId: "1571", refNodeId: "2003" },
-  { label: "Özel (elle gir)", nodeId: "custom", refNodeId: "" },
+  { label: "Aphrodon Tapınağı", nodeId: "1689", refNodeId: "2111" },
+  { label: "Özel (bdocodex linki)", nodeId: "custom", refNodeId: "" },
 ];
+
+/** Yapıştırılan bdocodex linkinden ya da düz sayıdan node numarasını alır */
+function nodeNumarasi(giris: string): string {
+  const t = giris.trim();
+  return (t.match(/\/node\/(\d+)/) ?? t.match(/^(\d+)$/))?.[1] ?? "";
+}
 
 /** BDO gümüşü milyar mertebesine çıkıyor; tabloda hizayı bozmasın */
 function silver(n: number): string {
@@ -61,21 +75,30 @@ export default function GrindTrackerPage() {
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
+  /** Özel node çözüldüğünde bdocodex'in verdiği bölge adı */
+  const [cozulenAd, setCozulenAd] = useState("");
 
   const current = SPOTS.find((s) => s.nodeId === spot);
-  const nodeId = spot === "custom" ? customNode : spot;
-  const refNodeId = spot === "custom" ? customNode : (current?.refNodeId ?? spot);
+  const ozel = spot === "custom";
+  const ozelNode = ozel ? nodeNumarasi(customNode) : "";
+  const sorgu = ozel
+    ? `page=${ozelNode}`
+    : `nodeId=${spot}&refNodeId=${current?.refNodeId ?? spot}`;
+  const hazir = ozel ? !!ozelNode : true;
 
   const load = useCallback(async () => {
-    if (!nodeId) return;
+    if (!hazir) return;
     setLoading(true);
     setErr("");
     setDrops([]);
+    setCozulenAd("");
 
     try {
-      const res = await fetch(`/api/grind/drops?nodeId=${nodeId}&refNodeId=${refNodeId}`);
+      const res = await fetch(`/api/grind/drops?${sorgu}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      // Özel node'da bölge adını bdocodex söylüyor
+      if (data.name) setCozulenAd(data.name);
 
       const initial: DropItem[] = (data.items as Omit<DropItem, "price" | "priceType" | "quantity">[])
         .map((item) => ({ ...item, price: 0, priceType: "loading" as const, quantity: 0 }));
@@ -86,7 +109,7 @@ export default function GrindTrackerPage() {
       initial.forEach(async (item, idx) => {
         try {
           const pd = await (await fetch(`/api/grind/price?itemId=${item.id}`)).json();
-          setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: pd.price, priceType: pd.type } : d)));
+          setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: pd.price, priceType: pd.type, region: pd.region } : d)));
         } catch {
           setDrops((prev) => prev.map((d, i) => (i === idx ? { ...d, price: 0, priceType: "unknown" } : d)));
         }
@@ -96,7 +119,7 @@ export default function GrindTrackerPage() {
     } finally {
       setLoading(false);
     }
-  }, [nodeId, refNodeId]);
+  }, [hazir, sorgu]);
 
   function setQty(idx: number, val: string) {
     const n = parseInt(val) || 0;
@@ -117,7 +140,9 @@ export default function GrindTrackerPage() {
   return (
     <TestShell
       title="Grind Tracker"
-      subtitle="Grind seansında düşen eşyaları gir, toplam gümüş kazancını gör."
+      subtitle={cozulenAd
+        ? `${cozulenAd} — düşen eşyaları gir, toplam gümüş kazancını gör.`
+        : "Grind seansında düşen eşyaları gir, toplam gümüş kazancını gör."}
       aside={drops.length > 0 ? (
         <span className="t-chip hidden sm:inline" style={{ color: "var(--t-gold)" }}>
           {silver(total)}
@@ -136,17 +161,24 @@ export default function GrindTrackerPage() {
             </select>
           </div>
 
-          {spot === "custom" && (
-            <div className="flex-1 min-w-[160px]">
-              <Label>Node ID (bdocodex)</Label>
+          {ozel && (
+            <div className="flex-1 min-w-[230px]">
+              <Label>
+                bdocodex linki
+                {ozelNode && (
+                  <span className="normal-case ml-1.5" style={{ color: "var(--t-good)" }}>
+                    · node {ozelNode}
+                  </span>
+                )}
+              </Label>
               <input value={customNode} onChange={(e) => setCustomNode(e.target.value)}
-                     placeholder="örn. 1571"
+                     placeholder="bdocodex.com/tr/node/2111/  ya da  2111"
                      className="w-full h-[34px] px-3 rounded-[var(--t-r-sm)] text-[13px] outline-none"
                      style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }} />
             </div>
           )}
 
-          <button onClick={load} disabled={loading || !nodeId}
+          <button onClick={load} disabled={loading || !hazir}
                   className="text-[12px] font-semibold px-3.5 h-[34px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5 disabled:opacity-45"
                   style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
                            border: "1px solid rgba(232,180,81,.3)" }}>
@@ -251,7 +283,9 @@ export default function GrindTrackerPage() {
                       )}
                     </div>
 
-                    <div className="text-right text-[11px]" style={{ color: meta.color }}>{meta.label}</div>
+                    <div className="text-right text-[11px]" style={{ color: meta.color }}>
+                      {meta.label}{item.region ? ` ${item.region}` : ""}
+                    </div>
 
                     <div className="text-right t-num text-[13px] font-semibold"
                          style={{ color: item.quantity > 0 ? "var(--t-gold)" : "var(--t-faint)" }}>
