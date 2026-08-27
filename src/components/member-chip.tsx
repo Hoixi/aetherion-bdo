@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
 import { displayOf, DISPLAY_META } from "@/lib/attendance";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
+import { scoreColor } from "@/lib/score";
 
 /**
  * Parti kurarken sürüklenen üye kartı.
@@ -50,17 +51,7 @@ function markOf(status: AttendanceStatus) {
  */
 export const LOW_SAMPLE = 2;
 
-/**
- * Eşikler üretimdeki dağılıma göre: son 5 savaşta 48 oyuncunun çeyreklik
- * değerleri 15 / 24 / 42. Eski eşikler (20/8/0) bu dağılımda 48 kişinin
- * 29'unu yeşil yapıyordu — renk hiçbir şey söylemiyordu.
- */
-export function scoreColor(score: number): string {
-  if (score >= 42) return "#38d07f";   // üst çeyrek
-  if (score >= 20) return "#e8b451";   // medyan civarı
-  if (score >= 0) return "#f0a03c";
-  return "#ef5f5f";
-}
+export { scoreColor } from "@/lib/score";
 
 function fmtDmg(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";

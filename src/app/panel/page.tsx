@@ -7,6 +7,7 @@ import {
   Activity, Crown, Target, ChevronRight, BarChart3, Castle,
 } from "lucide-react";
 import { getClassByID, getClassIconUrl, getPortraitUrl, getTypeName } from "@/lib/classes";
+import { scoreColor, SCORE_TERMS } from "@/lib/score";
 import {
   TestShell, Card, Head, Bar, GuildTag, fmt, loadJson, type Guild,
 } from "@/components/app-shell";
@@ -28,7 +29,7 @@ type Data = {
   players: {
     name: string; class: string; spec: string; avatarUrl: string | null; guild: Guild;
     wars: number; kills: number; deaths: number; damage: number; castle: number; cc: number;
-    avgDamage: number; kd: number;
+    avgDamage: number; kd: number; score: number;
   }[];
   wars: { id: number; title: string; type: string; date: string; result: string | null;
           _count: { participants: number; performances: number } }[];
@@ -46,7 +47,8 @@ export default function TestPage() {
       .catch((e: Error) => setErr(e.message));
   }, []);
 
-  const maxDamage = useMemo(() => d?.players[0]?.damage ?? 1, [d]);
+  // Sıralama puana göre; çubuk da puana göre ölçekleniyor
+  const maxScore = useMemo(() => Math.max(1, d?.players[0]?.score ?? 1), [d]);
   const maxTrend = useMemo(
     () => Math.max(1, ...(d?.trend ?? []).map((t) => t.participants)),
     [d],
@@ -106,7 +108,7 @@ export default function TestPage() {
             {tab === "Genel" && (
               <div className="grid lg:grid-cols-[1.5fr_1fr] gap-5">
                 <Card className="overflow-hidden">
-                  <Head icon={Crown} title="Hasar Sıralaması" meta={`SON ${d.totals.warsCounted} SAVAŞ`} />
+                  <Head icon={Crown} title="Puan Sıralaması" meta={`SON ${d.totals.warsCounted} SAVAŞ`} />
                   {d.players.slice(0, 10).map((p, i) => {
                     const icon = getClassIconUrl(p.class);
                     return (
@@ -127,8 +129,12 @@ export default function TestPage() {
                           </div>
                         </div>
                         <div className="w-24 text-right">
-                          <div className="t-num text-[13px]" style={{ color: "var(--t-gold)" }}>{fmt(p.damage)}</div>
-                          <div className="mt-1"><Bar pct={(p.damage / maxDamage) * 100} /></div>
+                          <div className="t-num text-[14px] font-bold"
+                               style={{ color: scoreColor(p.score) }}>{p.score}</div>
+                          <div className="text-[10px] mt-0.5" style={{ color: "var(--t-faint)" }}>
+                            {fmt(p.damage)} hasar
+                          </div>
+                          <div className="mt-1"><Bar pct={(p.score / maxScore) * 100} /></div>
                         </div>
                         <div className="w-16 text-right hidden sm:block">
                           <div className="t-num text-[12px]">{p.kills}/{p.deaths}</div>
@@ -137,6 +143,27 @@ export default function TestPage() {
                       </div>
                     );
                   })}
+
+                  {/* Puanı görüp neye göre olduğunu bilmemek can sıkıyor */}
+                  <div className="px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-1"
+                       style={{ borderTop: "1px solid var(--t-line)" }}>
+                    <span className="text-[10px] uppercase tracking-[0.06em]"
+                          style={{ color: "var(--t-faint)" }}>
+                      Puan =
+                    </span>
+                    {SCORE_TERMS.map((t) => (
+                      <span key={t.key} className="text-[11px] whitespace-nowrap"
+                            style={{ color: t.isaret < 0 ? "var(--t-bad)" : "var(--t-dim)" }}>
+                        <span className="t-num font-semibold">
+                          {t.isaret < 0 ? "−" : "+"}{t.katsayi}
+                        </span>
+                        {" × "}{t.birim}
+                      </span>
+                    ))}
+                    <span className="text-[10.5px] w-full mt-0.5" style={{ color: "var(--t-faint)" }}>
+                      Savaş başına ortalama üzerinden, son {d.totals.warsCounted} savaş.
+                    </span>
+                  </div>
                 </Card>
 
                 <div className="space-y-5">

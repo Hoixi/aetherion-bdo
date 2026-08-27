@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
+import { warScoreFromTotals } from "@/lib/score";
 import { prisma } from "@/lib/prisma";
 import { getGuildScope } from "@/lib/guild-scope";
 
@@ -129,8 +130,10 @@ export async function GET() {
       ...a,
       avgDamage: a.wars ? a.damage / a.wars : 0,
       kd: a.deaths > 0 ? Math.round((a.kills / a.deaths) * 100) / 100 : a.kills,
+      // Parti builder'la aynı formül; iki ekran aynı sayıyı göstersin
+      score: warScoreFromTotals(a),
     }))
-    .sort((a, b) => b.damage - a.damage);
+    .sort((a, b) => b.score - a.score);
 
   const myRank = ranked.findIndex((p) => p.key === "u" + scope.userId);
   const mine = myRank >= 0 ? ranked[myRank] : null;

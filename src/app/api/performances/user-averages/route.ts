@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
+import { warScore } from "@/lib/score";
 
 /**
  * Parti kurarken kullanılan performans puanı.
@@ -102,24 +103,11 @@ export async function GET(req: Request) {
       ? Math.round((avgDamage / avgSurv) * 10) / 10
       : null;
 
-    /*
-     * Puan.
-     *
-     * Ölçekler üretim verisinden alındı: oyuncu hasarı medyanı ~171K
-     * (en yüksek 669K), kale hasarı medyanı ~2,0M. Bu yüzden ikisi ayrı
-     * bölenle giriyor — aynı bölenle kale hasarı diğer her şeyi eziyordu.
-     *
-     * Eskiden hasar milyona bölünüyordu ve puana katkısı %1'di; puan
-     * fiilen bir kill sayacıydı. Şimdi ağırlıklar kabaca şöyle:
-     * hasar %34, kill %27, ölüm %17, kale %14, CC %8.
-     */
-    const score = Math.round(
-      (avgDamage / 100_000) * 8      // 100K hasar = 8 puan
-      + avgKills * 1.5
-      + (avgCastle / 1_000_000) * 3  // 1M kale hasarı = 3 puan
-      + avgCc * 0.08
-      - avgDeaths * 0.5,
-    );
+    // Formül ve gerekçesi @/lib/score içinde — panel de aynısını kullanıyor
+    const score = warScore({
+      damage: avgDamage, kills: avgKills, castle: avgCastle,
+      cc: avgCc, deaths: avgDeaths,
+    });
 
     result[row.userId] = {
       wars,
