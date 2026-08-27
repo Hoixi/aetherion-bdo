@@ -304,3 +304,37 @@ nav {
 .prose-forum img { max-width: 100%; border-radius: 8px; margin: 0.75rem auto; display: block; }
 .prose-forum p[style*="text-align: center"] { text-align: center; }
 .prose-forum p[style*="text-align: right"] { text-align: right; }
+
+/* Foruma gömülen eşya rozeti.
+   Kalite rengi `renderHTML` tarafından satır içi yazılıyor; buradaki
+   kurallar yalnızca biçim. Hem okunur gövdede hem editörde geçerli
+   olsun diye `.prose-forum` altına kapatılmadı. */
+.item-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 3px;
+  margin: 0 1px;
+  border: 1px solid;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.045);
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  vertical-align: baseline;
+  cursor: help;
+  transition: background-color 0.12s ease;
+}
+.item-ref:hover { background: rgba(255, 255, 255, 0.1); }
+.item-ref-ic {
+  width: 17px;
+  height: 17px;
+  border-radius: 3px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+/* Editörde seçilince belli olsun */
+.ProseMirror .item-ref.ProseMirror-selectednode {
+  outline: 2px solid #d4a853;
+  outline-offset: 1px;
+}

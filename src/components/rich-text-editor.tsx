@@ -8,7 +8,8 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ItemRefNode, ItemPicker, useItemTooltip } from "@/components/item-ref";
 
 interface RichTextEditorProps {
   content: string;
@@ -50,6 +51,7 @@ function Divider() {
 
 export function RichTextEditor({ content, onChange, placeholder = "Yazını buraya yaz...", minHeight = 280 }: RichTextEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [esyaSecici, setEsyaSecici] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -75,6 +77,7 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
         HTMLAttributes: { class: "max-w-full rounded-xl my-3 mx-auto block" },
       }),
       Placeholder.configure({ placeholder }),
+      ItemRefNode,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -217,6 +220,11 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </ToolbarButton>
+        <ToolbarButton onClick={() => setEsyaSecici(true)} active={false} title="Eşya Ekle">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        </ToolbarButton>
 
         <Divider />
 
@@ -245,16 +253,35 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
         className="hidden"
         onChange={handleImageFile}
       />
+
+      {esyaSecici && (
+        <ItemPicker
+          onClose={() => setEsyaSecici(false)}
+          onPick={(a) => {
+            setEsyaSecici(false);
+            editor.chain().focus().insertContent([
+              { type: "itemRef", attrs: a },
+              { type: "text", text: " " },
+            ]).run();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 // Read-only HTML renderer
 export function RichTextContent({ html, className = "" }: { html: string; className?: string }) {
+  // Gövdedeki eşya rozetleri fare üstüne gelince oyun içi kutuyu açıyor.
+  const { ref, tooltip } = useItemTooltip<HTMLDivElement>();
   return (
-    <div
-      className={`prose-forum text-sm text-bdo-text-primary leading-relaxed ${className}`}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <>
+      <div
+        ref={ref}
+        className={`prose-forum text-sm text-bdo-text-primary leading-relaxed ${className}`}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      {tooltip}
+    </>
   );
 }
