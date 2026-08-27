@@ -27,6 +27,9 @@ export interface UserPerfStats {
   avgCc: number;
   avgHeal: number;
   avgAllyHeal: number;
+  avgCastle: number;
+  dps: number | null;
+  dpsWars: number;
   maxKills: number;
   maxKillStreak: number;
   maxDamage: number;
@@ -47,9 +50,14 @@ function markOf(status: AttendanceStatus) {
  */
 export const LOW_SAMPLE = 2;
 
+/**
+ * Eşikler üretimdeki dağılıma göre: son 5 savaşta 48 oyuncunun çeyreklik
+ * değerleri 15 / 24 / 42. Eski eşikler (20/8/0) bu dağılımda 48 kişinin
+ * 29'unu yeşil yapıyordu — renk hiçbir şey söylemiyordu.
+ */
 export function scoreColor(score: number): string {
-  if (score >= 20) return "#38d07f";
-  if (score >= 8) return "#e8b451";
+  if (score >= 42) return "#38d07f";   // üst çeyrek
+  if (score >= 20) return "#e8b451";   // medyan civarı
   if (score >= 0) return "#f0a03c";
   return "#ef5f5f";
 }
@@ -146,7 +154,9 @@ export function MemberChip({
           <div className="h-1 rounded-full bg-bdo-border overflow-hidden">
             <div className="h-full rounded-full"
                  style={{
-                   width: Math.round(((Math.max(-15, Math.min(40, perf.score)) + 15) / 55) * 100) + "%",
+                   // Aralık gerçek dağılıma göre (-6…108); eski -15…40 sınırı üst
+                   // çeyreğin tamamını dolu çubuk gösteriyordu
+                   width: Math.round(((Math.max(-10, Math.min(100, perf.score)) + 10) / 110) * 100) + "%",
                    backgroundColor: scoreColor(perf.score),
                  }} />
           </div>
@@ -171,6 +181,8 @@ export function MemberChip({
               ["Öldürme/ölüm", perf.kdr.toFixed(2)],
               ["Ort. seri", String(perf.avgKillStreak)],
               ["Ort. hasar", fmtDmg(perf.avgDamage)],
+              ["Ort. kale", perf.avgCastle > 0 ? fmtDmg(perf.avgCastle) : "—"],
+              ["DPS", perf.dps ? fmtDmg(perf.dps) + "/sn" : "—"],
               ["Ort. CC", perf.avgCc > 0 ? String(perf.avgCc) : "—"],
             ] as [string, string][]).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-2">

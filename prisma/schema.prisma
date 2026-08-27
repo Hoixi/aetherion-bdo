@@ -462,6 +462,12 @@ model WarPerformance {
   cannonDestroys Int      @default(0)
   cannonMaxRange Int      @default(0)
   trapExplosions Int      @default(0)
+  /**
+   * Ekran görüntüsündeki hayatta kalma süresi, saniye cinsinden. DPS
+   * bundan çıkıyor. Eski kayıtlarda yok: görseller saklanmadığı için
+   * geriye dönük doldurulamıyor, bu yüzden nullable.
+   */
+  survivalSeconds Int?
   createdAt      DateTime @default(now())
 
   war  War   @relation(fields: [warId], references: [id], onDelete: Cascade)

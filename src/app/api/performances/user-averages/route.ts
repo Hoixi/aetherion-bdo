@@ -36,7 +36,6 @@ export async function GET(req: Request) {
   const grouped = await prisma.warPerformance.groupBy({
     by: ["userId"],
     where: { userId: { not: null }, warId: { in: warIds } },
-    _count: { warId: true },
     _avg: {
       kills: true,
       deaths: true,
@@ -46,7 +45,10 @@ export async function GET(req: Request) {
       ccCount: true,
       hpHeal: true,
       allyHpHeal: true,
+      castleDamage: true,
+      survivalSeconds: true,
     },
+    _count: { warId: true, survivalSeconds: true },
     _max: {
       kills: true,
       killStreak: true,
@@ -65,6 +67,11 @@ export async function GET(req: Request) {
     avgCc: number;
     avgHeal: number;
     avgAllyHeal: number;
+    avgCastle: number;
+    /** Saniyede hasar — süre kolonu okunmuş savaşlardan. Yoksa null. */
+    dps: number | null;
+    /** Penceredeki kaç savaşta süre verisi vardı */
+    dpsWars: number;
     maxKills: number;
     maxKillStreak: number;
     maxDamage: number;
@@ -77,13 +84,42 @@ export async function GET(req: Request) {
     const avgKills  = row._avg.kills        ?? 0;
     const avgDeaths = row._avg.deaths       ?? 0;
     const avgDamage = row._avg.damageDealt  ?? 0;
+    const avgCastle = row._avg.castleDamage ?? 0;
     const avgCc     = row._avg.ccCount      ?? 0;
     const avgHeal   = (row._avg.hpHeal ?? 0) + (row._avg.allyHpHeal ?? 0);
     const wars      = row._count.warId;
 
-    // Skor: öldürmeler + hasar etkisi + CC katkısı - ölümler
-    const scoreDamage = avgDamage / 1_000_000; // milyon bazında
-    const score = Math.round(avgKills * 3 + scoreDamage * 1.5 + avgCc * 0.1 - avgDeaths * 0.25);
+    /*
+     * DPS yalnızca süre okunabilmiş savaşlardan çıkıyor. Prisma
+     * ortalamayı null olmayanlar üzerinden alıyor; hasar ortalaması ise
+     * bütün savaşları kapsıyor. İkisi farklı kümeye dayanacağı için
+     * yalnızca süre bütün pencerede varsa hesaplanıyor — eksik veriden
+     * üretilmiş bir DPS, yok olandan daha yanıltıcı.
+     */
+    const dpsWars   = row._count.survivalSeconds;
+    const avgSurv   = row._avg.survivalSeconds ?? 0;
+    const dps = dpsWars === wars && avgSurv > 0
+      ? Math.round((avgDamage / avgSurv) * 10) / 10
+      : null;
+
+    /*
+     * Puan.
+     *
+     * Ölçekler üretim verisinden alındı: oyuncu hasarı medyanı ~171K
+     * (en yüksek 669K), kale hasarı medyanı ~2,0M. Bu yüzden ikisi ayrı
+     * bölenle giriyor — aynı bölenle kale hasarı diğer her şeyi eziyordu.
+     *
+     * Eskiden hasar milyona bölünüyordu ve puana katkısı %1'di; puan
+     * fiilen bir kill sayacıydı. Şimdi ağırlıklar kabaca şöyle:
+     * hasar %34, kill %27, ölüm %17, kale %14, CC %8.
+     */
+    const score = Math.round(
+      (avgDamage / 100_000) * 8      // 100K hasar = 8 puan
+      + avgKills * 1.5
+      + (avgCastle / 1_000_000) * 3  // 1M kale hasarı = 3 puan
+      + avgCc * 0.08
+      - avgDeaths * 0.5,
+    );
 
     result[row.userId] = {
       wars,
@@ -95,6 +131,9 @@ export async function GET(req: Request) {
       avgCc:         Math.round(avgCc * 10) / 10,
       avgHeal:       avgHeal,
       avgAllyHeal:   row._avg.allyHpHeal ?? 0,
+      avgCastle,
+      dps,
+      dpsWars,
       maxKills:      row._max.kills        ?? 0,
       maxKillStreak: row._max.killStreak   ?? 0,
       maxDamage:     row._max.damageDealt  ?? 0,

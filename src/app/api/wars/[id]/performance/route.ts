@@ -21,6 +21,8 @@ interface GeminiRaw {
   cannonDestroys: string | number;
   cannonMaxRange: string | number;
   trapExplosions: string | number;
+  /** Kolon varsa gelir; Gemini'ye adla soruluyor, sıraya dokunmuyor */
+  survivalTime?: string | number | null;
 }
 
 interface GeminiRow {
@@ -38,6 +40,8 @@ interface GeminiRow {
   cannonDestroys: number;
   cannonMaxRange: number;
   trapExplosions: number;
+  /** Saniye; ekran görüntüsünde kolon yoksa null */
+  survivalSeconds: number | null;
 }
 
 // K=×10000, B=×1000, M/Mn=×1000000
@@ -52,6 +56,37 @@ function parseGameValue(v: string | number): number {
   if (unit === "B") return Math.round(num * 1000);
   if (unit === "M" || unit === "MN") return Math.round(num * 1000000);
   return Math.round(num);
+}
+
+/**
+ * Hayatta kalma süresini saniyeye çevirir.
+ *
+ * Oyun bu kolonu tek biçimde yazmıyor; "12:34", "12dk 34sn", "754sn" ya
+ * da düz sayı gelebiliyor. Tanıyamadığında null dönüyor — uydurulmuş bir
+ * süre, eksik süreden kötü.
+ */
+function parseSurvival(v: string | number | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number") return v > 0 ? Math.round(v) : null;
+
+  const s = String(v).trim().toLowerCase();
+  if (!s || s === "-" || s === "0") return null;
+
+  // 12:34  ya da  1:02:03
+  const saat = s.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})$/);
+  if (saat) {
+    const [, h, m, sn] = saat;
+    return (Number(h ?? 0) * 3600) + (Number(m) * 60) + Number(sn);
+  }
+
+  // 12dk 34sn / 12 dakika 34 saniye / 12m 34s
+  const parcali = s.match(/^(?:(\d+)\s*(?:dk|dakika|m|min)\.?)?\s*(?:(\d+)\s*(?:sn|saniye|s|sec)\.?)?$/);
+  if (parcali && (parcali[1] || parcali[2])) {
+    return Number(parcali[1] ?? 0) * 60 + Number(parcali[2] ?? 0);
+  }
+
+  const duz = s.match(/^\d+$/);
+  return duz ? Number(s) : null;
 }
 
 function toRow(r: GeminiRaw): GeminiRow {
@@ -70,6 +105,7 @@ function toRow(r: GeminiRaw): GeminiRow {
     cannonDestroys: parseGameValue(r.cannonDestroys),
     cannonMaxRange: parseGameValue(r.cannonMaxRange),
     trapExplosions: parseGameValue(r.trapExplosions),
+    survivalSeconds: parseSurvival(r.survivalTime),
   };
 }
 
@@ -82,6 +118,11 @@ Kolonlar (soldan sağa): familyName, kills, deaths, killStreak, damageDealt, dam
 
 Sayısal değerleri görselde NASIL YAZIYORSA ÖYLE yaz — dönüştürme yapma.
 Örnekler: 557B → "557B", 8Mn → "8Mn", 390B → "390B", 34214 → 34214, 2.9K → "2.9K"
+
+Ek olarak, tabloda hayatta kalma / ölüm süresi gösteren bir kolon varsa
+(örn. "Hayatta Kalma Süresi", "Ölüm Süresi", "Survival Time") onu
+survivalTime alanına görseldeki biçimiyle yaz. Böyle bir kolon yoksa
+survivalTime alanını hiç ekleme — yukarıdaki kolon sırasını değiştirme.
 
 Aile adı eşleştirme: Görseldeki adı aşağıdaki kayıtlı listesiyle karşılaştır. Yakın eşleşme varsa (büyük/küçük harf, Türkçe karakter farkı: â=a, î=i, ş=s, ğ=g, ç=c, ö=o, ü=u) listeden doğru yazılışı kullan.
 Kayıtlı adlar: ${nameList}`;
@@ -144,6 +185,12 @@ function mergeRows(allRows: GeminiRow[]): GeminiRow[] {
         cannonDestroys: existing.cannonDestroys + (row.cannonDestroys ?? 0),
         cannonMaxRange: Math.max(existing.cannonMaxRange, row.cannonMaxRange ?? 0),
         trapExplosions: existing.trapExplosions + (row.trapExplosions ?? 0),
+        // Süre toplanmaz: aynı savaşın birden fazla görüntüsünde aynı
+        // değer tekrar eder, en uzun okunanı alıyoruz
+        survivalSeconds:
+          existing.survivalSeconds === null && row.survivalSeconds === null
+            ? null
+            : Math.max(existing.survivalSeconds ?? 0, row.survivalSeconds ?? 0),
       });
     }
   }
@@ -203,6 +250,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           cannonDestroys: row.cannonDestroys,
           cannonMaxRange: row.cannonMaxRange,
           trapExplosions: row.trapExplosions,
+          survivalSeconds: row.survivalSeconds,
         },
         create: {
           warId,
@@ -223,6 +271,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           cannonDestroys: row.cannonDestroys,
           cannonMaxRange: row.cannonMaxRange,
           trapExplosions: row.trapExplosions,
+          survivalSeconds: row.survivalSeconds,
         },
       });
       savedRows.push({ ...record, matched: userId !== null });
