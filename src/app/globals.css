@@ -326,11 +326,14 @@ nav {
   transition: background-color 0.12s ease;
 }
 .item-ref:hover { background: rgba(255, 255, 255, 0.1); }
-.item-ref-ic {
+/* `.prose-forum img` daha ozgul oldugu icin ikona 0.75rem dikey bosluk
+   veriyor ve rozeti 45px'e sisiriyordu; asagidaki secici onu geciyor. */
+.item-ref .item-ref-ic {
   width: 17px;
   height: 17px;
   border-radius: 3px;
-  display: inline-block;
+  display: block;
+  margin: 0;
   flex-shrink: 0;
 }
 /* Editörde seçilince belli olsun */
