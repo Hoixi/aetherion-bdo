@@ -18,8 +18,8 @@ export const SCORE_TERMS = [
   { key: "damage", label: "Hasar",       birim: "100K hasar", katsayi: 8,    isaret: 1 },
   { key: "kills",  label: "Kill",        birim: "kill",        katsayi: 1.5,  isaret: 1 },
   { key: "castle", label: "Kale hasarı", birim: "1M kale",     katsayi: 3,    isaret: 1 },
-  { key: "cc",     label: "CC",          birim: "CC",          katsayi: 0.15, isaret: 1 },
-  { key: "deaths", label: "Ölüm",        birim: "ölüm",        katsayi: 0.5,  isaret: -1 },
+  { key: "cc",     label: "CC",          birim: "CC",          katsayi: 0.3,  isaret: 1 },
+  { key: "deaths", label: "Ölüm",        birim: "ölüm",        katsayi: 0.25, isaret: -1 },
 ] as const;
 
 /** Savaş başına ortalamalar */
@@ -36,8 +36,8 @@ export function warScore(a: ScoreInput): number {
     (a.damage / 100_000) * 8
     + a.kills * 1.5
     + (a.castle / 1_000_000) * 3
-    + a.cc * 0.15
-    - a.deaths * 0.5,
+    + a.cc * 0.3
+    - a.deaths * 0.25,
   );
 }
 
@@ -56,13 +56,15 @@ export function warScoreFromTotals(t: ScoreInput & { wars: number }): number {
 /**
  * Kartlarda ve sıralamada kullanılan renk.
  *
- * Eşikler üretimdeki dağılımdan: son 5 savaşta 48 oyuncunun çeyreklikleri
- * 17 / 28 / 46. Eski eşikler (20/8/0) 48 kişinin 29'unu yeşil yapıyordu,
- * yani renk hiçbir şey söylemiyordu; bunlarla ayrım 14/19/11/4.
+ * Eşikler dağılımın çeyrekliklerine oturuyor; katsayı her değiştiğinde
+ * yeniden ölçülmesi gerekiyor, yoksa renk anlamını yitiriyor. CC 0,30 /
+ * ölüm 0,25 ile son 5 savaşta 48 oyuncunun çeyreklikleri 28 / 39 / 60.
+ * Bunlarla ayrım 12/18/16/2; önceki 42/20 eşiği bu dağılımda 48 kişinin
+ * 40'ını yeşil-altın yapıyordu.
  */
 export function scoreColor(score: number): string {
-  if (score >= 42) return "#38d07f";
-  if (score >= 20) return "#e8b451";
+  if (score >= 60) return "#38d07f";
+  if (score >= 34) return "#e8b451";
   if (score >= 0) return "#f0a03c";
   return "#ef5f5f";
 }

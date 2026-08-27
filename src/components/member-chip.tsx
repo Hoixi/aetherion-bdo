@@ -147,7 +147,7 @@ export function MemberChip({
                  style={{
                    // Aralık gerçek dağılıma göre (-6…108); eski -15…40 sınırı üst
                    // çeyreğin tamamını dolu çubuk gösteriyordu
-                   width: Math.round(((Math.max(-10, Math.min(100, perf.score)) + 10) / 110) * 100) + "%",
+                   width: Math.round(((Math.max(-10, Math.min(120, perf.score)) + 10) / 130) * 100) + "%",
                    backgroundColor: scoreColor(perf.score),
                  }} />
           </div>
