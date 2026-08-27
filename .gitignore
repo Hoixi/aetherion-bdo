@@ -36,3 +36,8 @@ yarn-error.log*
 docs/superpowers/
 app.js
 
+
+# Oyun ikonlari (66 MB, 21.660 dosya) - PAZ boru hatti kopyaliyor:
+#   node scripts/tools/copy-icons.mjs
+# Git yerine sunucuya dogrudan gonderiliyor; public repoda asset yayinlamamak icin.
+public/item-icons/

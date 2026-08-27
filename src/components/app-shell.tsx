@@ -7,7 +7,7 @@ import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
   Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
-  Menu, X, ScrollText, CalendarClock,
+  Menu, X, ScrollText, CalendarClock, Package,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 
@@ -37,6 +37,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
     { label: "Kale Kurulumları", href: "/kaleler", icon: Castle },
     { label: "Harita", href: "/harita", icon: MapIcon },
     { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
+    { label: "Eşya Veritabanı", href: "/esyalar", icon: Package },
     { label: "Optimizer", href: "/optimizer", icon: Target },
     { label: "GeoGuessr", href: "/geo", icon: MapIcon },
   ] },
