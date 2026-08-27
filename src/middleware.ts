@@ -37,6 +37,7 @@ export const config = {
     "/ai-asistan/:path*",
     "/optimizer/:path*",
     "/ally/:path*",
+    "/esyalar/:path*",
     "/admin/:path*",
   ],
 };
