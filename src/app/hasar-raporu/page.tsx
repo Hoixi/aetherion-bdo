@@ -67,6 +67,14 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "killStreak", label: "Seri" },
 ];
 
+/**
+ * Ortalama alınacak pencereler.
+ *
+ * Eskiden tek seçenek "tüm savaşlar"dı: aylar öncesini bugünle aynı
+ * ağırlıkta sayıyor ve kim form tutuyor sorusunu gölgeliyordu.
+ */
+const PENCERELER = [5, 10, 20] as const;
+
 /** Kısaltılarak gösterilecek metrikler — geri kalanı ondalıklı sayı */
 const BIG: SortKey[] = ["damageDealt", "hpHeal", "castleDamage"];
 
@@ -78,7 +86,8 @@ export default function HasarRaporuPage() {
   const [wars, setWars] = useState<War[]>([]);
   const [guilds, setGuilds] = useState<GuildRow[]>([]);
   const [perfs, setPerfs] = useState<Performance[]>([]);
-  const [warId, setWarId] = useState<number | "">("");
+  /** "last:N" (pencere), "all" (tüm geçmiş) ya da tek savaşın id'si */
+  const [secim, setSecim] = useState<string>("last:5");
   const [guildId, setGuildId] = useState<number | "">("");
   const [sortKey, setSortKey] = useState<SortKey>("damageDealt");
   const [dense, setDense] = useState(false);
@@ -92,7 +101,7 @@ export default function HasarRaporuPage() {
   // İlk yükleme savaş ve klan listesini de getiriyor; filtre değişince
   // sadece performanslar tazeleniyor
   useEffect(() => {
-    loadJson<{ wars: War[]; guilds: GuildRow[]; performances: Performance[] }>("/api/performances")
+    loadJson<{ wars: War[]; guilds: GuildRow[]; performances: Performance[] }>("/api/performances?lastWars=5")
       .then((d) => {
         setWars(d.wars ?? []);
         setGuilds(d.guilds ?? []);
@@ -102,18 +111,21 @@ export default function HasarRaporuPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const warId = /^\d+$/.test(secim) ? Number(secim) : null;
+  const pencere = secim.startsWith("last:") ? Number(secim.slice(5)) : null;
+  const isAggregate = warId === null;
+
   useEffect(() => {
     const qs = new URLSearchParams();
-    if (warId !== "") qs.set("warId", String(warId));
+    if (warId !== null) qs.set("warId", String(warId));
+    else if (pencere) qs.set("lastWars", String(pencere));
     if (guildId !== "") qs.set("guild", String(guildId));
     setLoading(true);
     loadJson<{ performances: Performance[] }>(`/api/performances${qs.toString() ? `?${qs}` : ""}`)
       .then((d) => setPerfs(d.performances ?? []))
       .catch((e: Error) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [warId, guildId]);
-
-  const isAggregate = warId === "";
+  }, [warId, pencere, guildId]);
 
   const rows = useMemo((): Row[] => {
     if (!isAggregate) {
@@ -186,12 +198,12 @@ export default function HasarRaporuPage() {
   const cardSort: SortKey =
     (["damageDealt", "kills", "deaths", "castleDamage"] as SortKey[]).includes(sortKey)
       ? sortKey : "damageDealt";
-  const cardUrl = warId === ""
+  const cardUrl = warId === null
     ? null
     : `/api/war-report-card/${warId}?sort=${cardSort}&limit=10${guildId ? `&guild=${guildId}` : ""}`;
 
   async function publish() {
-    if (warId === "") return;
+    if (warId === null) return;
     setPublishing(true);
     setPublishMsg(null);
     const res = await fetch(`/api/wars/${warId}/publish-report`, {
@@ -210,19 +222,31 @@ export default function HasarRaporuPage() {
   return (
     <TestShell
       title="Hasar Raporu"
-      subtitle={isAggregate
-        ? "Oyuncu bazlı savaş ortalamaları — bütün savaşlar birlikte."
-        : wars.find((w) => w.id === warId)?.title ?? "Seçili savaşın raporu."}
+      subtitle={!isAggregate
+        ? wars.find((w) => w.id === warId)?.title ?? "Seçili savaşın raporu."
+        : pencere
+        ? `Son ${pencere} savaşın oyuncu bazlı ortalaması.`
+        : "Bütün savaşların oyuncu bazlı ortalaması."}
       aside={<span className="t-chip hidden sm:inline">{sorted.length} oyuncu</span>}
     >
       {/* ── Kontroller ─────────────────────────────────────────────── */}
       <Card className="p-3.5 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={warId}
-                  onChange={(e) => setWarId(e.target.value ? Number(e.target.value) : "")}
+          {/* Pencereler önde: en sık sorulan "son n savaşta kim ne yaptı" */}
+          <Segment>
+            {PENCERELER.map((n) => (
+              <SegBtn key={n} on={secim === `last:${n}`} onClick={() => setSecim(`last:${n}`)}>
+                Son {n}
+              </SegBtn>
+            ))}
+            <SegBtn on={secim === "all"} onClick={() => setSecim("all")}>Tümü</SegBtn>
+          </Segment>
+
+          <select value={warId ?? ""}
+                  onChange={(e) => setSecim(e.target.value || "last:5")}
                   className="h-[34px] px-3 rounded-[var(--t-r-sm)] text-[12.5px] outline-none max-w-xs"
                   style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)", color: "var(--t-text)" }}>
-            <option value="">Tüm savaşlar (ortalama)</option>
+            <option value="">Tek savaş seç…</option>
             {wars.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.title} · {new Date(w.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
@@ -270,8 +294,10 @@ export default function HasarRaporuPage() {
 
         {isAggregate && (
           <p className="text-[11px]" style={{ color: "var(--t-faint)" }}>
-            Değerler oyuncunun katıldığı savaş sayısına göre ortalamadır ·
-            Seri ve top mesafesi en yüksek değeri gösterir.
+            {pencere
+              ? `Son ${pencere} savaş içinde, oyuncunun katıldığı savaş sayısına göre ortalama`
+              : "Bütün geçmiş, oyuncunun katıldığı savaş sayısına göre ortalama"}
+            {" · Seri ve top mesafesi en yüksek değeri gösterir."}
           </p>
         )}
       </Card>
