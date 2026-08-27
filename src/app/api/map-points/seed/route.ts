@@ -25,6 +25,7 @@ export async function POST() {
   const points = (data as { points: RawPoint[] }).points;
   let created = 0;
   let updated = 0;
+  let moved = 0;
 
   const shots = images as Record<string, string[]>;
 
@@ -40,20 +41,28 @@ export async function POST() {
       : p.title;
     const description = p.area ?? null;
 
-    // Konum kimliği: aynı kategoride aynı yerdeki nokta aynı kayıttır
+    /*
+     * Kimlik konumdan geliyor, kategoriden değil.
+     *
+     * Oyun bir noktayı yeniden sınıflandırabiliyor — Angavu Öncüsü
+     * "üs yöneticisi"yken "görev" oldu. Kategori de eşleşme şartı olsaydı
+     * aynı yer iki kayıt hâline gelir, haritada üst üste iki nokta
+     * çizilirdi. Böylece kaydın kendisi taşınıyor ve kimin topladığı
+     * bilgisi de korunuyor.
+     */
     const existing = await prisma.mapPoint.findFirst({
       where: {
-        category: p.category,
         mapX: { gte: p.nx - 1e-9, lte: p.nx + 1e-9 },
         mapY: { gte: p.ny - 1e-9, lte: p.ny + 1e-9 },
       },
-      select: { id: true },
+      select: { id: true, category: true },
     });
 
     if (existing) {
+      if (existing.category !== p.category) moved++;
       await prisma.mapPoint.update({
         where: { id: existing.id },
-        data: { title, description, imageUrl },
+        data: { title, description, imageUrl, category: p.category },
       });
       updated++;
     } else {
@@ -67,5 +76,16 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ ok: true, total: points.length, created, updated });
+  /*
+   * Veride kalmayan noktalar silinmiyor: birileri onları toplamış
+   * olabilir ve kayıt silinince tamamlama bilgisi de gidiyor. Bunun
+   * yerine sayılıp bildiriliyor, kararı yönetici veriyor.
+   */
+  const kalanlar = await prisma.mapPoint.count();
+  const artik = kalanlar - points.length;
+
+  return NextResponse.json({
+    ok: true, total: points.length, created, updated, moved,
+    stale: artik > 0 ? artik : 0,
+  });
 }

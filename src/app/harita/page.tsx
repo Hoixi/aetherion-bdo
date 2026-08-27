@@ -139,7 +139,11 @@ export default function HaritaPage() {
       if (!res.ok) {
         setSeedMsg(data.error ?? "İçeri alınamadı (" + res.status + ")");
       } else {
-        setSeedMsg(data.created + " nokta eklendi, " + data.updated + " güncellendi.");
+        setSeedMsg(
+          `${data.created} eklendi, ${data.updated} güncellendi`
+          + (data.moved ? `, ${data.moved} kategori değiştirdi` : "")
+          + (data.stale ? ` · veride kalmayan ${data.stale} nokta duruyor` : "") + ".",
+        );
         const fresh = await fetch("/api/map-points").then((r) => r.json());
         setPoints(fresh.points);
         setDone(new Set<number>(fresh.done));
@@ -409,14 +413,12 @@ export default function HaritaPage() {
                 </button>
               ))}
 
-              {shotsOf(sel).length > 0 && (
-                <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
-                  Görseller{" "}
-                  <a href="https://korbdo.co.kr" target="_blank" rel="noreferrer"
-                     className="hover:underline" style={{ color: "var(--t-gold)" }}>korbdo.co.kr</a>{" "}
-                  izniyle kullanılıyor.
-                </p>
-              )}
+              <p className="text-[10px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
+                Nokta verisi ve görseller{" "}
+                <a href="https://korbdo.co.kr" target="_blank" rel="noreferrer"
+                   className="hover:underline" style={{ color: "var(--t-gold)" }}>korbdo.co.kr</a>{" "}
+                izniyle kullanılıyor.
+              </p>
 
               {categoryMeta(sel.category).countable && (
                 <button onClick={() => toggleDone(sel.id)}
