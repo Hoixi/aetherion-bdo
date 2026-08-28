@@ -367,3 +367,30 @@ nav {
   margin-left: 0.15rem;
 }
 .bdo-note { padding-left: 0.9rem; text-indent: -0.9rem; }
+
+/* ── Forumdaki kurulum kartı ──
+   Gönderi gövdesi prose-forum altında; kart kendi ölçülerini korusun diye
+   metin akışından ayrı bir blok olarak duruyor. */
+.loadout-ref { margin: 0.75rem 0; }
+.loadout-card {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r-sm, 9px);
+  background: var(--t-surface);
+  overflow: hidden;
+}
+.loadout-card-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--t-line);
+}
+.loadout-card-items {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  padding: 0.75rem;
+}
+.loadout-card-stats {
+  display: flex; flex-wrap: wrap; gap: 0.15rem 1rem;
+  padding: 0 0.75rem 0.75rem;
+}
+/* prose-forum bağlantıları altı çizili basıyor; kart başlığındaki "Aç"
+   bağlantısı rozet gibi durmalı, cümle içi link gibi değil. */
+.prose-forum .loadout-card a { text-decoration: none; }

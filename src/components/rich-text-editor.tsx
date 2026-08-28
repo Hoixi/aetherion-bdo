@@ -10,6 +10,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import { useEffect, useRef, useState } from "react";
 import { ItemRefNode, ItemPicker, useItemTooltip } from "@/components/item-ref";
+import { LoadoutRefNode, LoadoutPicker, useLoadoutEmbeds } from "@/components/loadout-ref";
 
 interface RichTextEditorProps {
   content: string;
@@ -52,6 +53,7 @@ function Divider() {
 export function RichTextEditor({ content, onChange, placeholder = "Yazını buraya yaz...", minHeight = 280 }: RichTextEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [esyaSecici, setEsyaSecici] = useState(false);
+  const [kurulumSecici, setKurulumSecici] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -78,6 +80,7 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
       }),
       Placeholder.configure({ placeholder }),
       ItemRefNode,
+      LoadoutRefNode,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -225,6 +228,12 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
             <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
         </ToolbarButton>
+        <ToolbarButton onClick={() => setKurulumSecici(true)} active={false} title="Kurulum Ekle (kristal / eser)">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v10l-7 4-7-4V7l7-4z" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+        </ToolbarButton>
 
         <Divider />
 
@@ -254,6 +263,19 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
         onChange={handleImageFile}
       />
 
+      {kurulumSecici && (
+        <LoadoutPicker
+          onClose={() => setKurulumSecici(false)}
+          onPick={(attrs) => {
+            setKurulumSecici(false);
+            editor.chain().focus().insertContent([
+              { type: "loadoutRef", attrs },
+              { type: "paragraph" },
+            ]).run();
+          }}
+        />
+      )}
+
       {esyaSecici && (
         <ItemPicker
           onClose={() => setEsyaSecici(false)}
@@ -274,13 +296,20 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
 export function RichTextContent({ html, className = "" }: { html: string; className?: string }) {
   // Gövdedeki eşya rozetleri fare üstüne gelince oyun içi kutuyu açıyor.
   const { ref, tooltip } = useItemTooltip<HTMLDivElement>();
+  // Kurulum yer tutucuları karta çevriliyor; ikisi de aynı gövdeye bakıyor.
+  const { ref: kurulumRef, portals } = useLoadoutEmbeds<HTMLDivElement>(html);
+
   return (
     <>
       <div
-        ref={ref}
+        ref={(el) => {
+          (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          (kurulumRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }}
         className={`prose-forum text-sm text-bdo-text-primary leading-relaxed ${className}`}
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {portals}
       {tooltip}
     </>
   );
