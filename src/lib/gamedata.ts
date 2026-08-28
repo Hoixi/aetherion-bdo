@@ -326,3 +326,158 @@ export async function getItem(urn: string, locale: Locale = "tr"): Promise<ItemD
     groups,
   };
 }
+
+// ── Kristal / Eser / Beceri ekranlari ───────────────────────────────────────
+
+export interface StatRow { stat: string; value?: number; unit?: string; op?: string }
+
+export interface EquipItem {
+  id: string;
+  itemId: number;
+  name: string;
+  grade: number;
+  icon: string | null;
+  subCategory: string | null;
+  stats: StatRow[];
+  group?: { key: number; name: string; max: number };
+}
+
+const statsOf = (data: Record<string, unknown>): StatRow[] => {
+  const node = (data?.effects as { stats?: { stats?: StatRow[] } } | undefined)?.stats?.stats;
+  return Array.isArray(node) ? node : [];
+};
+
+const toEquip = (r: {
+  id: string; name: string; grade: number; icon: string | null;
+  sub: string | null; data: Record<string, unknown>;
+}): EquipItem => ({
+  id: r.id,
+  itemId: urnId(r.id),
+  name: r.name,
+  grade: r.grade ?? 0,
+  icon: iconUrl(r.icon),
+  subCategory: r.sub,
+  stats: statsOf(r.data),
+  group: r.data?.crystalGroup as EquipItem["group"],
+});
+
+/** Sihirli kristaller — stat'lari ve grup limitleriyle. */
+export async function listCrystals(): Promise<EquipItem[]> {
+  const rows = await db.$queryRaw<Array<{
+    id: string; name: string; grade: number; icon: string | null;
+    sub: string | null; data: Record<string, unknown>;
+  }>>`
+    select m.id, m.name, m.grade, m.icon, m.market_sub_category as sub, e.data
+    from gamedata.mv_item m
+    join gamedata.entity e on e.entity_id = m.id and e.dataset = 'items'
+    where m.market_category = 'Sihirli Kristal'
+    order by m.grade desc, m.name
+  `;
+  return rows.map(toEquip);
+}
+
+/** Eserler (50) ve isik taslari (93) - ikisi de ayni kategoride duruyor. */
+export async function listArtifacts(): Promise<{ artifacts: EquipItem[]; lightstones: EquipItem[] }> {
+  const rows = await db.$queryRaw<Array<{
+    id: string; name: string; grade: number; icon: string | null;
+    sub: string | null; data: Record<string, unknown>;
+  }>>`
+    select m.id, m.name, m.grade, m.icon, m.market_sub_category as sub, e.data
+    from gamedata.mv_item m
+    join gamedata.entity e on e.entity_id = m.id and e.dataset = 'items'
+    where m.market_category = 'Eser/Işık Taşı'
+    order by m.market_sub_category, m.grade desc, m.name
+  `;
+  const all = rows.map(toEquip);
+  return {
+    artifacts: all.filter((i) => i.subCategory === "Eser"),
+    lightstones: all.filter((i) => i.subCategory !== "Eser"),
+  };
+}
+
+export interface LightstoneCombo {
+  id: string;
+  name: string;
+  required: string[];
+  stats: StatRow[];
+}
+
+/**
+ * Isik tasi kombinasyonlari. Eserlerin kendi etkisi YOK — etki buradan geliyor:
+ * dogru 3 ya da 4 tasi takinca kombinasyon aciliyor.
+ */
+export async function listLightstoneCombos(): Promise<LightstoneCombo[]> {
+  const rows = await db.$queryRaw<Array<{ id: string; data: Record<string, unknown> }>>`
+    select entity_id as id, data from gamedata.entity
+    where dataset = 'lightstone_combinations' and removed_at_patch is null
+  `;
+  return rows
+    .map((r) => ({
+      id: r.id,
+      name: plain(r.data.name),
+      required: ((r.data.required as { urns?: string[] })?.urns ?? []).filter(Boolean),
+      stats: statsOf(r.data),
+    }))
+    .filter((c) => c.required.length > 0)
+    .sort((a, b) => a.required.length - b.required.length || a.name.localeCompare(b.name, "tr"));
+}
+
+/**
+ * Beceri ve kombinasyon adlari oyunun renk etiketlerini tasiyor
+ * ("<PAColor0xffeb9261>Elvia: Carpik Otorite<PAOldColor>"). Ad olarak
+ * kullanilacaklari icin burada temizleniyor - her ekranda ayri ayri
+ * temizlemek yerine tek yerde.
+ */
+const plain = (s: unknown): string =>
+  String(s ?? "").replace(/<PAColor0x[0-9a-fA-F]{8}>|<PAOldColor>/g, "").replace(/\s+/g, " ").trim();
+
+export interface SkillClass { key: number; name: string }
+export interface SkillRank { rank: number; name: string; description: string | null; skillLevel?: number }
+export interface SkillGroup { id: string; name: string; classes: number[]; ranks: SkillRank[] }
+
+export async function listSkillClasses(): Promise<SkillClass[]> {
+  const rows = await db.$queryRaw<Array<{ data: Record<string, unknown> }>>`
+    select data from gamedata.entity where dataset = 'character_classes'
+  `;
+  return rows
+    .map((r) => ({ key: Number(r.data.characterKey), name: String(r.data.name ?? "") }))
+    .filter((c) => Number.isFinite(c.key) && c.name)
+    .sort((a, b) => a.key - b.key);
+}
+
+export async function listSkills(classKey?: number, q?: string): Promise<SkillGroup[]> {
+  const rows = await db.$queryRaw<Array<{ id: string; data: Record<string, unknown> }>>`
+    select entity_id as id, data from gamedata.entity
+    where dataset = 'class_skill_groups' and removed_at_patch is null
+      and (${classKey ?? null}::int is null
+           or data -> 'classes' @> to_jsonb(${classKey ?? 0}::int))
+      and (${q ?? null}::text is null or data ->> 'name' ilike '%' || ${q ?? null}::text || '%')
+    order by data ->> 'name'
+    limit 400
+  `;
+  return rows.map((r) => ({
+    id: r.id,
+    name: plain(r.data.name),
+    classes: (r.data.classes as number[]) ?? [],
+    ranks: ((r.data.ranks as SkillRank[]) ?? []).map((k) => ({
+      rank: k.rank,
+      name: plain(k.name),
+      description: k.description ? plain(k.description) : null,
+      skillLevel: k.skillLevel,
+    })),
+  }));
+}
+
+/**
+ * Beceri eklentisi ("Etki Sec") katalogu — 96 etki.
+ * Bu liste extractor'in build ciktisinda yok, loc tablosu 33'ten aliniyor
+ * (bkz. PAZ: scripts/tools/import-loc-table.mjs).
+ */
+export async function listAddonEffects(): Promise<Array<{ id: number; text: string }>> {
+  const rows = await db.$queryRaw<Array<{ id: string; text: string }>>`
+    select entity_id as id, data ->> 'text' as text
+    from gamedata.entity where dataset = 'skill_addon_effects' and removed_at_patch is null
+    order by (entity_id)::int
+  `;
+  return rows.map((r) => ({ id: Number(r.id), text: r.text }));
+}
