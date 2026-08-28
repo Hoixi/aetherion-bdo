@@ -8,7 +8,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ItemRefNode, ItemPicker, useItemTooltip } from "@/components/item-ref";
 import { LoadoutRefNode, LoadoutPicker, useLoadoutEmbeds } from "@/components/loadout-ref";
 
@@ -293,21 +293,45 @@ export function RichTextEditor({ content, onChange, placeholder = "Yazını bura
 }
 
 // Read-only HTML renderer
+/**
+ * Gövde ayrı ve memolu: kurulum kartları `setState` ile geldiğinde
+ * RichTextContent yeniden render oluyor. Gövde de onunla birlikte yeniden
+ * render olursa React `dangerouslySetInnerHTML`'i tekrar uyguluyor, içerideki
+ * düğümler yenileniyor ve kartların portal hedefi kopuk düğümde kalıyordu —
+ * kart render oluyor ama ekranda görünmüyordu. `html` değişmedikçe bu bileşen
+ * hiç yeniden render olmaz.
+ */
+const RawBody = memo(function RawBody({
+  html, innerRef, className,
+}: {
+  html: string;
+  innerRef: (el: HTMLDivElement | null) => void;
+  className: string;
+}) {
+  return (
+    <div ref={innerRef} className={className} dangerouslySetInnerHTML={{ __html: html }} />
+  );
+});
+
 export function RichTextContent({ html, className = "" }: { html: string; className?: string }) {
   // Gövdedeki eşya rozetleri fare üstüne gelince oyun içi kutuyu açıyor.
   const { ref, tooltip } = useItemTooltip<HTMLDivElement>();
   // Kurulum yer tutucuları karta çevriliyor; ikisi de aynı gövdeye bakıyor.
   const { ref: kurulumRef, portals } = useLoadoutEmbeds<HTMLDivElement>(html);
 
+  // Sabit kimlikli callback — her render yeni fonksiyon vermek RawBody'nin
+  // memosunu boşa çıkarırdı.
+  const setRefs = useCallback((el: HTMLDivElement | null) => {
+    (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (kurulumRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  }, [ref, kurulumRef]);
+
   return (
     <>
-      <div
-        ref={(el) => {
-          (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
-          (kurulumRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-        }}
+      <RawBody
+        html={html}
+        innerRef={setRefs}
         className={`prose-forum text-sm text-bdo-text-primary leading-relaxed ${className}`}
-        dangerouslySetInnerHTML={{ __html: html }}
       />
       {portals}
       {tooltip}

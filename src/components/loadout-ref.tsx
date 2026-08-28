@@ -312,7 +312,11 @@ export function useLoadoutEmbeds<T extends HTMLElement = HTMLDivElement>(html: s
     const root = kap.current;
     if (!root) return;
     const found = Array.from(root.querySelectorAll<HTMLElement>("[data-loadout]")).map((el) => {
-      el.innerHTML = "";     // yedek link yerini karta bırakıyor
+      // Yedek link SİLİNMİYOR, sadece işaretleniyor ve CSS ile gizleniyor.
+      // `el.innerHTML = ""` yazmak portalın React'e ait DOM'unu siliyordu:
+      // StrictMode efekti iki kez çalıştırınca ikinci geçiş kartı siliyor,
+      // React ise DOM'u güncel sandığı için bir daha basmıyordu.
+      el.setAttribute("data-hydrated", "1");
       return {
         el,
         attrs: {

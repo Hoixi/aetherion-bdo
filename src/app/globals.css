@@ -374,6 +374,9 @@ nav {
    yaklaşıyor (altın kenarlık, koyu oyuk) ama gönderiyi ezmeyecek ölçüde:
    ikon 34px, toplamlar iki sütun, uzun listeler kırpılıyor. */
 .loadout-ref { margin: 0.85rem 0; }
+/* Kart yerleşince yedek link gizleniyor — silinmiyor, çünkü o düğümün
+   içini React portalı dolduruyor ve elle silmek onun DOM'unu bozuyor. */
+.loadout-ref[data-hydrated] > a { display: none; }
 
 .loadout-card {
   border: 1px solid var(--t-line-strong);
