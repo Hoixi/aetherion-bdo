@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Hammer, Boxes, Package, Repeat, Copy, Layers } from "lucide-react";
+import { ArrowLeft, Hammer, Boxes, Package, Repeat, Copy, Layers, Sparkles, Gem } from "lucide-react";
 import { TestShell, Card, Empty, loadJson } from "@/components/app-shell";
-import { ItemIcon, ItemChip, BdoText, type ItemLinkLike } from "@/components/item-visuals";
+import { ItemIcon, ItemChip, BdoDescription, type ItemLinkLike } from "@/components/item-visuals";
+import { formatStat, type StatEffect } from "@/lib/bdo-stats";
 import { gradeOf } from "@/lib/bdo-text";
 
 /**
@@ -96,6 +97,11 @@ export default function EsyaDetayPage({ params }: { params: { id: string } }) {
   const stats = statsOf(item.data);
   const classes = Array.isArray(item.data.classes) ? (item.data.classes as string[]) : [];
 
+  // effects.stats.stats — kristal ve eserlerde de aynı şekil.
+  const effectsNode = (item.data.effects as { stats?: { stats?: StatEffect[] } } | undefined)?.stats?.stats;
+  const effects: StatEffect[] = Array.isArray(effectsNode) ? effectsNode : [];
+  const crystalGroup = item.data.crystalGroup as { name: string; max: number } | undefined;
+
   return (
     <TestShell title={item.name} bare>
       <Link href="/esyalar" className="inline-flex items-center gap-1.5 mb-3 text-[12.5px]"
@@ -126,8 +132,8 @@ export default function EsyaDetayPage({ params }: { params: { id: string } }) {
           </div>
 
           {item.description && (
-            <div className="mt-4 pt-4 text-[13px]" style={{ borderTop: "1px solid var(--t-line)", color: "var(--t-dim)" }}>
-              <BdoText text={item.description} />
+            <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--t-line)", color: "var(--t-dim)" }}>
+              <BdoDescription text={item.description} />
             </div>
           )}
 
@@ -155,6 +161,37 @@ export default function EsyaDetayPage({ params }: { params: { id: string } }) {
             </div>
           )}
         </Card>
+
+        {/* ── Yapılandırılmış etkiler ──
+             Açıklama metninde de geçiyorlar ama orada cümlenin içine gömülüler;
+             veri zaten alan alan ayrılmış halde geldiği için tablo olarak
+             basmak hem okunur hem karşılaştırılabilir oluyor. */}
+        {effects.length > 0 && (
+          <Card>
+            <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid var(--t-line)" }}>
+              <Sparkles className="w-4 h-4" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
+              <h2 className="text-[13.5px] font-semibold">Etkiler</h2>
+              {crystalGroup && (
+                <span className="t-chip ml-auto inline-flex items-center gap-1.5">
+                  <Gem className="w-3 h-3" />
+                  {crystalGroup.name} · en fazla {crystalGroup.max}
+                </span>
+              )}
+            </div>
+            <div className="p-4 grid gap-x-6 gap-y-1.5"
+                 style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+              {effects.map((e, i) => {
+                const f = formatStat(e);
+                return (
+                  <div key={i} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+                    <span style={{ color: "var(--t-dim)" }}>{f.label}</span>
+                    <span className="t-num" style={{ color: "var(--t-gold)" }}>{f.value}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         {/* ── Bağlantılı eşyalar ── */}
         {item.groups.length === 0 ? (

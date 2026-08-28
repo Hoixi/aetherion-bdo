@@ -341,3 +341,29 @@ nav {
   outline: 2px solid #d4a853;
   outline-offset: 1px;
 }
+
+/* ── Eşya bağlantı rozeti ──
+   Kenarlık rengi kalite renginden geliyor ama JS ile set edilmiyor:
+   onMouseEnter/onMouseLeave ile yazılan satır içi stil, imleç hızlı çıkınca
+   ya da bileşen yeniden çizilince takılı kalıyordu. CSS değişkeni + :hover
+   bu durumu tamamen ortadan kaldırıyor. */
+.item-chip {
+  border: 1px solid var(--t-line);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.item-chip:hover,
+.item-chip:focus-visible {
+  border-color: var(--item-grade, var(--t-gold));
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+/* ── Oyun içi açıklama blokları ── */
+.bdo-blocks { display: flex; flex-direction: column; gap: 0.55rem; }
+.bdo-section { display: flex; flex-direction: column; gap: 0.2rem; }
+.bdo-section-head { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; }
+.bdo-list {
+  display: flex; flex-direction: column; gap: 0.15rem;
+  padding-left: 0.85rem; border-left: 1px solid var(--t-line);
+  margin-left: 0.15rem;
+}
+.bdo-note { padding-left: 0.9rem; text-indent: -0.9rem; }

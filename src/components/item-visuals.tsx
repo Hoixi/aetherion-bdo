@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { parseBdoText, gradeOf } from "@/lib/bdo-text";
+import { parseBdoText, parseBdoBlocks, gradeOf, type TextSegment } from "@/lib/bdo-text";
 
 /**
  * Eşya görselleri — liste ve detay ekranı ortak kullanıyor.
@@ -71,10 +71,9 @@ export function ItemChip({ item, size = 38 }: { item: ItemLinkLike; size?: numbe
   return (
     <Link
       href={`/esyalar/${idOf(item.id)}`}
-      className="flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] transition-colors group"
-      style={{ border: "1px solid var(--t-line)" }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${g.color}66`)}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--t-line)")}
+      className="item-chip flex items-center gap-2.5 px-2 py-1.5 rounded-[9px]"
+      // Kalite rengi CSS değişkeniyle veriliyor; :hover kuralı globals.css'te.
+      style={{ ["--item-grade" as string]: g.color }}
     >
       <ItemIcon item={item} size={size} />
       <span className="min-w-0">
@@ -109,5 +108,69 @@ export function BdoText({ text, className = "" }: { text: string | null | undefi
         ),
       )}
     </p>
+  );
+}
+
+/** Segment dizisini renkleriyle basar. */
+function Segments({ segs }: { segs?: TextSegment[] }) {
+  if (!segs?.length) return null;
+  return (
+    <>
+      {segs.map((s, i) =>
+        s.bind ? (
+          <kbd key={i} className="px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-mono"
+               style={{ background: "var(--t-raised)", border: "1px solid var(--t-line-strong)",
+                        color: s.color ?? "var(--t-text)" }}>
+            {s.text}
+          </kbd>
+        ) : (
+          <span key={i} style={s.color ? { color: s.color } : undefined}>{s.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * Açıklamayı oyun içi tooltip düzeniyle basar: başlıklar, altlarındaki
+ * listeler ve ※ notları ayrı bloklar halinde. Tek paragrafta basmak
+ * oyunda ayrı duran şeyleri birbirine yapıştırıyordu.
+ */
+export function BdoDescription({ text }: { text: string | null | undefined }) {
+  const blocks = parseBdoBlocks(text);
+  if (blocks.length === 0) return null;
+
+  return (
+    <div className="bdo-blocks text-[13px]">
+      {blocks.map((b, i) => {
+        if (b.kind === "note") {
+          return (
+            <p key={i} className="bdo-note text-[12px]" style={{ color: "var(--t-faint)" }}>
+              ※ <Segments segs={b.body} />
+            </p>
+          );
+        }
+        if (b.kind === "text") {
+          return <p key={i} className="whitespace-pre-wrap"><Segments segs={b.body} /></p>;
+        }
+        return (
+          <div key={i} className="bdo-section">
+            <div className="bdo-section-head">
+              <span className="font-medium" style={{ color: "var(--t-text)" }}>
+                <Segments segs={b.label} />
+              </span>
+              {b.body?.length ? <span><Segments segs={b.body} /></span> : null}
+            </div>
+            {b.items?.length ? (
+              <div className="bdo-list">
+                {b.items.map((it, j) => (
+                  <span key={j} className="text-[12.5px]"><Segments segs={it} /></span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }

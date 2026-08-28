@@ -103,3 +103,89 @@ const GRADES: Record<number, Grade> = {
 
 export const gradeOf = (g: number | null | undefined): Grade =>
   GRADES[g ?? 0] ?? { label: `Kademe ${g}`, color: "#9a9aa2" };
+
+// ── Aciklama bloklari ───────────────────────────────────────────────────────
+
+/**
+ * Oyun aciklamalari duz metin degil, satir bazli bir yapi tasiyor:
+ *
+ *   - Kullanim: Esya kullanilarak etki elde edilir     -> etiketli satir
+ *   - Etki                                            -> baslik
+ *      Tum AP +10                                     -> onun altindaki liste
+ *   ※ Tur: Parfum                                     -> not
+ *
+ * Hepsini tek paragrafta basmak oyun ici tooltip'te ayri duran seyleri
+ * birbirine yapistiriyor; burada bloklara ayiriyoruz.
+ */
+export interface TextBlock {
+  kind: "text" | "section" | "note";
+  label?: TextSegment[];
+  body?: TextSegment[];
+  items?: TextSegment[][];
+}
+
+/** Etiket icinde olmayan ilk iki nokta ( {TextBind:...} ve <PAColor...> haric ). */
+function topLevelColon(raw: string): number {
+  let angle = 0, brace = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === "<") angle++;
+    else if (c === ">") angle = Math.max(0, angle - 1);
+    else if (c === "{") brace++;
+    else if (c === "}") brace = Math.max(0, brace - 1);
+    else if (c === ":" && angle === 0 && brace === 0) return i;
+  }
+  return -1;
+}
+
+/** Bastaki/sondaki bosluk renk etiketinin ICINDE kalabiliyor; segment duzeyinde kirp. */
+function trimSegments(segs: TextSegment[]): TextSegment[] {
+  const out = segs.map((s) => ({ ...s }));
+  while (out.length && out[0].text.trimStart() === "") out.shift();
+  if (out.length) out[0].text = out[0].text.trimStart();
+  while (out.length && out[out.length - 1].text.trimEnd() === "") out.pop();
+  if (out.length) out[out.length - 1].text = out[out.length - 1].text.trimEnd();
+  return out;
+}
+
+export function parseBdoBlocks(raw: string | null | undefined): TextBlock[] {
+  if (!raw || raw === "<null>") return [];
+
+  const blocks: TextBlock[] = [];
+  let open: TextBlock | null = null;   // liste toplayan acik baslik
+
+  for (const line of raw.split("\n")) {
+    const plain = stripBdoText(line);
+    if (plain === "") { open = null; continue; }
+
+    if (plain.startsWith("※")) {
+      blocks.push({ kind: "note", body: trimSegments(parseBdoText(line.replace(/※\s*/, ""))) });
+      open = null;
+      continue;
+    }
+
+    if (/^-\s/.test(plain)) {
+      const rest = line.replace(/^\s*-\s*/, "");
+      const colon = topLevelColon(rest);
+      if (colon >= 0) {
+        blocks.push({
+          kind: "section",
+          label: trimSegments(parseBdoText(rest.slice(0, colon))),
+          body: trimSegments(parseBdoText(rest.slice(colon + 1))),
+        });
+        open = null;
+      } else {
+        // Iki nokta yoksa altindaki satirlar bu basligin listesi olur.
+        open = { kind: "section", label: trimSegments(parseBdoText(rest)), items: [] };
+        blocks.push(open);
+      }
+      continue;
+    }
+
+    const segments = trimSegments(parseBdoText(line));
+    if (open) open.items!.push(segments);
+    else blocks.push({ kind: "text", body: segments });
+  }
+
+  return blocks.filter((b) => b.kind !== "section" || b.label?.length || b.items?.length);
+}
