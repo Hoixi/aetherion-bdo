@@ -38,6 +38,7 @@ export const config = {
     "/optimizer/:path*",
     "/ally/:path*",
     "/esyalar/:path*",
+    "/gear-test/:path*",
     "/admin/:path*",
   ],
 };
