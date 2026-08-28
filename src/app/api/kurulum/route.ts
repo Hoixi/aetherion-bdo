@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import {
-  listCrystals, listArtifacts, listLightstoneCombos,
+  listCrystals, listArtifacts, listLightstoneCombos, lightstoneAliases,
   listSkillClasses, listSkills, listAddonEffects,
 } from "@/lib/gamedata";
 
@@ -26,10 +26,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ crystals: await listCrystals() });
     }
     if (what === "eser") {
-      const [{ artifacts, lightstones }, combos] = await Promise.all([
-        listArtifacts(), listLightstoneCombos(),
+      const [{ artifacts, lightstones }, combos, aliases] = await Promise.all([
+        listArtifacts(), listLightstoneCombos(), lightstoneAliases(),
       ]);
-      return NextResponse.json({ artifacts, lightstones, combos });
+      return NextResponse.json({ artifacts, lightstones, combos, aliases });
     }
     if (what === "beceri") {
       const [classes, skills, addons] = await Promise.all([

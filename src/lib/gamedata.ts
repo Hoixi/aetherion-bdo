@@ -423,6 +423,29 @@ export async function listLightstoneCombos(): Promise<LightstoneCombo[]> {
 }
 
 /**
+ * Guclendirilmis isik taslarinin temel karsiliklari.
+ *
+ * Kombinasyonlar temel tasin urn'unu istiyor ama oyunda guclendirilmis surum
+ * de sayiliyor: "Guclendirilmis Atesin Isik Tasi: Hiddet" takiliyken
+ * kombinasyon yine aciliyor. Extractor bu esdegerligi ayri bir alias
+ * tablosunda veriyor; eslesme yapilirken once buradan gecirilmeli, yoksa
+ * guclendirilmis tas takan hicbir kombinasyon acamaz.
+ */
+export async function lightstoneAliases(): Promise<Record<string, string>> {
+  // Alias listesi kombinasyon kayitlarinin icinde degil, ayni dosyada ayri bir
+  // dizi olarak geliyor; boru hatti onu `lightstone_aliases` dataset'ine
+  // yaziyor. Tablo bos ise eslesme yalnizca temel taslarla calisir.
+  const alias = await db.$queryRaw<Array<{ from_urn: string; to_urn: string }>>`
+    select data ->> 'item' as from_urn, data ->> 'countsAs' as to_urn
+    from gamedata.entity
+    where dataset = 'lightstone_aliases' and removed_at_patch is null
+  `;
+  const map: Record<string, string> = {};
+  for (const a of alias) if (a.from_urn && a.to_urn) map[a.from_urn] = a.to_urn;
+  return map;
+}
+
+/**
  * Beceri ve kombinasyon adlari oyunun renk etiketlerini tasiyor
  * ("<PAColor0xffeb9261>Elvia: Carpik Otorite<PAOldColor>"). Ad olarak
  * kullanilacaklari icin burada temizleniyor - her ekranda ayri ayri

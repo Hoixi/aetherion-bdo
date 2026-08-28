@@ -18,7 +18,7 @@ import { statTr } from "@/lib/bdo-stats";
  */
 
 const ARTIFACT_SLOTS = 2;
-const STONE_SLOTS = 5;
+const STONE_SLOTS = 4;
 
 interface Combo { id: string; name: string; required: string[]; stats: StatRow[] }
 
@@ -29,6 +29,7 @@ export default function EserlerPage() {
   const [artifacts, setArtifacts] = useState<Equippable[]>([]);
   const [lightstones, setLightstones] = useState<Equippable[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
+  const [aliases, setAliases] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState<{ kind: "eser" | "tas"; index: number } | null>(null);
@@ -38,8 +39,12 @@ export default function EserlerPage() {
   const [tas, setTas] = useState<(number | null)[]>(() => decodeSet(params.get("t"), STONE_SLOTS));
 
   useEffect(() => {
-    loadJson<{ artifacts: Equippable[]; lightstones: Equippable[]; combos: Combo[] }>("/api/kurulum?ne=eser")
-      .then((r) => { setArtifacts(r.artifacts); setLightstones(r.lightstones); setCombos(r.combos); })
+    loadJson<{ artifacts: Equippable[]; lightstones: Equippable[]; combos: Combo[];
+               aliases: Record<string, string> }>("/api/kurulum?ne=eser")
+      .then((r) => {
+        setArtifacts(r.artifacts); setLightstones(r.lightstones);
+        setCombos(r.combos); setAliases(r.aliases ?? {});
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -70,7 +75,10 @@ export default function EserlerPage() {
    * gösteriliyor ki bir taş eksikse görülebilsin.
    */
   const { active, close } = useMemo(() => {
-    const have = new Set(equippedStones.map((s) => s.id));
+    // Guclendirilmis tas temel tasin yerine sayiliyor; kombinasyonlar temel
+    // urn istedigi icin once alias'tan gecirilmezse guclendirilmis tas takan
+    // hicbir kombinasyon acamaz.
+    const have = new Set(equippedStones.map((s) => aliases[s.id] ?? s.id));
     const act: Combo[] = [];
     const near: Array<{ combo: Combo; missing: string[] }> = [];
     for (const c of combos) {
@@ -79,18 +87,37 @@ export default function EserlerPage() {
       else if (have.size > 0 && missing.length === 1) near.push({ combo: c, missing });
     }
     return { active: act, close: near.slice(0, 6) };
-  }, [combos, equippedStones]);
+  }, [combos, equippedStones, aliases]);
 
-  const comboStats = useMemo(
-    () => sumStats(active.map((c) => ({
-      id: c.id, itemId: 0, name: c.name, grade: 0, icon: null, subCategory: null, stats: c.stats,
-    }))),
-    [active]);
+  // Taslarin 83'unun kendi etkisi de var; toplam = kombinasyon + taslar.
+  const allSources = useMemo(() => [
+    ...active.map((c) => ({
+      id: c.id, itemId: 0, name: c.name, grade: 0,
+      icon: null, subCategory: null, stats: c.stats,
+    })),
+    ...equippedStones,
+  ], [active, equippedStones]);
+
+  const comboStats = useMemo(() => sumStats(allSources), [allSources]);
 
   const share = () => {
     navigator.clipboard?.writeText(window.location.href).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 1800);
     }).catch(() => {});
+  };
+
+  /**
+   * Taşın kendi etkisi seçicide görünsün — 93 taşın 83'ünün kombinasyondan
+   * bağımsız kendi stat'ı var ve hangisini takacağına ona bakarak karar
+   * veriliyor. Güçlendirilmiş sürüm ayrıca işaretleniyor: kombinasyonda
+   * temel taşın yerine geçtiği için ikisi listede karışabiliyor.
+   */
+  const stoneNote = (s: Equippable) => {
+    const own = (s.stats ?? [])
+      .map((x) => `${statTr(x.stat)} ${x.op === "-" ? "-" : "+"}${x.unit === "%" ? "%" : ""}${x.value}`)
+      .join(" · ");
+    const guclu = aliases[s.id] && aliases[s.id] !== s.id ? "Güçlendirilmiş" : null;
+    return [guclu, own || s.subCategory].filter(Boolean).join(" — ") || null;
   };
 
   const cleanName = (s: string) => s.replace(/<[^>]*>/g, "").trim();
@@ -139,6 +166,19 @@ export default function EserlerPage() {
               </div>
             </div>
           </div>
+
+          {equippedStones.length > 0 && (
+            <div className="flex flex-col gap-1 mt-4 pt-4" style={{ borderTop: "1px solid var(--t-line)" }}>
+              {equippedStones.map((s, i) => (
+                <div key={s.id + i} className="flex items-center justify-between gap-3 text-[12.5px]">
+                  <span className="truncate">{s.name}</span>
+                  <span className="shrink-0 text-[11.5px]" style={{ color: "var(--t-dim)" }}>
+                    {stoneNote(s) ?? "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* ── Açılan kombinasyonlar ── */}
@@ -209,12 +249,10 @@ export default function EserlerPage() {
           </div>
           {comboStats.length === 0 ? (
             <p className="text-[12.5px] px-4 py-3" style={{ color: "var(--t-faint)" }}>
-              Kombinasyon açılınca toplam burada çıkar.
+              Taş tak ya da kombinasyon aç, toplam burada çıksın.
             </p>
           ) : (
-            <StatTotals items={active.map((c) => ({
-              id: c.id, itemId: 0, name: c.name, grade: 0, icon: null, subCategory: null, stats: c.stats,
-            }))} />
+            <StatTotals items={allSources} />
           )}
         </Card>
       </div>
@@ -225,7 +263,7 @@ export default function EserlerPage() {
       )}
       {picking?.kind === "tas" && (
         <Picker title="Işık taşı seç" items={lightstones} onClose={() => setPicking(null)}
-                note={(s) => s.subCategory}
+                note={stoneNote}
                 onSelect={(s) => sync(eser, tas.map((v, j) => (j === picking.index ? s.itemId : v)))} />
       )}
     </TestShell>

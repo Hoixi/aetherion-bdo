@@ -15,7 +15,8 @@ import { Slot, Picker, StatTotals, encodeSet, decodeSet, type Equippable } from 
  * oyunda zaten takılamaz.
  */
 
-const SLOTS = 10;
+// Oyundaki kristal yuvasi sayisi.
+const SLOTS = 16;
 
 export default function KristallerPage() {
   const router = useRouter();

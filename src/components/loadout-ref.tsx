@@ -81,12 +81,15 @@ interface Combo { id: string; name: string; required: string[]; stats: StatRow[]
 
 /** Bir kez çekilip tüm kartlarca paylaşılan veri. */
 let kristalCache: Promise<Equippable[]> | null = null;
-let eserCache: Promise<{ artifacts: Equippable[]; lightstones: Equippable[]; combos: Combo[] }> | null = null;
+let eserCache: Promise<EserPayload> | null = null;
 
 const getKristal = () => (kristalCache ??= fetch("/api/kurulum?ne=kristal")
   .then((r) => (r.ok ? r.json() : { crystals: [] })).then((d) => d.crystals ?? []));
 
-interface EserPayload { artifacts: Equippable[]; lightstones: Equippable[]; combos: Combo[] }
+interface EserPayload {
+  artifacts: Equippable[]; lightstones: Equippable[];
+  combos: Combo[]; aliases: Record<string, string>;
+}
 
 const getEser = () => (eserCache ??= fetch("/api/kurulum?ne=eser")
   .then((r) => (r.ok ? r.json() : {}) as Promise<Partial<EserPayload>>)
@@ -94,6 +97,7 @@ const getEser = () => (eserCache ??= fetch("/api/kurulum?ne=eser")
     artifacts: d.artifacts ?? [],
     lightstones: d.lightstones ?? [],
     combos: d.combos ?? [],
+    aliases: d.aliases ?? {},
   })));
 
 const idsFrom = (code: string) =>
@@ -122,7 +126,9 @@ function LoadoutCard({ kind, code, label }: LoadoutAttrs) {
     const by = new Map([...eser.artifacts, ...eser.lightstones].map((i) => [i.itemId, i]));
     const chosen = [...idsFrom(qs.get("e") ?? ""), ...idsFrom(qs.get("t") ?? "")]
       .map((id) => by.get(id)).filter(Boolean) as Equippable[];
-    const have = new Set(chosen.map((c) => c.id));
+    // Guclendirilmis tas temel tasin yerine sayiliyor - kurulum ekraniyla
+    // ayni cozumleme, yoksa kart ile ekran farkli sonuc gosterir.
+    const have = new Set(chosen.map((c) => eser.aliases[c.id] ?? c.id));
     return {
       items: chosen,
       combos: eser.combos.filter((c) => c.required.every((u) => have.has(u))),
@@ -131,8 +137,13 @@ function LoadoutCard({ kind, code, label }: LoadoutAttrs) {
 
   const totals = useMemo(
     () => (kind === "eser"
-      ? sumStats(combos.map((c) => ({
-          id: c.id, itemId: 0, name: c.name, grade: 0, icon: null, subCategory: null, stats: c.stats })))
+      // Taslarin cogunun kombinasyondan bagimsiz kendi stat'i da var.
+      ? sumStats([
+          ...combos.map((c) => ({
+            id: c.id, itemId: 0, name: c.name, grade: 0,
+            icon: null, subCategory: null, stats: c.stats })),
+          ...items,
+        ])
       : sumStats(items)),
     [kind, items, combos]);
 
