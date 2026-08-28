@@ -159,12 +159,15 @@ export function BdoDescription({ text }: { text: string | null | undefined }) {
               <span className="font-medium" style={{ color: "var(--t-text)" }}>
                 <Segments segs={b.label} />
               </span>
-              {b.body?.length ? <span><Segments segs={b.body} /></span> : null}
+              {b.body?.length ? <span>{" "}<Segments segs={b.body} /></span> : null}
             </div>
             {b.items?.length ? (
               <div className="bdo-list">
+                {/* Madde başına <div>: satırların alt alta gelmesi CSS'e
+                    bırakılmıyor. <span> olduğunda flex kuralı uygulanmazsa
+                    hepsi yan yana diziliyor ve metin iç içe geçiyordu. */}
                 {b.items.map((it, j) => (
-                  <span key={j} className="text-[12.5px]"><Segments segs={it} /></span>
+                  <div key={j} className="text-[12.5px]"><Segments segs={it} /></div>
                 ))}
               </div>
             ) : null}

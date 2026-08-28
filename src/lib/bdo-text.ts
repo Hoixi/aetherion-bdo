@@ -17,12 +17,33 @@ export interface TextSegment {
 
 const COLOR_OPEN = /<PAColor0x([0-9a-fA-F]{8})>/;
 const COLOR_CLOSE = "<PAOldColor>";
-const BIND = /\{TextBind:([A-Z0-9_]+)\}/g;
+// Oyun iki ad kullaniyor: {TextBind:...} ve {KeyBind:...}; ikincisi karisik
+// harfli ("Manufacture") oldugu icin sadece buyuk harf arayan kalip onu
+// kaciriyor ve ham suslu parantez ekranda kaliyordu.
+const BIND = /\{(?:TextBind|KeyBind):([A-Za-z0-9_]+)\}/g;
 
 const BIND_LABELS: Record<string, string> = {
   USE_CLICK_RMB: "Sağ tık",
   USE_CLICK_LMB: "Sol tık",
 };
+
+/**
+ * Tus atamasinin okunur karsiligi.
+ *
+ * Anahtarlar eylem_CLICK_dugme bicimini izliyor (TRANSFUSION_CLICK_RMB gibi).
+ * Hangi tusa bagli oldugunu bilmiyoruz - o oyuncunun ayari - ama fare dugmesi
+ * anahtarin icinde yaziyor. Bilinmeyen anahtari ham basmak yerine okunur hale
+ * getiriyoruz; eskiden "TRANSFUSION_CLICK_RMB" diye ekrana dusuyordu.
+ */
+function bindLabel(key: string): string {
+  if (BIND_LABELS[key]) return BIND_LABELS[key];
+  if (/_RMB$/.test(key)) return "Sağ tık";
+  if (/_LMB$/.test(key)) return "Sol tık";
+  if (/_MMB$/.test(key)) return "Orta tık";
+  // Kucultmek "Manufacture"i "manufacture" yapip Turkce cumle icinde
+  // tuhaf birakiyordu; anahtari oldugu gibi, alt cizgiler bosluk olarak.
+  return key.replace(/_/g, " ");
+}
 
 /** 0xAARRGGBB -> #RRGGBB (alfa yok sayilir; koyu zeminde zaten opak basiyoruz) */
 function toHex(argb: string): string {
@@ -37,7 +58,7 @@ function splitBinds(text: string, color?: string): TextSegment[] {
   for (const m of Array.from(text.matchAll(BIND))) {
     const at = m.index ?? 0;
     if (at > last) out.push({ text: text.slice(last, at), color });
-    out.push({ text: BIND_LABELS[m[1]] ?? m[1], color, bind: true });
+    out.push({ text: bindLabel(m[1]), color, bind: true });
     last = at + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last), color });
@@ -167,18 +188,18 @@ export function parseBdoBlocks(raw: string | null | undefined): TextBlock[] {
     if (/^-\s/.test(plain)) {
       const rest = line.replace(/^\s*-\s*/, "");
       const colon = topLevelColon(rest);
-      if (colon >= 0) {
-        blocks.push({
-          kind: "section",
-          label: trimSegments(parseBdoText(rest.slice(0, colon))),
-          body: trimSegments(parseBdoText(rest.slice(colon + 1))),
-        });
-        open = null;
-      } else {
-        // Iki nokta yoksa altindaki satirlar bu basligin listesi olur.
-        open = { kind: "section", label: trimSegments(parseBdoText(rest)), items: [] };
-        blocks.push(open);
-      }
+      // Iki nokta varsa aciklama basligin yaninda durur ("Sure: 20 dk."),
+      // yoksa baslik tek basina kalir ("Uretim Malzemeleri"). Iki durumda da
+      // ARDINDAN gelen satirlar bu basligin listesi olur: kristalde
+      // "Kullanim: ... etkiler alinir." satirinin altinda etkiler siralaniyor
+      // ve bunlar ayri paragraflara dagilmamali.
+      open = {
+        kind: "section",
+        label: trimSegments(parseBdoText(colon >= 0 ? rest.slice(0, colon) : rest)),
+        body: colon >= 0 ? trimSegments(parseBdoText(rest.slice(colon + 1))) : undefined,
+        items: [],
+      };
+      blocks.push(open);
       continue;
     }
 

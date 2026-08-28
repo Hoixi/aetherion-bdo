@@ -3,8 +3,8 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X, Package } from "lucide-react";
-import { gradeOf, parseBdoText } from "@/lib/bdo-text";
-import { ItemIcon } from "@/components/item-visuals";
+import { gradeOf } from "@/lib/bdo-text";
+import { ItemIcon, BdoDescription } from "@/components/item-visuals";
 
 /**
  * Forum yazılarına eşya gömme.
@@ -310,11 +310,12 @@ function ItemTooltip({ attrs, detay, fiyat, yukleniyor, x, y }: {
           </div>
 
           {detay.description && (
-            <div className="mt-2.5 pt-2.5 text-[11.5px] leading-relaxed"
+            <div className="mt-2.5 pt-2.5 text-[11.5px]"
                  style={{ borderTop: "1px solid var(--t-line)", color: "var(--t-dim)" }}>
-              {parseBdoText(detay.description).map((p, i) => (
-                <span key={i} style={p.color ? { color: p.color } : undefined}>{p.text}</span>
-              ))}
+              {/* Detay sayfasıyla aynı blok düzeni: oyun açıklamayı başlık,
+                  liste ve ※ notu olarak ayırıyor; tek paragrafta basınca
+                  hepsi birbirine giriyordu. */}
+              <BdoDescription text={detay.description} />
             </div>
           )}
         </>

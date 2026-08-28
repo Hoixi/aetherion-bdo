@@ -358,14 +358,16 @@ nav {
 }
 
 /* ── Oyun içi açıklama blokları ── */
-.bdo-blocks { display: flex; flex-direction: column; gap: 0.55rem; }
-.bdo-section { display: flex; flex-direction: column; gap: 0.2rem; }
+/* Bloklar zaten <div> olduğu için CSS gelmese de alt alta durur; buradaki
+   kurallar sadece aralık ve girinti veriyor, dizilimi taşımıyor. */
+.bdo-blocks > * + * { margin-top: 0.55rem; }
+.bdo-section > * + * { margin-top: 0.2rem; }
 .bdo-section-head { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; }
 .bdo-list {
-  display: flex; flex-direction: column; gap: 0.15rem;
   padding-left: 0.85rem; border-left: 1px solid var(--t-line);
   margin-left: 0.15rem;
 }
+.bdo-list > * + * { margin-top: 0.15rem; }
 .bdo-note { padding-left: 0.9rem; text-indent: -0.9rem; }
 
 /* ── Forumdaki kurulum kartı ──
