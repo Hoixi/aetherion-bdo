@@ -196,20 +196,42 @@ export function useItemTooltip<T extends HTMLElement = HTMLDivElement>() {
     const el = kap.current;
     if (!el) return;
 
+    const kapat = () => {
+      bilet.current++;
+      setKonum(null);
+      setYukleniyor(false);
+    };
+
     const gir = (e: Event) => {
       const t = (e.target as HTMLElement | null)?.closest?.("[data-item]");
       if (t) ac(t as HTMLElement);
     };
+
     const cik = (e: Event) => {
-      const t = (e.target as HTMLElement | null)?.closest?.("[data-item]");
-      if (t) { bilet.current++; setKonum(null); setYukleniyor(false); }
+      const from = (e.target as HTMLElement | null)?.closest?.("[data-item]");
+      if (!from) return;
+      // Rozetin içinde gezinmek (ikondan yazıya geçmek) çıkış değil:
+      // mouseout çocuk elemana geçerken de tetikleniyor ve balon titriyordu.
+      const to = (e as MouseEvent).relatedTarget as HTMLElement | null;
+      if (to && from.contains(to)) return;
+      kapat();
     };
 
     el.addEventListener("mouseover", gir);
     el.addEventListener("mouseout", cik);
+    // Rozetler arası boşluğa geçip kapsayıcıdan çıkınca da kapansın.
+    el.addEventListener("pointerleave", kapat);
+    // Konum açılışta ölçülüp `fixed` sabitleniyor: sayfa kayınca rozet gidiyor,
+    // balon yerinde kalıyordu ve fare kımıldamadığı için mouseout hiç gelmiyordu.
+    window.addEventListener("scroll", kapat, true);
+    window.addEventListener("blur", kapat);
+
     return () => {
       el.removeEventListener("mouseover", gir);
       el.removeEventListener("mouseout", cik);
+      el.removeEventListener("pointerleave", kapat);
+      window.removeEventListener("scroll", kapat, true);
+      window.removeEventListener("blur", kapat);
     };
   }, [ac]);
 
