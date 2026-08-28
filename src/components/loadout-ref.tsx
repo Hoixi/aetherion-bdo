@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Gem, Sparkles, X, Link2 } from "lucide-react";
 import { ItemIcon } from "@/components/item-visuals";
 import { sumStats, type Equippable, type StatRow } from "@/components/loadout";
+import { formatTotal } from "@/lib/bdo-stats";
 
 /**
  * Kristal / eser kurulumunu foruma gömme.
@@ -103,9 +104,36 @@ const getEser = () => (eserCache ??= fetch("/api/kurulum?ne=eser")
 const idsFrom = (code: string) =>
   code.split("-").map(Number).filter((n) => Number.isFinite(n) && n > 0);
 
+const SLOT_COUNTS = { kristal: 16, eser: { artifact: 2, stone: 4 } } as const;
+
+/** Tooltip'in yakalayabilmesi için parça oyun içi rozet nitelikleriyle sarılıyor. */
+function CardSlot({ item, size = 34 }: { item: Equippable | null; size?: number }) {
+  if (!item) {
+    return <span className="loadout-slot loadout-slot-empty" style={{ width: size, height: size }} />;
+  }
+  return (
+    <span
+      className="loadout-slot"
+      style={{ width: size, height: size }}
+      // Forumdaki eşya tooltip'i bu nitelikleri arıyor; karttaki parçalar da
+      // aynı kutuyu açsın diye burada da veriliyor.
+      data-item={item.id}
+      data-name={item.name}
+      data-grade={String(item.grade)}
+      {...(item.icon ? { "data-icon": item.icon } : {})}
+    >
+      <ItemIcon item={item} size={size} />
+    </span>
+  );
+}
+
+/** Boş yuvaları da çizecek şekilde sabit uzunluğa getirir. */
+const pad = <T,>(arr: T[], n: number): (T | null)[] =>
+  Array.from({ length: n }, (_, i) => arr[i] ?? null);
+
 function LoadoutCard({ kind, code, label }: LoadoutAttrs) {
   const [crystals, setCrystals] = useState<Equippable[] | null>(null);
-  const [eser, setEser] = useState<Awaited<ReturnType<typeof getEser>> | null>(null);
+  const [eser, setEser] = useState<EserPayload | null>(null);
 
   useEffect(() => {
     if (kind === "kristal") getKristal().then(setCrystals).catch(() => setCrystals([]));
@@ -114,30 +142,42 @@ function LoadoutCard({ kind, code, label }: LoadoutAttrs) {
 
   const href = kind === "kristal" ? `/kristaller?k=${code}` : `/eserler?${code}`;
 
-  const { items, combos } = useMemo(() => {
+  const { crystalSlots, artifactSlots, stoneSlots, combos, items } = useMemo(() => {
+    const bos = {
+      crystalSlots: [] as (Equippable | null)[],
+      artifactSlots: [] as (Equippable | null)[],
+      stoneSlots: [] as (Equippable | null)[],
+      combos: [] as Combo[],
+      items: [] as Equippable[],
+    };
+
     if (kind === "kristal") {
-      if (!crystals) return { items: [], combos: [] as Combo[] };
+      if (!crystals) return bos;
       const by = new Map(crystals.map((c) => [c.itemId, c]));
-      return { items: idsFrom(code).map((id) => by.get(id)).filter(Boolean) as Equippable[], combos: [] };
+      const chosen = idsFrom(code).map((id) => by.get(id)).filter(Boolean) as Equippable[];
+      return { ...bos, crystalSlots: pad(chosen, SLOT_COUNTS.kristal), items: chosen };
     }
-    if (!eser) return { items: [], combos: [] as Combo[] };
-    // eser kodu: "e=..&t=.." biçiminde geliyor
+
+    if (!eser) return bos;
     const qs = new URLSearchParams(code);
     const by = new Map([...eser.artifacts, ...eser.lightstones].map((i) => [i.itemId, i]));
-    const chosen = [...idsFrom(qs.get("e") ?? ""), ...idsFrom(qs.get("t") ?? "")]
-      .map((id) => by.get(id)).filter(Boolean) as Equippable[];
-    // Guclendirilmis tas temel tasin yerine sayiliyor - kurulum ekraniyla
-    // ayni cozumleme, yoksa kart ile ekran farkli sonuc gosterir.
-    const have = new Set(chosen.map((c) => eser.aliases[c.id] ?? c.id));
+    const arts = idsFrom(qs.get("e") ?? "").map((id) => by.get(id)).filter(Boolean) as Equippable[];
+    const stones = idsFrom(qs.get("t") ?? "").map((id) => by.get(id)).filter(Boolean) as Equippable[];
+    // Güçlendirilmiş taş temel taşın yerine sayılıyor — kurulum ekranıyla aynı
+    // çözümleme, yoksa kart ile ekran farklı sonuç gösterir.
+    const have = new Set(stones.map((s) => eser.aliases[s.id] ?? s.id));
     return {
-      items: chosen,
+      ...bos,
+      artifactSlots: pad(arts, SLOT_COUNTS.eser.artifact),
+      stoneSlots: pad(stones, SLOT_COUNTS.eser.stone),
       combos: eser.combos.filter((c) => c.required.every((u) => have.has(u))),
+      items: [...arts, ...stones],
     };
   }, [kind, code, crystals, eser]);
 
   const totals = useMemo(
     () => (kind === "eser"
-      // Taslarin cogunun kombinasyondan bagimsiz kendi stat'i da var.
+      // Taşların çoğunun kombinasyondan bağımsız kendi stat'ı da var.
       ? sumStats([
           ...combos.map((c) => ({
             id: c.id, itemId: 0, name: c.name, grade: 0,
@@ -147,64 +187,113 @@ function LoadoutCard({ kind, code, label }: LoadoutAttrs) {
       : sumStats(items)),
     [kind, items, combos]);
 
-  const Icon = kind === "kristal" ? Gem : Sparkles;
   const loading = kind === "kristal" ? crystals === null : eser === null;
+
+  return (
+    <LoadoutCardView
+      kind={kind} label={label} href={href} loading={loading}
+      crystalSlots={crystalSlots} artifactSlots={artifactSlots}
+      stoneSlots={stoneSlots} combos={combos} totals={totals} filled={items.length}
+    />
+  );
+}
+
+/**
+ * Kartın görünümü — veri çekmeden, verilen parçalarla çiziyor.
+ * Ayrı durmasının sebebi: kart bir tasarım işi ve veritabanı olmadan da
+ * gözden geçirilebilmesi gerekiyor.
+ */
+export function LoadoutCardView({
+  kind, label, href, loading, crystalSlots, artifactSlots, stoneSlots, combos, totals, filled,
+}: {
+  kind: LoadoutKind;
+  label: string;
+  href: string;
+  loading: boolean;
+  crystalSlots: (Equippable | null)[];
+  artifactSlots: (Equippable | null)[];
+  stoneSlots: (Equippable | null)[];
+  combos: Combo[];
+  totals: ReturnType<typeof sumStats>;
+  filled: number;
+}) {
+  const Icon = kind === "kristal" ? Gem : Sparkles;
+  const dolu = filled;
+  const toplam = kind === "kristal"
+    ? SLOT_COUNTS.kristal
+    : SLOT_COUNTS.eser.artifact + SLOT_COUNTS.eser.stone;
 
   return (
     <div className="loadout-card">
       <div className="loadout-card-head">
         <Icon className="w-3.5 h-3.5" style={{ color: "var(--t-gold)" }} />
-        <span className="text-[12.5px] font-semibold">
+        <span className="loadout-card-title">
           {label || (kind === "kristal" ? "Kristal kurulumu" : "Eser kurulumu")}
         </span>
-        <a href={href} className="ml-auto text-[11px] inline-flex items-center gap-1"
-           style={{ color: "var(--t-dim)" }}>
+        <span className="loadout-count">{dolu}/{toplam}</span>
+        <a href={href} className="loadout-open">
           <Link2 className="w-3 h-3" /> Aç
         </a>
       </div>
 
       {loading ? (
-        <p className="text-[12px] px-3 py-2.5" style={{ color: "var(--t-faint)" }}>Yükleniyor…</p>
-      ) : items.length === 0 ? (
-        <p className="text-[12px] px-3 py-2.5" style={{ color: "var(--t-faint)" }}>
-          Bu kurulumda parça yok.
-        </p>
+        <div className="loadout-card-body">
+          <span className="loadout-hint">Yükleniyor…</span>
+        </div>
+      ) : dolu === 0 ? (
+        <div className="loadout-card-body">
+          <span className="loadout-hint">Bu kurulumda parça yok.</span>
+        </div>
       ) : (
-        <>
-          <div className="loadout-card-items">
-            {items.map((it, i) => (
-              <span key={it.id + i} title={it.name}>
-                <ItemIcon item={it} size={34} />
-              </span>
-            ))}
-          </div>
+        <div className="loadout-card-body">
+          {kind === "kristal" ? (
+            <div className="loadout-grid">
+              {crystalSlots.map((c, i) => <CardSlot key={i} item={c} />)}
+            </div>
+          ) : (
+            <div className="loadout-rows">
+              <div className="loadout-row">
+                <span className="loadout-row-label">Eser</span>
+                <div className="loadout-row-slots">
+                  {artifactSlots.map((a, i) => <CardSlot key={i} item={a} size={40} />)}
+                </div>
+              </div>
+              <div className="loadout-row">
+                <span className="loadout-row-label">Işık Taşı</span>
+                <div className="loadout-row-slots">
+                  {stoneSlots.map((s, i) => <CardSlot key={i} item={s} size={40} />)}
+                </div>
+              </div>
+            </div>
+          )}
 
           {combos.length > 0 && (
-            <div className="px-3 pb-1 flex flex-wrap gap-1.5">
+            <div className="loadout-combos">
               {combos.map((c) => (
-                <span key={c.id} className="t-chip" style={{ color: "var(--t-gold)" }}>{c.name}</span>
+                <span key={c.id} className="loadout-combo">{c.name}</span>
               ))}
             </div>
           )}
 
           {totals.length > 0 && (
-            <div className="loadout-card-stats">
-              {totals.slice(0, 8).map((t) => (
-                <span key={t.label + t.unit} className="text-[11.5px]" style={{ color: "var(--t-dim)" }}>
-                  {t.label}{" "}
-                  <span className="t-num" style={{ color: t.value < 0 ? "var(--t-bad)" : "var(--t-gold)" }}>
-                    {t.value > 0 ? "+" : ""}{t.unit === "%" ? `%${t.value}` : t.value}
+            <div className="loadout-stats">
+              {totals.slice(0, 10).map((t) => (
+                <span key={t.label + t.unit} className="loadout-stat">
+                  <span className="loadout-stat-label">{t.label}</span>
+                  <span className="loadout-stat-value"
+                        style={t.value < 0 ? { color: "var(--t-bad)" } : undefined}>
+                    {formatTotal(t.value, t.unit)}
                   </span>
                 </span>
               ))}
-              {totals.length > 8 && (
-                <span className="text-[11.5px]" style={{ color: "var(--t-faint)" }}>
-                  +{totals.length - 8} etki daha
+              {totals.length > 10 && (
+                <span className="loadout-stat loadout-stat-more">
+                  +{totals.length - 10} etki daha
                 </span>
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

@@ -158,3 +158,13 @@ export function formatStat(e: StatEffect): { label: string; value: string } {
     value: percent ? `${op}%${n}` : `${op}${n}`,
   };
 }
+
+/**
+ * Toplam değerin oyun içi yazımı: işaret her zaman başta.
+ * Naif birleştirme ("%" + değer) eksi değerde "%-5" üretiyordu; doğrusu "-%5".
+ */
+export function formatTotal(value: number, unit: string): string {
+  const sign = value < 0 ? "-" : "+";
+  const n = Math.abs(value);
+  return unit === "%" ? `${sign}%${n}` : `${sign}${n}`;
+}

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search, X, Plus } from "lucide-react";
 import { gradeOf } from "@/lib/bdo-text";
-import { statTr } from "@/lib/bdo-stats";
+import { statTr, formatTotal } from "@/lib/bdo-stats";
 import { ItemIcon } from "@/components/item-visuals";
 
 /**
@@ -65,7 +65,7 @@ export function StatTotals({ items, empty }: { items: Equippable[]; empty?: stri
         <div key={t.label + t.unit} className="flex items-baseline justify-between gap-3 text-[12.5px]">
           <span style={{ color: "var(--t-dim)" }}>{t.label}</span>
           <span className="t-num" style={{ color: t.value < 0 ? "var(--t-bad)" : "var(--t-gold)" }}>
-            {t.value > 0 ? "+" : ""}{t.unit === "%" ? `%${t.value}` : t.value}
+            {formatTotal(t.value, t.unit)}
           </span>
         </div>
       ))}

@@ -7,7 +7,7 @@ import { TestShell, Card, Empty, loadJson } from "@/components/app-shell";
 import { Slot, Picker, StatTotals, sumStats, encodeSet, decodeSet, type Equippable, type StatRow }
   from "@/components/loadout";
 import { gradeOf } from "@/lib/bdo-text";
-import { statTr } from "@/lib/bdo-stats";
+import { statTr, formatTotal } from "@/lib/bdo-stats";
 
 /**
  * Eser ve ışık taşı kurulumu.
@@ -207,7 +207,7 @@ export default function EserlerPage() {
                       <span key={i} className="text-[12.5px]" style={{ color: "var(--t-dim)" }}>
                         {statTr(s.stat)}{" "}
                         <span className="t-num" style={{ color: "var(--t-text)" }}>
-                          {s.op === "-" ? "-" : "+"}{s.unit === "%" ? `%${s.value}` : s.value}
+                          {formatTotal((s.op === "-" ? -1 : 1) * (s.value ?? 0), s.unit ?? "")}
                         </span>
                       </span>
                     ))}

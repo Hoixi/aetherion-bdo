@@ -370,27 +370,99 @@ nav {
 
 /* ── Forumdaki kurulum kartı ──
    Gönderi gövdesi prose-forum altında; kart kendi ölçülerini korusun diye
-   metin akışından ayrı bir blok olarak duruyor. */
-.loadout-ref { margin: 0.75rem 0; }
+   metin akışından ayrı bir blok olarak duruyor. Oyunun yuva estetiğine
+   yaklaşıyor (altın kenarlık, koyu oyuk) ama gönderiyi ezmeyecek ölçüde:
+   ikon 34px, toplamlar iki sütun, uzun listeler kırpılıyor. */
+.loadout-ref { margin: 0.85rem 0; }
+
 .loadout-card {
-  border: 1px solid var(--t-line);
-  border-radius: var(--t-r-sm, 9px);
-  background: var(--t-surface);
+  border: 1px solid var(--t-line-strong);
+  border-radius: var(--t-r, 14px);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(232, 180, 81, 0.06) 0%, transparent 60%),
+    var(--t-surface);
   overflow: hidden;
+  max-width: 560px;
 }
+
 .loadout-card-head {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.8rem;
   border-bottom: 1px solid var(--t-line);
+  background: linear-gradient(180deg, rgba(232, 180, 81, 0.07), transparent);
 }
-.loadout-card-items {
-  display: flex; flex-wrap: wrap; gap: 0.4rem;
-  padding: 0.75rem;
+.loadout-card-title {
+  font-size: 12.5px; font-weight: 600; color: var(--t-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.loadout-card-stats {
-  display: flex; flex-wrap: wrap; gap: 0.15rem 1rem;
-  padding: 0 0.75rem 0.75rem;
+.loadout-count {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 10.5px; font-variant-numeric: tabular-nums;
+  color: var(--t-faint);
 }
-/* prose-forum bağlantıları altı çizili basıyor; kart başlığındaki "Aç"
-   bağlantısı rozet gibi durmalı, cümle içi link gibi değil. */
+.loadout-open {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 11px; color: var(--t-dim);
+}
+.loadout-open:hover { color: var(--t-gold); }
+
+.loadout-card-body { padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.loadout-hint { font-size: 12px; color: var(--t-faint); }
+
+/* Kristal: sabit ızgara — dolu ve boş yuvalar birlikte, böylece kaç yuva
+   kaldığı sayı okumadan görülüyor. */
+.loadout-grid {
+  display: grid; gap: 0.35rem;
+  grid-template-columns: repeat(8, 34px);
+}
+@media (max-width: 520px) { .loadout-grid { grid-template-columns: repeat(6, 34px); } }
+
+/* Eser: iki satır, etiketli */
+.loadout-rows { display: flex; flex-direction: column; gap: 0.55rem; }
+.loadout-row { display: flex; align-items: center; gap: 0.7rem; }
+.loadout-row-label {
+  width: 62px; flex-shrink: 0;
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-faint);
+}
+.loadout-row-slots { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.loadout-slot { display: inline-flex; border-radius: 8px; }
+.loadout-slot-empty {
+  border: 1px dashed var(--t-line-strong);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Açılan kombinasyonlar — kurulumun asıl sonucu, o yüzden vurgulu */
+.loadout-combos { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.loadout-combo {
+  font-size: 11px; padding: 0.15rem 0.5rem; border-radius: 999px;
+  color: var(--t-gold);
+  border: 1px solid rgba(232, 180, 81, 0.35);
+  background: var(--t-gold-soft, rgba(232, 180, 81, 0.12));
+}
+
+.loadout-stats {
+  display: grid; gap: 0.1rem 1.1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--t-line);
+}
+@media (max-width: 460px) { .loadout-stats { grid-template-columns: 1fr; } }
+.loadout-stat {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem;
+  font-size: 11.5px; min-width: 0;
+}
+.loadout-stat-label {
+  color: var(--t-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.loadout-stat-value {
+  flex-shrink: 0; color: var(--t-gold);
+  font-variant-numeric: tabular-nums;
+}
+.loadout-stat-more { color: var(--t-faint); justify-content: flex-start; }
+
+/* prose-forum bağlantıları altı çizili basıyor; karttaki "Aç" rozet gibi
+   durmalı, cümle içi link gibi değil. */
 .prose-forum .loadout-card a { text-decoration: none; }
