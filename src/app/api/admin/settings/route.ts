@@ -3,11 +3,14 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import {
-  SETTING_KEYS, SLOGAN_MAX, getSettings, setSetting, validDiscordInvite,
+  SETTING_KEYS, SLOGAN_MAX, MANIFESTO_MAX,
+  getSettings, setSetting, validDiscordInvite,
 } from "@/lib/settings";
 
 /** string[]: `as const` anahtarlari daraltiyor, gelen govde ise duz string. */
-const OKUNABILIR: string[] = [SETTING_KEYS.discordInvite, SETTING_KEYS.slogan];
+const OKUNABILIR: string[] = [
+  SETTING_KEYS.discordInvite, SETTING_KEYS.slogan, SETTING_KEYS.manifesto,
+];
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -39,6 +42,16 @@ export async function PUT(req: Request) {
         { error: "Yalnızca https://discord.gg/... veya https://discord.com/invite/... kabul ediliyor." },
         { status: 400 },
       );
+    }
+    await setSetting(body.key, temiz);
+    return NextResponse.json({ ok: true, value: temiz });
+  }
+
+  if (body.key === SETTING_KEYS.manifesto) {
+    const temiz = body.value.replace(/[ 	]+/g, " ").trim();
+    if (temiz.length > MANIFESTO_MAX) {
+      return NextResponse.json(
+        { error: `Metin en fazla ${MANIFESTO_MAX} karakter olabilir.` }, { status: 400 });
     }
     await setSetting(body.key, temiz);
     return NextResponse.json({ ok: true, value: temiz });

@@ -5,7 +5,7 @@ import {
   RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2, Quote,
 } from "lucide-react";
 import { Card } from "@/components/app-shell";
-import { Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
+import { Area, Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
 
 /**
  * Bakım araçları.
@@ -46,6 +46,8 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
   const [davetBusy, setDavetBusy] = useState(false);
   const [slogan, setSlogan] = useState("");
   const [sloganBusy, setSloganBusy] = useState(false);
+  const [manifesto, setManifesto] = useState("");
+  const [manifestoBusy, setManifestoBusy] = useState(false);
 
   const [classBusy, setClassBusy] = useState(false);
   const [classResult, setClassResult] = useState<ClassRolesResult | null>(null);
@@ -134,7 +136,12 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
   useEffect(() => {
     fetch("/api/admin/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!j) return; setDavet(j.discord_invite ?? ""); setSlogan(j.slogan ?? ""); })
+      .then((j) => {
+        if (!j) return;
+        setDavet(j.discord_invite ?? "");
+        setSlogan(j.slogan ?? "");
+        setManifesto(j.manifesto ?? "");
+      })
       .catch(() => {});
   }, []);
 
@@ -369,6 +376,23 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
           <Field label="Slogan" hint="En fazla 120 karakter. Boş bırakılırsa varsayılan yazı görünür.">
             <Input value={slogan} onChange={setSlogan} maxLength={120}
                    placeholder="En iyi bildiğin yol en iyi bildiğin yoldur" />
+          </Field>
+        </div>
+      </Card>
+
+      {/* ── Tanıtım metni ──────────────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        <SectionHead icon={Quote} title="Karşılama Metni"
+                     desc="Sloganın altındaki tanıtım paragrafı."
+                     action={<Btn small tone="gold" disabled={manifestoBusy}
+                       onClick={() => ayarKaydet("manifesto", manifesto, setManifestoBusy,
+                                                 setManifesto, "Karşılama metni güncellendi.")}>
+                       {manifestoBusy ? "Kaydediliyor…" : "Kaydet"}
+                     </Btn>} />
+        <div className="p-4">
+          <Field label="Metin" hint="En fazla 500 karakter. Boş bırakılırsa varsayılan metin görünür.">
+            <Area value={manifesto} onChange={setManifesto} rows={4}
+                  placeholder="Aetherion bir PvP klanıdır…" />
           </Field>
         </div>
       </Card>

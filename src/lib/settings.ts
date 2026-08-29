@@ -10,15 +10,19 @@ import { prisma } from "@/lib/prisma";
 export const SETTING_KEYS = {
   discordInvite: "discord_invite",
   slogan: "slogan",
+  manifesto: "manifesto",
 } as const;
 
-/** Karsilama ekranindaki slogan icin ust sinir */
+/** Karsilama ekranindaki metinler icin ust sinir */
 export const SLOGAN_MAX = 120;
+export const MANIFESTO_MAX = 500;
 
 /** Tablo boşsa karşılama ekranı bağlantısız kalmasın diye */
 export const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.discordInvite]: "",
   [SETTING_KEYS.slogan]: "En iyi bildiğin yol en iyi bildiğin yoldur",
+  [SETTING_KEYS.manifesto]:
+    "Aetherion bir PvP klanıdır. Her gün node war atmaya çalışırız; girdiğimiz her savaşın raporunu tutar, herkesin katkısını tek tek ölçeriz. Burada kim ne yaptıysa görünür.",
 };
 
 export async function getSetting(key: string): Promise<string> {

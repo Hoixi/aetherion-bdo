@@ -305,6 +305,19 @@ nav {
 .prose-forum p[style*="text-align: center"] { text-align: center; }
 .prose-forum p[style*="text-align: right"] { text-align: right; }
 
+/* Karşılama ekranındaki sayılar: beyazdan altına degrade.
+   background-clip desteklenmeyen yerde yazı görünmez olmasın diye
+   düz renk taban, degrade yalnızca @supports içinde biniyor. */
+.t-stat-num { color: var(--t-text); }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .t-stat-num {
+    background-image: linear-gradient(180deg, #ffffff 8%, #e8b451 132%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
 /* Foruma gömülen eşya rozeti.
    Kalite rengi `renderHTML` tarafından satır içi yazılıyor; buradaki
    kurallar yalnızca biçim. Hem okunur gövdede hem editörde geçerli
