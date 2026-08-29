@@ -32,20 +32,37 @@ export const DEFAULTS: Record<string, string> = {
     "Aetherion bir PvP klanıdır. Her gün node war atmaya çalışırız; girdiğimiz her savaşın raporunu tutar, herkesin katkısını tek tek ölçeriz. Burada kim ne yaptıysa görünür.",
 };
 
+/**
+ * Bos kaydedilmis deger varsayilani ezmesin.
+ *
+ * Panelde "bos birakirsan varsayilan gorunur" yaziyor; bos bir satir
+ * kalirsa yazi dogru ama kutu bos kaliyor ve neyin yayinda oldugu
+ * anlasilmiyor.
+ */
+function degerOrVarsayilan(key: string, deger: string | undefined): string {
+  const v = deger ?? "";
+  return v.trim() === "" ? (DEFAULTS[key] ?? "") : v;
+}
+
 export async function getSetting(key: string): Promise<string> {
   const row = await prisma.setting.findUnique({ where: { key } });
-  return row?.value ?? DEFAULTS[key] ?? "";
+  return degerOrVarsayilan(key, row?.value);
 }
 
 export async function getSettings(keys: string[]): Promise<Record<string, string>> {
   const rows = await prisma.setting.findMany({ where: { key: { in: keys } } });
+  const bulunan = new Map(rows.map((r) => [r.key, r.value]));
   const out: Record<string, string> = {};
-  for (const k of keys) out[k] = DEFAULTS[k] ?? "";
-  for (const r of rows) out[r.key] = r.value;
+  for (const k of keys) out[k] = degerOrVarsayilan(k, bulunan.get(k));
   return out;
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
+  // Bosaltmak "varsayilana don" demek; satiri birakmak yerine siliyoruz.
+  if (value.trim() === "" && (DEFAULTS[key] ?? "") !== "") {
+    await prisma.setting.deleteMany({ where: { key } });
+    return;
+  }
   await prisma.setting.upsert({
     where: { key },
     update: { value },
