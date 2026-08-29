@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { UserPlus, Search, Check, ArrowLeft, Send, AlertTriangle } from "lucide-react";
+import { UserPlus, Search, Check, ArrowLeft, Send, AlertTriangle, ExternalLink } from "lucide-react";
 import { BDO_CLASSES, getClassByID, getClassIconUrl, getPortraitUrl } from "@/lib/classes";
 import { TestShell, Card } from "@/components/app-shell";
 
@@ -32,6 +32,8 @@ export default function BasvuruPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** Discord daveti panelden yonetiliyor; acik uctan okunuyor. */
+  const [davet, setDavet] = useState("");
 
   useEffect(() => {
     fetch("/api/guilds/public")
@@ -73,6 +75,13 @@ export default function BasvuruPage() {
     ? BDO_CLASSES.filter((c) => c.name.toLocaleLowerCase("tr").includes(classSearch.toLocaleLowerCase("tr")))
     : BDO_CLASSES;
 
+  useEffect(() => {
+    fetch("/api/landing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j?.discordInvite && setDavet(j.discordInvite))
+      .catch(() => {});
+  }, []);
+
   if (done) {
     return (
       <TestShell title="Klana Başvur" subtitle="Başvurun bize ulaştı.">
@@ -86,10 +95,21 @@ export default function BasvuruPage() {
             Subaylar başvurunu inceleyecek. Kabul edilirse Discord&apos;da rolün otomatik verilecek —
             sunucuya katılmadıysan şimdi katıl ki rol atanabilsin.
           </p>
-          <Link href="/panel" className="inline-flex items-center gap-2 text-[13px] transition-colors hover:opacity-80"
-                style={{ color: "var(--t-dim)" }}>
-            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} /> Panele dön
-          </Link>
+          {davet && (
+            <a href={davet} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13.5px] font-semibold mb-5"
+               style={{ background: "#5865F2", color: "#fff" }}>
+              Discord sunucusuna katıl
+              <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.2} />
+            </a>
+          )}
+
+          <div>
+            <Link href="/panel" className="inline-flex items-center gap-2 text-[13px] transition-colors hover:opacity-80"
+                  style={{ color: "var(--t-dim)" }}>
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} /> Panele dön
+            </Link>
+          </div>
         </Card>
       </TestShell>
     );

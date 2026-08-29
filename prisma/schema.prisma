@@ -690,3 +690,16 @@ model ForumReaction {
   @@unique([postId, userId, emoji])
   @@map("forum_reactions")
 }
+
+/// Site geneli küçük ayarlar (anahtar/değer).
+///
+/// Şimdilik tek kullanıcısı karşılama ekranındaki Discord davet bağlantısı:
+/// davetler süreli olduğu için kod değişikliği beklemeden panelden
+/// güncellenebilmesi gerekiyor.
+model Setting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

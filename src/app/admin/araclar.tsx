@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2,
+  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2,
 } from "lucide-react";
 import { Card } from "@/components/app-shell";
-import { Ava, Btn, Metric, SectionHead, Tag } from "./ui";
+import { Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
 
 /**
  * Bakım araçları.
@@ -41,6 +41,9 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
 
   const [cmdBusy, setCmdBusy] = useState(false);
   const [cmdResult, setCmdResult] = useState<string | null>(null);
+
+  const [davet, setDavet] = useState("");
+  const [davetBusy, setDavetBusy] = useState(false);
 
   const [classBusy, setClassBusy] = useState(false);
   const [classResult, setClassResult] = useState<ClassRolesResult | null>(null);
@@ -123,6 +126,33 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
     if (res.ok) setRecalc(data);
     else flash(`Hata: ${data.error}`);
     setRecalcBusy(false);
+  }
+
+  // Karşılama ekranındaki Discord daveti
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setDavet(j.discord_invite ?? ""))
+      .catch(() => {});
+  }, []);
+
+  async function davetiKaydet() {
+    setDavetBusy(true);
+    try {
+      const r = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "discord_invite", value: davet }),
+      });
+      const j = await r.json();
+      if (!r.ok) { flash(j.error ?? "Kaydedilemedi."); return; }
+      setDavet(j.value);
+      flash(j.value ? "Davet bağlantısı güncellendi." : "Davet bağlantısı kaldırıldı.");
+    } catch {
+      flash("Kaydedilemedi.");
+    } finally {
+      setDavetBusy(false);
+    }
   }
 
   return (
@@ -319,6 +349,22 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
             <Metric label="Etkilenen üye" value={recalc.affectedUsers} tone="#f0994c" />
           </div>
         )}
+      </Card>
+
+      {/* ── Discord daveti ─────────────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        <SectionHead icon={Link2} title="Discord Davet Bağlantısı"
+                     desc="Karşılama ekranında ve başvuru sonrasında gösteriliyor. Davetler süreli olduğu için buradan güncellenir."
+                     action={<Btn small tone="gold" onClick={davetiKaydet} disabled={davetBusy}>
+                       {davetBusy ? "Kaydediliyor…" : "Kaydet"}
+                     </Btn>} />
+        <div className="p-4">
+          <Field label="Bağlantı"
+                 hint="https://discord.gg/... veya https://discord.com/invite/... — boş bırakılırsa bölüm gizlenir.">
+            <Input value={davet} onChange={setDavet}
+                   placeholder="https://discord.gg/ornek" />
+          </Field>
+        </div>
       </Card>
     </div>
   );
