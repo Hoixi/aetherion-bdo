@@ -44,8 +44,10 @@ export async function GET() {
         })
       : null;
 
-    const ayarlar = await getSettings([SETTING_KEYS.discordInvite, SETTING_KEYS.slogan, SETTING_KEYS.manifesto,
-      SETTING_KEYS.wallpaperBlur]);
+    const ayarlar = await getSettings([
+      SETTING_KEYS.discordInvite, SETTING_KEYS.slogan,
+      SETTING_KEYS.manifesto, SETTING_KEYS.wallpaperBlur,
+    ]);
 
     return NextResponse.json({
       guild: guild ? { name: guild.name, tag: guild.tag } : null,
@@ -61,8 +63,8 @@ export async function GET() {
       },
       discordInvite: ayarlar[SETTING_KEYS.discordInvite],
       slogan: ayarlar[SETTING_KEYS.slogan],
-      manifesto: ayarlar[SETTING_KEYS.manifesto,
-      SETTING_KEYS.wallpaperBlur],
+      manifesto: ayarlar[SETTING_KEYS.manifesto],
+      wallpaperBlur: Number(ayarlar[SETTING_KEYS.wallpaperBlur]) || 0,
     });
   } catch (err) {
     console.error("[landing] hata:", err instanceof Error ? err.message : err);
