@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2,
+  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2, Quote,
 } from "lucide-react";
 import { Card } from "@/components/app-shell";
 import { Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
@@ -44,6 +44,8 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
 
   const [davet, setDavet] = useState("");
   const [davetBusy, setDavetBusy] = useState(false);
+  const [slogan, setSlogan] = useState("");
+  const [sloganBusy, setSloganBusy] = useState(false);
 
   const [classBusy, setClassBusy] = useState(false);
   const [classResult, setClassResult] = useState<ClassRolesResult | null>(null);
@@ -132,26 +134,29 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
   useEffect(() => {
     fetch("/api/admin/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => j && setDavet(j.discord_invite ?? ""))
+      .then((j) => { if (!j) return; setDavet(j.discord_invite ?? ""); setSlogan(j.slogan ?? ""); })
       .catch(() => {});
   }, []);
 
-  async function davetiKaydet() {
-    setDavetBusy(true);
+  async function ayarKaydet(
+    key: string, value: string,
+    setBusy: (v: boolean) => void, setValue: (v: string) => void, basarili: string,
+  ) {
+    setBusy(true);
     try {
       const r = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "discord_invite", value: davet }),
+        body: JSON.stringify({ key, value }),
       });
       const j = await r.json();
       if (!r.ok) { flash(j.error ?? "Kaydedilemedi."); return; }
-      setDavet(j.value);
-      flash(j.value ? "Davet bağlantısı güncellendi." : "Davet bağlantısı kaldırıldı.");
+      setValue(j.value);
+      flash(basarili);
     } catch {
       flash("Kaydedilemedi.");
     } finally {
-      setDavetBusy(false);
+      setBusy(false);
     }
   }
 
@@ -351,11 +356,30 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
         )}
       </Card>
 
+      {/* ── Slogan ─────────────────────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        <SectionHead icon={Quote} title="Karşılama Sloganı"
+                     desc="Giriş ekranında Aetherion başlığının hemen altında duruyor."
+                     action={<Btn small tone="gold" disabled={sloganBusy}
+                       onClick={() => ayarKaydet("slogan", slogan, setSloganBusy, setSlogan,
+                                                 "Slogan güncellendi.")}>
+                       {sloganBusy ? "Kaydediliyor…" : "Kaydet"}
+                     </Btn>} />
+        <div className="p-4">
+          <Field label="Slogan" hint="En fazla 120 karakter. Boş bırakılırsa varsayılan yazı görünür.">
+            <Input value={slogan} onChange={setSlogan} maxLength={120}
+                   placeholder="En iyi bildiğin yol en iyi bildiğin yoldur" />
+          </Field>
+        </div>
+      </Card>
+
       {/* ── Discord daveti ─────────────────────────────────────────── */}
       <Card className="overflow-hidden">
         <SectionHead icon={Link2} title="Discord Davet Bağlantısı"
                      desc="Karşılama ekranında ve başvuru sonrasında gösteriliyor. Davetler süreli olduğu için buradan güncellenir."
-                     action={<Btn small tone="gold" onClick={davetiKaydet} disabled={davetBusy}>
+                     action={<Btn small tone="gold" disabled={davetBusy}
+                          onClick={() => ayarKaydet("discord_invite", davet, setDavetBusy, setDavet,
+                                                    davet.trim() ? "Davet bağlantısı güncellendi." : "Davet bağlantısı kaldırıldı.")}>
                        {davetBusy ? "Kaydediliyor…" : "Kaydet"}
                      </Btn>} />
         <div className="p-4">

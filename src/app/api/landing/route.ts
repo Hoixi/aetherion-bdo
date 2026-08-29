@@ -44,7 +44,7 @@ export async function GET() {
         })
       : null;
 
-    const ayarlar = await getSettings([SETTING_KEYS.discordInvite]);
+    const ayarlar = await getSettings([SETTING_KEYS.discordInvite, SETTING_KEYS.slogan]);
 
     return NextResponse.json({
       guild: guild ? { name: guild.name, tag: guild.tag } : null,
@@ -59,6 +59,7 @@ export async function GET() {
         totalKills: toplam?._sum.kills ?? 0,
       },
       discordInvite: ayarlar[SETTING_KEYS.discordInvite],
+      slogan: ayarlar[SETTING_KEYS.slogan],
     });
   } catch (err) {
     console.error("[landing] hata:", err instanceof Error ? err.message : err);

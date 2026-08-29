@@ -58,7 +58,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
   ] },
 ];
 export function TestShell({
-  title, subtitle, tabs, aside, bare = false, children,
+  title, subtitle, tabs, aside, bare = false, noNav = false, children,
 }: {
   title?: string;
   subtitle?: ReactNode;
@@ -71,6 +71,12 @@ export function TestShell({
    * `title` yine verilebilir — çizilmez ama sekme adına geçer.
    */
   bare?: boolean;
+  /**
+   * Giriş yapmamış ziyaretçiye açık sayfalar için: üye menüsü çizilmez,
+   * yerine yalnızca logo ve karşılama ekranına dönüş kalır. Başvuru
+   * formunda menü, henüz giremeyeceği yirmi sayfayı gösteriyordu.
+   */
+  noNav?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -99,6 +105,23 @@ export function TestShell({
 
   return (
     <div className="t-glow relative min-h-screen">
+      {noNav ? (
+        <header className="t-nav sticky top-0 z-[60]">
+          <div className="mx-auto max-w-[1500px] px-5 h-[68px] flex items-center">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-[10px] grid place-items-center"
+                   style={{ background: "linear-gradient(140deg, var(--t-gold), var(--t-ember))" }}>
+                <Swords className="w-4 h-4" strokeWidth={2.4} style={{ color: "#0a0a0b" }} />
+              </div>
+              <div className="leading-none">
+                <div className="text-[15px] font-bold tracking-tight">Aetherion</div>
+                <div className="text-[10px] mt-0.5" style={{ color: "var(--t-faint)" }}>Klan Yönetimi</div>
+              </div>
+            </Link>
+            {aside && <div className="ml-auto flex items-center gap-2">{aside}</div>}
+          </div>
+        </header>
+      ) : (
       <header className="t-nav sticky top-0 z-[60]">
         <div className="mx-auto max-w-[1500px] px-5 h-[68px] flex items-center gap-6">
           <Link href="/panel" className="flex items-center gap-2.5 flex-shrink-0">
@@ -187,6 +210,7 @@ export function TestShell({
           </div>
         )}
       </header>
+      )}
 
       <main className={`relative mx-auto max-w-[1500px] px-5 ${bare ? "py-4" : "py-7 space-y-5"}`}>
         {tabs}

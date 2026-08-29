@@ -39,8 +39,9 @@ export default function BasvuruPage() {
     fetch("/api/guilds/public")
       .then((r) => (r.ok ? r.json() : []))
       .then((g: PublicGuild[]) => {
+        // Başvurular yalnızca ana klana; müttefik klanlar seçtirilmiyor.
         setGuilds(g);
-        setGuildId(g.length === 1 ? g[0].id : (g.find((x) => x.isPrimary)?.id ?? ""));
+        setGuildId(g.find((x) => x.isPrimary)?.id ?? g[0]?.id ?? "");
       });
   }, []);
 
@@ -84,7 +85,7 @@ export default function BasvuruPage() {
 
   if (done) {
     return (
-      <TestShell title="Klana Başvur" subtitle="Başvurun bize ulaştı.">
+      <TestShell noNav title="Klana Başvur" subtitle="Başvurun bize ulaştı.">
         <Card hi className="max-w-lg p-8 text-center mx-auto">
           <div className="w-14 h-14 rounded-2xl grid place-items-center mx-auto mb-5"
                style={{ background: "rgba(56,208,127,.10)", border: "1px solid rgba(56,208,127,.25)" }}>
@@ -117,6 +118,7 @@ export default function BasvuruPage() {
 
   return (
     <TestShell
+      noNav
       title="Klana Başvur"
       subtitle="Formu doldur, subaylar değerlendirsin. Kabul edilirsen Discord rolün otomatik verilir."
     >
@@ -128,32 +130,6 @@ export default function BasvuruPage() {
       )}
 
       <form onSubmit={submit} className="space-y-4 max-w-3xl">
-        {/* ── Klan ─────────────────────────────────────────────────── */}
-        {guilds.length > 1 && (
-          <Card className="p-4">
-            <Label>Hangi klana başvuruyorsun?</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {guilds.map((g) => {
-                const on = guildId === g.id;
-                return (
-                  <button key={g.id} type="button" onClick={() => setGuildId(g.id)}
-                          className="flex items-center gap-2 p-2.5 rounded-[var(--t-r-sm)] transition-colors"
-                          style={{
-                            background: on ? g.color + "10" : "var(--t-raised)",
-                            border: `1px solid ${on ? g.color + "60" : "var(--t-line)"}`,
-                          }}>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
-                          style={{ color: g.color, borderColor: g.color + "38", background: g.color + "14" }}>
-                      {g.tag}
-                    </span>
-                    <span className="text-[13px] truncate">{g.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        )}
-
         {/* ── Kimlik ───────────────────────────────────────────────── */}
         <Card className="p-4">
           <div className="grid sm:grid-cols-2 gap-3">

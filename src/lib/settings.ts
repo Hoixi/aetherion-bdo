@@ -9,11 +9,16 @@ import { prisma } from "@/lib/prisma";
 
 export const SETTING_KEYS = {
   discordInvite: "discord_invite",
+  slogan: "slogan",
 } as const;
+
+/** Karsilama ekranindaki slogan icin ust sinir */
+export const SLOGAN_MAX = 120;
 
 /** Tablo boşsa karşılama ekranı bağlantısız kalmasın diye */
 export const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.discordInvite]: "",
+  [SETTING_KEYS.slogan]: "En iyi bildiğin yol en iyi bildiğin yoldur",
 };
 
 export async function getSetting(key: string): Promise<string> {
