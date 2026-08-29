@@ -28,6 +28,7 @@ type Landing = {
   discordInvite: string;
   slogan: string;
   manifesto: string;
+  wallpaperBlur: number;
 };
 
 /** Ayar gelene kadar ekran sloganısız kalmasın — panelden değiştirilebiliyor. */
@@ -91,7 +92,7 @@ export default function LandingPage() {
                backgroundImage: `url("${duvar}")`,
                backgroundSize: "cover",
                backgroundPosition: "center",
-               filter: "blur(10px) saturate(1.06)",
+               filter: `blur(${d?.wallpaperBlur ?? 6}px) saturate(1.06)`,
                transform: "scale(1.12)",
                opacity: 0.6,
              }} />

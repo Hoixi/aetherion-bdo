@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2, Quote,
+  RefreshCw, Bot, UserCog, Database, AlertTriangle, Send, CheckCircle2, Link2, Quote, Image as ImageIcon,
 } from "lucide-react";
 import { Card } from "@/components/app-shell";
 import { Area, Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
@@ -48,6 +48,8 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
   const [sloganBusy, setSloganBusy] = useState(false);
   const [manifesto, setManifesto] = useState("");
   const [manifestoBusy, setManifestoBusy] = useState(false);
+  const [blur, setBlur] = useState("6");
+  const [blurBusy, setBlurBusy] = useState(false);
 
   const [classBusy, setClassBusy] = useState(false);
   const [classResult, setClassResult] = useState<ClassRolesResult | null>(null);
@@ -141,6 +143,7 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
         setDavet(j.discord_invite ?? "");
         setSlogan(j.slogan ?? "");
         setManifesto(j.manifesto ?? "");
+        setBlur(j.wallpaper_blur ?? "6");
       })
       .catch(() => {});
   }, []);
@@ -378,6 +381,28 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
                    placeholder="En iyi bildiğin yol en iyi bildiğin yoldur" />
           </Field>
         </div>
+      </Card>
+
+      {/* ── Arka plan bulanıklığı ──────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        <SectionHead icon={ImageIcon} title="Arka Plan Bulanıklığı"
+                     desc="Karşılama ekranındaki duvar kâğıdı ne kadar bulanık dursun."
+                     action={<Btn small tone="gold" disabled={blurBusy}
+                       onClick={() => ayarKaydet("wallpaper_blur", blur, setBlurBusy, setBlur,
+                                                 "Bulanıklık güncellendi.")}>
+                       {blurBusy ? "Kaydediliyor…" : "Kaydet"}
+                     </Btn>} />
+        <div className="p-4 flex items-center gap-4">
+          <input type="range" min={0} max={40} step={1} value={blur}
+                 onChange={(e) => setBlur(e.target.value)}
+                 className="flex-1 accent-[var(--t-gold)]" aria-label="Bulanıklık" />
+          <span className="t-num text-[15px] font-bold w-[58px] text-right"
+                style={{ color: "var(--t-gold)" }}>{blur}px</span>
+        </div>
+        <p className="px-4 pb-4 text-[11px]" style={{ color: "var(--t-faint)" }}>
+          0 = hiç bulanık değil. Görsel yazının arkasında durduğu için çok
+          düşük değerlerde metin okunmakta zorlanabilir.
+        </p>
       </Card>
 
       {/* ── Tanıtım metni ──────────────────────────────────────────── */}

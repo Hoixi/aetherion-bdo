@@ -3,13 +3,14 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import {
-  SETTING_KEYS, SLOGAN_MAX, MANIFESTO_MAX,
+  SETTING_KEYS, SLOGAN_MAX, MANIFESTO_MAX, BLUR_MIN, BLUR_MAX,
   getSettings, setSetting, validDiscordInvite,
 } from "@/lib/settings";
 
 /** string[]: `as const` anahtarlari daraltiyor, gelen govde ise duz string. */
 const OKUNABILIR: string[] = [
   SETTING_KEYS.discordInvite, SETTING_KEYS.slogan, SETTING_KEYS.manifesto,
+  SETTING_KEYS.wallpaperBlur,
 ];
 
 export async function GET() {
@@ -45,6 +46,16 @@ export async function PUT(req: Request) {
     }
     await setSetting(body.key, temiz);
     return NextResponse.json({ ok: true, value: temiz });
+  }
+
+  if (body.key === SETTING_KEYS.wallpaperBlur) {
+    const n = Number(body.value);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < BLUR_MIN || n > BLUR_MAX) {
+      return NextResponse.json(
+        { error: `Bulanıklık ${BLUR_MIN}-${BLUR_MAX} arası tam sayı olmalı.` }, { status: 400 });
+    }
+    await setSetting(body.key, String(n));
+    return NextResponse.json({ ok: true, value: String(n) });
   }
 
   if (body.key === SETTING_KEYS.manifesto) {

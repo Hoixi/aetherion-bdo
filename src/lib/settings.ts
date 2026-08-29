@@ -11,16 +11,23 @@ export const SETTING_KEYS = {
   discordInvite: "discord_invite",
   slogan: "slogan",
   manifesto: "manifesto",
+  wallpaperBlur: "wallpaper_blur",
 } as const;
 
 /** Karsilama ekranindaki metinler icin ust sinir */
 export const SLOGAN_MAX = 120;
 export const MANIFESTO_MAX = 500;
 
+/** Arka plan bulanikligi (px). 0 = hic bulanik degil. */
+export const BLUR_MIN = 0;
+export const BLUR_MAX = 40;
+export const BLUR_DEFAULT = 6;
+
 /** Tablo boşsa karşılama ekranı bağlantısız kalmasın diye */
 export const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.discordInvite]: "",
   [SETTING_KEYS.slogan]: "En iyi bildiğin yol en iyi bildiğin yoldur",
+  [SETTING_KEYS.wallpaperBlur]: String(BLUR_DEFAULT),
   [SETTING_KEYS.manifesto]:
     "Aetherion bir PvP klanıdır. Her gün node war atmaya çalışırız; girdiğimiz her savaşın raporunu tutar, herkesin katkısını tek tek ölçeriz. Burada kim ne yaptıysa görünür.",
 };
