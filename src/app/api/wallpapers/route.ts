@@ -4,6 +4,14 @@ import { readdir } from "fs/promises";
 import path from "path";
 
 /**
+ * Panelden yapilan degisiklik aninda gorunsun.
+ * Bu uclar hic cache-control gondermiyordu; tarayici kendi
+ * kestirimiyle onbellege aliyor ve slogan/metin degismis gibi
+ * gorunmuyordu.
+ */
+const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
+
+/**
  * Karşılama ekranının arka plan görselleri.
  *
  * Klasör çalışma anında okunuyor ki yeni duvar kâğıdı eklemek kod
@@ -18,7 +26,7 @@ const CACHE_MS = 5 * 60 * 1000;
 
 export async function GET() {
   if (bellek && Date.now() - bellek.at < CACHE_MS) {
-    return NextResponse.json({ files: bellek.files });
+    return NextResponse.json({ files: bellek.files }, { headers: NO_STORE });
   }
 
   try {
@@ -30,9 +38,9 @@ export async function GET() {
       .map((f) => `/wallpapers/${encodeURIComponent(f)}`);
 
     bellek = { at: Date.now(), files };
-    return NextResponse.json({ files });
+    return NextResponse.json({ files }, { headers: NO_STORE });
   } catch {
     // Klasör yoksa ekran düz zeminle açılsın, hata vermesin
-    return NextResponse.json({ files: [] });
+    return NextResponse.json({ files: [] }, { headers: NO_STORE });
   }
 }

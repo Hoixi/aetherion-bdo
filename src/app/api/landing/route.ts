@@ -5,6 +5,14 @@ import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { SETTING_KEYS, getSettings } from "@/lib/settings";
 
 /**
+ * Panelden yapilan degisiklik aninda gorunsun.
+ * Bu uclar hic cache-control gondermiyordu; tarayici kendi
+ * kestirimiyle onbellege aliyor ve slogan/metin degismis gibi
+ * gorunmuyordu.
+ */
+const NO_STORE = { "Cache-Control": "no-store, max-age=0" };
+
+/**
  * Karşılama ekranının verisi.
  *
  * Bu uç bilerek oturumsuz: ekranın tamamı giriş yapmamış ziyaretçi için.
@@ -65,9 +73,10 @@ export async function GET() {
       slogan: ayarlar[SETTING_KEYS.slogan],
       manifesto: ayarlar[SETTING_KEYS.manifesto],
       wallpaperBlur: Number(ayarlar[SETTING_KEYS.wallpaperBlur]) || 0,
-    });
+    }, { headers: NO_STORE });
   } catch (err) {
     console.error("[landing] hata:", err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: "Veriler getirilemedi." }, { status: 500 });
+    return NextResponse.json({ error: "Veriler getirilemedi." },
+                             { status: 500, headers: NO_STORE });
   }
 }

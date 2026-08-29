@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Clock, Search, Check, X, Trash2, UserPlus, ExternalLink } from "lucide-react";
+import { Clock, Search, Check, X, Trash2, UserPlus, Copy, CheckCheck } from "lucide-react";
 import { getClassByID, getClassIconUrl } from "@/lib/classes";
 import { Card, Head } from "@/components/app-shell";
 import { Blank, Btn, Metric, Tag } from "./ui";
@@ -44,6 +44,8 @@ export default function BasvurularTab({ flash }: { flash: (msg: string) => void 
   const [apps, setApps] = useState<ApplicationRow[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
+  /** Paylasilacak form adresi kopyalandi mi */
+  const [kopyalandi, setKopyalandi] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/applications");
@@ -178,15 +180,30 @@ export default function BasvurularTab({ flash }: { flash: (msg: string) => void 
         </Card>
       )}
 
+      {/* Adres paylasmak icin: tiklayinca panelden cikip forma gitmesin,
+          yalnizca panoya alsin. */}
       <Card className="px-4 py-3">
-        <p className="text-[11.5px] flex items-center gap-1.5 flex-wrap" style={{ color: "var(--t-faint)" }}>
-          Başvuru formu:
-          <a href="/basvuru" target="_blank" rel="noreferrer"
-             className="inline-flex items-center gap-1 hover:underline" style={{ color: "var(--t-gold)" }}>
-            aetheri.online/basvuru <ExternalLink className="w-3 h-3" />
-          </a>
-          — giriş gerektirmez, klana katılmak isteyenlerle paylaşabilirsin.
-        </p>
+        <div className="text-[11.5px] flex items-center gap-2 flex-wrap"
+             style={{ color: "var(--t-faint)" }}>
+          <span>Başvuru formu:</span>
+          <code className="t-num px-2 py-1 rounded-[var(--t-r-sm)]"
+                style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)",
+                         color: "var(--t-gold)" }}>
+            aetheri.online/basvuru
+          </code>
+          <Btn small icon={kopyalandi ? CheckCheck : Copy}
+               onClick={() => {
+                 navigator.clipboard?.writeText("https://aetheri.online/basvuru")
+                   .then(() => {
+                     setKopyalandi(true);
+                     setTimeout(() => setKopyalandi(false), 2000);
+                   })
+                   .catch(() => {});
+               }}>
+            {kopyalandi ? "Kopyalandı" : "Kopyala"}
+          </Btn>
+          <span>— giriş gerektirmez, klana katılmak isteyenlerle paylaşabilirsin.</span>
+        </div>
       </Card>
     </div>
   );
