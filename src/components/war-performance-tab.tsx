@@ -492,7 +492,7 @@ export function WarPerformanceTab({ wars }: { wars: War[] }) {
           {partyMissingFromScreenshot.length > 0 && (
             <div className="bg-orange-500/5 border border-orange-500/20 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-orange-400 mb-3">
-                ⚠️ Partide var ama ekran görüntüsünde yok ({partyMissingFromScreenshot.length} kişi)
+                ⚠️ Partide seçildi ama ekran görüntüsünde yok ({partyMissingFromScreenshot.length} kişi)
               </h4>
               <div className="space-y-1">
                 {partyMissingFromScreenshot.map((m) => (
@@ -507,11 +507,11 @@ export function WarPerformanceTab({ wars }: { wars: War[] }) {
             </div>
           )}
 
-          {/* Absent members (attending but not in screenshot) */}
+          {/* Attending members selected in parties but not found in screenshot */}
           {absent.length > 0 && (
             <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-red-400 mb-3">
-                ⚠️ Katılacağını bildirdi ama oyunda görünmüyor ({absent.length} kişi)
+                ⚠️ Katıldı ve partiye seçildi ama ekran analizinde görünmüyor ({absent.length} kişi)
               </h4>
               <div className="flex flex-wrap gap-2">
                 {absent.map((m) => (

@@ -277,7 +277,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       savedRows.push({ ...record, matched: userId !== null });
     }
 
-    // Partide var ama ekranda yok olanların absenceCount'ını artır
+    // Yalnızca "katıldı + partide seçildi + ekran analizinde görünmedi" durumunu say
     const perfNames = new Set(rows.map((r) => r.familyName.toLowerCase().trim()));
     const parties = await prisma.party.findMany({
       where: { warId },
@@ -287,11 +287,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         },
       },
     });
+    const attendingUsers = await prisma.warParticipant.findMany({
+      where: { warId, status: "ATTENDING" },
+      select: { userId: true },
+    });
+    const attendingUserIds = new Set(attendingUsers.map((p) => p.userId));
 
     const usersToIncrement: number[] = [];
     for (const party of parties) {
       for (const member of party.members) {
-        if (!perfNames.has(member.user.familyName.toLowerCase().trim())) {
+        const isAttending = attendingUserIds.has(member.userId);
+        const absentFromScreenshot = !perfNames.has(member.user.familyName.toLowerCase().trim());
+
+        if (isAttending && absentFromScreenshot) {
           usersToIncrement.push(member.userId);
         }
       }
@@ -351,13 +359,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           where: { status: "ATTENDING" },
           select: { user: { select: { id: true, familyName: true, avatarUrl: true } } },
         },
+        parties: {
+          select: {
+            members: {
+              select: { userId: true },
+            },
+          },
+        },
       },
     });
+
+    const selectedPartyUserIds = new Set(
+      war?.parties.flatMap((party) => party.members.map((member) => member.userId)) ?? []
+    );
 
     const perfNames = new Set(performances.map((p) => p.inGameName.toLowerCase().trim()));
     const absent = war?.participants
       .map((p) => p.user)
-      .filter((u) => !perfNames.has(u.familyName.toLowerCase().trim())) ?? [];
+      .filter(
+        (u) => selectedPartyUserIds.has(u.id) && !perfNames.has(u.familyName.toLowerCase().trim())
+      ) ?? [];
 
     return NextResponse.json({ performances, absent });
   } catch (err: unknown) {
