@@ -111,10 +111,10 @@ export default function LandingPage() {
       <div className="relative mx-auto w-full max-w-[880px] px-6 py-14 sm:py-20">
         {/* Kimlik */}
         <header className="text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+          <div className="w-[88px] h-[88px] rounded-[22px] mx-auto mb-6 flex items-center justify-center"
                style={{ background: "var(--t-surface)", border: "1px solid var(--t-line-strong)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/logo.png" alt="" className="w-8 h-8" />
+            <img src="/icons/logo.png" alt="" className="w-[52px] h-[52px]" />
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-black italic tracking-tight">AETHERION</h1>
