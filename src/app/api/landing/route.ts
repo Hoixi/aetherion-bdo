@@ -24,13 +24,30 @@ export async function GET() {
     // Ana klan: müttefikler sayıya girmiyor
     const guild = await prisma.guild.findFirst({ where: { isPrimary: true } });
 
+    /**
+     * Üyeler ekranıyla aynı kural: aile adı boş olanlar sayılmıyor.
+     * Bunlar Discord'dan senkronlanmış ama profilini hiç doldurmamış
+     * hesaplar; üretimde 5 tanesi vardı ve sayıyı 65 yerine 70
+     * gösteriyordu.
+     */
     const uyeler = await prisma.user.findMany({
-      where: { deletedAt: null, ...(guild ? { guildId: guild.id } : {}) },
+      where: {
+        deletedAt: null,
+        familyName: { not: "" },
+        ...(guild ? { guildId: guild.id } : {}),
+      },
       select: { ap: true, dp: true },
     });
 
-    const gsToplam = uyeler.reduce((s, u) => s + u.ap + u.dp, 0);
-    const ortalamaGs = uyeler.length ? Math.round(gsToplam / uyeler.length) : 0;
+    /**
+     * Ortalama yalnızca kuşanımı girilmiş kişiler üzerinden — GS'i 0 olan
+     * bir profil ortalamayı düşürüyor ama klanın gücü hakkında bir şey
+     * söylemiyor. Üyeler ekranı da böyle hesaplıyor.
+     */
+    const kusanimli = uyeler.filter((u) => u.ap + u.dp > 0);
+    const ortalamaGs = kusanimli.length
+      ? Math.round(kusanimli.reduce((s, u) => s + u.ap + u.dp, 0) / kusanimli.length)
+      : 0;
 
     /**
      * Son savaşlar: rapor girilmiş olanlar. Rapor girilmemiş bir savaş
