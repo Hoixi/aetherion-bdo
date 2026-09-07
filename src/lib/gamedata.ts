@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import {
+  normalizeEtki, statEtiket, ONE_CIKAN,
+} from "@/lib/item-effects";
 
 /**
  * Oyun verisi sorgu katmani.
@@ -21,6 +24,13 @@ const ICON_BASE = process.env.NEXT_PUBLIC_ITEM_ICON_BASE ?? "/item-icons";
 
 export type Locale = "tr" | "en";
 
+export interface ItemSummaryEffect {
+  statId: string;
+  label: string;
+  value: number;
+  unit: string | null;
+}
+
 export interface ItemSummary {
   id: string;            // urn::item:10010
   itemId: number;        // 10010
@@ -30,6 +40,8 @@ export interface ItemSummary {
   icon: string | null;
   slot: string | null;
   marketCategory: string | null;
+  /** Sonuc satirinda "neden eslesti"yi gostermek icin */
+  effects?: ItemSummaryEffect[];
 }
 
 export interface ItemLink {
@@ -72,6 +84,10 @@ export interface SearchParams {
   offset?: number;
   /** Varyant ve hayalet kopyalari da getir (varsayilan: hayir) */
   includeVariants?: boolean;
+  /** Kanonik statId — "monsterAp" gibi */
+  effect?: string;
+  /** Etkinin en az bu deger olmasi */
+  effectMin?: number;
 }
 
 export async function searchItems(p: SearchParams) {
@@ -79,6 +95,9 @@ export async function searchItems(p: SearchParams) {
   const limit = Math.min(p.limit ?? 60, 200);
   const offset = Math.max(p.offset ?? 0, 0);
   const q = p.q?.trim() || null;
+  const effect = p.effect?.trim() || null;
+  const effectMin = p.effectMin ?? 0;
+  const effectIds = effect ? await effectItemIds(effect, effectMin) : null;
 
   // Sorgu dar `mv_item` gorunumune gidiyor, `entity` tablosuna degil: oradaki
   // satirlar 955 bayt (jsonb govde) ve filtresiz liste 512 ms suruyordu.
@@ -97,6 +116,11 @@ export async function searchItems(p: SearchParams) {
       and (${p.slot ?? null}::text is null or m.slot = ${p.slot ?? null}::text)
       and (${p.marketCategory ?? null}::text is null
            or m.market_category = ${p.marketCategory ?? null}::text)
+      -- Etki suzgeci kimlik listesiyle: EXISTS ile jsonb'yi her satirda
+      -- acmak uretimde 2-6 saniye suruyordu (73 bin satirin hepsinde
+      -- calisiyordu). Etkisi olan esya 3.4 bin oldugu icin kume bellekte
+      -- tutulup burada yalnizca kimlik esitligi yapiliyor.
+      and (${effectIds}::text[] is null or m.id = any(${effectIds}::text[]))
     order by
       -- Aramada alaka onde: "kzarka" arayan Kzarka Asa'yi bekler, "Baskin Benlik
       -- Kzarka Cagirma Parsomeni"ni degil.
@@ -116,6 +140,21 @@ export async function searchItems(p: SearchParams) {
   `;
 
   const total = rows.length > 0 ? Number(rows[0].total) : 0;
+
+  /**
+   * Etkiler bellekteki indeksten ekleniyor; sonuc satiri hangi statla
+   * eslestigini gosterebilsin. Indeks zaten liste (facet) icin de
+   * yukleniyor, ek maliyet yok.
+   */
+  const etkiler = await etkiSatirlari();
+  const esyaEtki = new Map<string, ItemSummaryEffect[]>();
+  for (const e of etkiler) {
+    const liste = esyaEtki.get(e.id);
+    const kayit = { statId: e.statId, label: statEtiket(e.statId), value: e.value, unit: e.unit };
+    if (liste) liste.push(kayit);
+    else esyaEtki.set(e.id, [kayit]);
+  }
+
   return {
     total,
     items: rows.map<ItemSummary>((r) => ({
@@ -126,6 +165,10 @@ export async function searchItems(p: SearchParams) {
       nameEn: r.name_en,
       grade: r.grade ?? 0,
       icon: iconUrl(r.icon),
+      // Once suzulen stat, sonra degeri buyukten kucuge
+      effects: (esyaEtki.get(r.id) ?? [])
+        .sort((a, b) => (a.statId === effect ? -1 : b.statId === effect ? 1 : b.value - a.value))
+        .slice(0, 4),
       slot: r.slot,
       marketCategory: r.market_category,
     })),
@@ -503,4 +546,113 @@ export async function listAddonEffects(): Promise<Array<{ id: number; text: stri
     order by (entity_id)::int
   `;
   return rows.map((r) => ({ id: Number(r.id), text: r.text }));
+}
+
+// ── Etki indeksi ve listesi ─────────────────────────────────────────────────
+
+export interface EffectFacet {
+  statId: string;
+  label: string;
+  /** Bu etkiye sahip esya sayisi */
+  count: number;
+  /** Ekranda esik kaydiricisi icin */
+  min: number;
+  max: number;
+  unit: string | null;
+  featured: boolean;
+}
+
+/**
+ * Etkiler tek seferde duz satir olarak cekilip bellekte tutuluyor.
+ *
+ * Uretimde olculdu:
+ *  - jsonb govdeleri satir satir tasiyip Node'da acmak 11.270 ms
+ *  - ayni veriyi SQL'de duzlestirip cekmek      634 ms  (18 kat)
+ *
+ * Ayrica arama SQL'i icinde EXISTS ile jsonb acmak 2-6 saniye suruyordu,
+ * cunku 73 bin satirin hepsinde calisiyordu; bellekte suzup SQL'e yalnizca
+ * kimlik listesi vermek ayni aramayi 43-120 ms'ye indirdi.
+ *
+ * `mv_item` ile birlestiriliyor: arama da o gorunumden gidiyor ve varyant
+ * kopyalar orada yok. Birlestirmezsek rozetteki sayi ile donen sonuc
+ * sayisi tutmuyor (127'ye karsi 113).
+ */
+interface EtkiSatir { id: string; statId: string; value: number; unit: string | null }
+
+let etkiBellek: { at: number; satirlar: EtkiSatir[] } | null = null;
+const ETKI_TTL = 30 * 60 * 1000;
+
+async function etkiSatirlari(): Promise<EtkiSatir[]> {
+  if (etkiBellek && Date.now() - etkiBellek.at < ETKI_TTL) return etkiBellek.satirlar;
+
+  const rows = await db.$queryRaw<Array<{
+    id: string; stat_id: string | null; stat: string | null;
+    value: string | null; unit: string | null; op: string | null;
+  }>>`
+    select e.entity_id as id,
+           st->>'statId' as stat_id, st->>'stat' as stat,
+           st->>'value'  as value,   st->>'unit' as unit, st->>'op' as op
+    from gamedata.entity e
+    join gamedata.mv_item m on m.id = e.entity_id
+    cross join lateral jsonb_array_elements(e.data->'effects'->'stats'->'stats') st
+    where e.dataset = 'items'
+      and jsonb_typeof(e.data->'effects'->'stats'->'stats') = 'array'
+  `;
+
+  // Ayni esyada ayni stat birden cok satirda olabiliyor (biri kimlikli
+  // Ingilizce, biri kimliksiz Turkce); en yuksek deger kaliyor.
+  const enIyi = new Map<string, EtkiSatir>();
+  for (const r of rows) {
+    const e = normalizeEtki({
+      stat: r.stat, statId: r.stat_id, value: r.value, unit: r.unit, op: r.op,
+    });
+    if (!e) continue;
+    const anahtar = `${r.id}|${e.statId}`;
+    const mevcut = enIyi.get(anahtar);
+    if (!mevcut || e.value > mevcut.value) {
+      enIyi.set(anahtar, { id: r.id, statId: e.statId, value: e.value, unit: e.unit });
+    }
+  }
+
+  const satirlar = Array.from(enIyi.values());
+  etkiBellek = { at: Date.now(), satirlar };
+  return satirlar;
+}
+
+/** Esigi gecen esya kimlikleri; etki yoksa bos dizi (sonuc da bos olur). */
+async function effectItemIds(statId: string, min: number): Promise<string[]> {
+  const satirlar = await etkiSatirlari();
+  return satirlar.filter((s) => s.statId === statId && s.value >= min).map((s) => s.id);
+}
+
+export async function itemEffectFacets(): Promise<EffectFacet[]> {
+  const satirlar = await etkiSatirlari();
+
+  const toplam = new Map<string, { n: number; min: number; max: number; unit: string | null }>();
+  for (const s of satirlar) {
+    const k = toplam.get(s.statId);
+    if (!k) toplam.set(s.statId, { n: 1, min: s.value, max: s.value, unit: s.unit });
+    else {
+      k.n += 1;
+      if (s.value < k.min) k.min = s.value;
+      if (s.value > k.max) k.max = s.value;
+    }
+  }
+
+  return Array.from(toplam.entries())
+    .map(([statId, v]) => ({
+      statId,
+      label: statEtiket(statId),
+      count: v.n,
+      min: v.min,
+      max: v.max,
+      unit: v.unit,
+      featured: ONE_CIKAN.includes(statId),
+    }))
+    // Once klanin ise yarayanlar, sonra yaygina gore
+    .sort((a, b) => {
+      const fa = ONE_CIKAN.indexOf(a.statId), fb = ONE_CIKAN.indexOf(b.statId);
+      if (fa !== -1 || fb !== -1) return (fa === -1 ? 999 : fa) - (fb === -1 ? 999 : fb);
+      return b.count - a.count;
+    });
 }

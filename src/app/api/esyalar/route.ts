@@ -2,7 +2,9 @@ export const dynamic = "force-dynamic";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-import { searchItems, itemFacets, type Locale } from "@/lib/gamedata";
+import {
+  searchItems, itemFacets, itemEffectFacets, type Locale,
+} from "@/lib/gamedata";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -18,21 +20,24 @@ export async function GET(req: Request) {
   const locale = (str("locale") === "en" ? "en" : "tr") as Locale;
 
   try {
-    const [result, facets] = await Promise.all([
+    const [result, facets, effectFacets] = await Promise.all([
       searchItems({
         q: str("q"),
         grade: num("grade"),
         slot: str("slot"),
         marketCategory: str("kategori"),
+        effect: str("etki"),
+        effectMin: num("etkiMin"),
         locale,
         limit: num("limit") ?? 60,
         offset: num("offset") ?? 0,
       }),
       // Facet'ler sabit; sadece ilk sayfada gonderiliyor.
       (num("offset") ?? 0) === 0 ? itemFacets(locale) : Promise.resolve(null),
+      (num("offset") ?? 0) === 0 ? itemEffectFacets() : Promise.resolve(null),
     ]);
 
-    return NextResponse.json({ ...result, facets });
+    return NextResponse.json({ ...result, facets, effectFacets });
   } catch (err) {
     // gamedata semasi henuz yuklenmemis olabilir - bunu 500 yerine acikca soyle.
     const message = err instanceof Error ? err.message : "Bilinmeyen hata";
