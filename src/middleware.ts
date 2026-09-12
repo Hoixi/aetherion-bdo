@@ -39,6 +39,7 @@ export const config = {
     "/ally/:path*",
     "/esyalar/:path*",
     "/gear-test/:path*",
+    "/uygulama/:path*",
     "/admin/:path*",
   ],
 };

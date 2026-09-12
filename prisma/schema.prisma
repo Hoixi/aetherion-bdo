@@ -143,6 +143,9 @@ model User {
   mapPoints            MapPoint[]     @relation("MapPointCreator")
   mapPointsDone        MapPointDone[]
   fortPlans            FortPlan[]     @relation("FortPlanEditor")
+  appPairCodes         AppPairCode[]
+  appTokens            AppToken[]
+  castleBuffReports    CastleBuff[]   @relation("CastleBuffReporter")
 
   @@map("users")
 }
@@ -702,4 +705,60 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+// ── Masaüstü uygulaması (Aetherion Companion) ────────────────────────────────
+
+/// Uygulamayı siteye bağlayan eşleştirme kodu. TV uygulamaları gibi: site
+/// 6 haneli bir kod gösterir, kullanıcı uygulamaya yazar, uygulama kodu
+/// kalıcı anahtara çevirir. 5 dakika geçerli, tek kullanımlık.
+model AppPairCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  code      String    @unique @db.VarChar(8)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("app_pair_codes")
+}
+
+/// Uygulamanın her istekte sunduğu kalıcı anahtar. Ham anahtar yalnızca
+/// üretildiği anda görülür; burada SHA-256 özeti durur — veritabanı
+/// sızarsa anahtarlar sızmasın. Cihaz başına bir satır, profilden iptal.
+model AppToken {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  tokenHash  String    @unique @db.VarChar(64)
+  label      String    @default("")
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("app_tokens")
+}
+
+/// Kale buff'ı bildirimi: "Aresion Tapınağı'nda Edana Kutsaması var".
+/// Oyunda tahtı tutan klan bölgeye süreli bir buff bağışlıyor; bir üye
+/// görüp bildiriyor, herkes uygulamadan haber alıyor.
+model CastleBuff {
+  id         Int      @id @default(autoincrement())
+  castle     String
+  buff       String
+  effect     String   @default("")
+  expiresAt  DateTime
+  reportedBy Int
+  createdAt  DateTime @default(now())
+  /** Aynı kale yeniden bildirilince süre yenileniyor; olay akışı bunu görsün */
+  updatedAt  DateTime @updatedAt
+
+  reporter User @relation("CastleBuffReporter", fields: [reportedBy], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("castle_buffs")
 }
