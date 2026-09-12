@@ -48,13 +48,21 @@ export async function POST(req: Request) {
       where: { castle, expiresAt: { gt: new Date() } },
     });
     const expiresAt = new Date(Date.now() + dk * 60_000);
+    // Yenilemede bos gelen alan oncekini ezmesin: ikinci kisi yalnizca
+    // "Aresion, 55 dk" derse ilk kisinin yazdigi etki metni silinmesin.
     const row = mevcut
       ? await prisma.castleBuff.update({
-          where: { id: mevcut.id }, data: { buff, effect, expiresAt, reportedBy: me.id } })
+          where: { id: mevcut.id },
+          data: {
+            buff: buff || mevcut.buff,
+            effect: effect || mevcut.effect,
+            expiresAt, reportedBy: me.id,
+          } })
       : await prisma.castleBuff.create({
           data: { castle, buff, effect, expiresAt, reportedBy: me.id } });
 
-    return NextResponse.json({ id: row.id, castle, buff, effect, expiresAt, updated: !!mevcut },
+    return NextResponse.json(
+      { id: row.id, castle, buff: row.buff, effect: row.effect, expiresAt, updated: !!mevcut },
                              { headers: APP_HEADERS });
   });
 }
