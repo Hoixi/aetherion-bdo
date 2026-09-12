@@ -21,8 +21,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const session = await getServerSession(authOptions);
   if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { name } = await req.json();
+  const { name, role } = await req.json();
   const warId = Number(params.id);
+  const nextRole = String(role ?? "MAIN");
+  if (!(["MAIN", "DEFENSE", "FLANK"] as const).includes(nextRole as "MAIN" | "DEFENSE" | "FLANK")) {
+    return NextResponse.json({ error: "Geçersiz rol." }, { status: 400 });
+  }
 
   const maxOrder = await prisma.party.findFirst({
     where: { warId },
@@ -31,7 +35,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   });
 
   const party = await prisma.party.create({
-    data: { warId, name, order: (maxOrder?.order ?? -1) + 1 },
+    data: {
+      warId,
+      name,
+      role: nextRole,
+      isDefense: nextRole === "DEFENSE",
+      order: (maxOrder?.order ?? -1) + 1,
+    },
     include: { members: { include: { user: true } } },
   });
 

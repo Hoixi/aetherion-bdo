@@ -591,6 +591,7 @@ function AdminPartiler({
         attendees={attendees}
         initialParties={war.parties}
         maxParticipants={war.maxParticipants}
+        tier={war.tier ?? (war.maxParticipants && war.maxParticipants <= 30 ? "T1" : "T2")}
         memberStats={memberStats}
         attendanceHistory={history}
         currentStatuses={current}

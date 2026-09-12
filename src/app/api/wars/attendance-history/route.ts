@@ -18,6 +18,7 @@ export interface WarAttendanceSummary {
   warId: number;
   title: string;
   date: string;
+  defenseUsers?: number[];
   // userId → status
   statuses: Record<number, AttendanceStatus>;
 }
@@ -36,7 +37,7 @@ export async function GET() {
       title: true,
       date: true,
       participants: { select: { userId: true, status: true } },
-      parties: { select: { members: { select: { userId: true } } } },
+      parties: { select: { members: { select: { userId: true } }, role: true, isDefense: true } },
       performances: { select: { userId: true, inGameName: true } },
     },
   });
@@ -55,7 +56,7 @@ export async function GET() {
     title: string;
     date: Date;
     participants: { userId: number; status: string }[];
-    parties: { members: { userId: number }[] }[];
+    parties: { members: { userId: number }[]; role?: string | null; isDefense?: boolean | null }[];
     performances: { userId: number | null; inGameName: string }[];
   }) => {
     // userId → "ATTENDING" | "DECLINED"
@@ -66,6 +67,11 @@ export async function GET() {
     // userIds in any party
     const inParty = new Set<number>(
       war.parties.flatMap((party) => party.members.map((m) => m.userId))
+    );
+    const defenseUsers = new Set<number>(
+      war.parties
+        .filter((party) => party.role === "DEFENSE" || party.isDefense)
+        .flatMap((party) => party.members.map((m) => m.userId))
     );
 
     // userIds with performance (by userId first, then familyName fallback)
@@ -110,6 +116,7 @@ export async function GET() {
       warId: war.id,
       title: war.title,
       date: war.date.toISOString(),
+      defenseUsers: Array.from(defenseUsers),
       statuses,
     };
   });

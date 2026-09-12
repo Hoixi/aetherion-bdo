@@ -7,7 +7,7 @@ import {
   type DragStartEvent, type DragEndEvent, type CollisionDetection,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { Search, Plus, Users, AlertTriangle } from "lucide-react";
+import { Search, Plus, Users, AlertTriangle, Wand2 } from "lucide-react";
 import { MemberChip, UserPerfStats, scoreColor, LOW_SAMPLE } from "./member-chip";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
@@ -55,6 +55,7 @@ interface PartyBuilderProps {
   attendees: User[];
   initialParties: PartyData[];
   maxParticipants?: number | null;
+  tier?: string | null;
   memberStats?: Record<number, UserPerfStats>;
   attendanceHistory?: WarAttendanceSummary[];
   currentStatuses?: Record<number, AttendanceStatus>;
@@ -93,8 +94,75 @@ function DroppablePool({ children, empty }: { children: React.ReactNode; empty: 
   );
 }
 
+function userFormScore(user: User, memberStats?: Record<number, UserPerfStats>) {
+  const perf = memberStats?.[user.id];
+  if (perf) return perf.score;
+  return (user.ap + user.dp) * 0.4;
+}
+
+function defenseFrequency(userId: number, attendanceHistory?: WarAttendanceSummary[]) {
+  return (attendanceHistory ?? []).reduce((count, war) => {
+    return count + (war.defenseUsers?.includes(userId) ? 1 : 0);
+  }, 0);
+}
+
+function buildAutoPartyPlan(
+  attendees: User[],
+  memberStats: Record<number, UserPerfStats> | undefined,
+  attendanceHistory: WarAttendanceSummary[] | undefined,
+  maxParticipants?: number | null,
+  tier?: string | null,
+): { name: string; role: "MAIN" | "DEFENSE" | "FLANK"; members: User[] }[] {
+  const sorted = [...attendees].sort((a, b) => {
+    const aDefense = defenseFrequency(a.id, attendanceHistory);
+    const bDefense = defenseFrequency(b.id, attendanceHistory);
+    if (aDefense !== bDefense) return bDefense - aDefense;
+    return userFormScore(b, memberStats) - userFormScore(a, memberStats)
+      || (b.ap + b.dp) - (a.ap + a.dp);
+  });
+
+  const isT1War = tier?.toUpperCase() === "T1" || (!!maxParticipants && maxParticipants <= 30);
+  const t1Limit = isT1War ? (maxParticipants && maxParticipants > 0 ? Math.min(maxParticipants, 30) : 30) : Number.POSITIVE_INFINITY;
+
+  const eligible = sorted.slice(0, Number.isFinite(t1Limit) ? Math.min(sorted.length, t1Limit) : sorted.length);
+  if (eligible.length === 0) return [];
+
+  const defenseTarget = eligible.length >= 4 ? 4 : Math.min(3, eligible.length);
+  const defenseCandidates = eligible.filter((user) => defenseFrequency(user.id, attendanceHistory) > 0);
+
+  const defenseSelected = [...defenseCandidates];
+  for (const user of eligible) {
+    if (defenseSelected.length >= defenseTarget) break;
+    if (!defenseSelected.some((member) => member.id === user.id)) defenseSelected.push(user);
+  }
+
+  const defenseSet = new Set(defenseSelected.map((user) => user.id));
+  const remaining = eligible.filter((user) => !defenseSet.has(user.id));
+
+  const plans: { name: string; role: "MAIN" | "DEFENSE" | "FLANK"; members: User[] }[] = [];
+  if (defenseSelected.length) {
+    plans.push({
+      name: "Savunma Partisi",
+      role: "DEFENSE",
+      members: defenseSelected.slice(0, defenseTarget),
+    });
+  }
+
+  for (let index = 0; index < remaining.length; index += 5) {
+    const chunk = remaining.slice(index, index + 5);
+    if (chunk.length === 0) continue;
+    plans.push({
+      name: `Parti ${plans.length + 1}`,
+      role: "MAIN",
+      members: chunk,
+    });
+  }
+
+  return plans;
+}
+
 export function PartyBuilder({
-  warId, attendees, initialParties, maxParticipants, memberStats,
+  warId, attendees, initialParties, maxParticipants, tier, memberStats,
   attendanceHistory, currentStatuses,
 }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
@@ -231,6 +299,41 @@ export function PartyBuilder({
     if (res.ok) setParties([...parties, await res.json()]);
   }
 
+  async function autoCreateParties() {
+    const plan = buildAutoPartyPlan(attendees, memberStats, attendanceHistory, maxParticipants, tier);
+    if (plan.length === 0) return;
+
+    const created: PartyData[] = [];
+    for (const partyPlan of plan) {
+      const res = await fetch(`/api/wars/${warId}/parties`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: partyPlan.name, role: partyPlan.role }),
+      });
+      if (!res.ok) continue;
+
+      const createdParty = await res.json();
+      created.push({
+        ...createdParty,
+        members: partyPlan.members.map((user) => ({
+          id: 0,
+          userId: user.id,
+          user,
+        })),
+      });
+
+      await fetch(`/api/wars/${warId}/parties/${createdParty.id}/members`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberIds: partyPlan.members.map((user) => user.id) }),
+      });
+    }
+
+    setParties(created);
+    setSaveStatus("Otomatik parti kuruldu");
+    setTimeout(() => setSaveStatus(null), 2500);
+  }
+
   async function renameParty(partyId: number, name: string) {
     await fetch(`/api/wars/${warId}/parties/${partyId}`, {
       method: "PUT",
@@ -342,8 +445,13 @@ export function PartyBuilder({
                   {label}
                 </button>
               ))}
-              <button onClick={addParty}
+              <button onClick={autoCreateParties}
                       className="ml-2 flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md
+                                 bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20 transition-colors">
+                <Wand2 className="w-3 h-3" /> Otomatik parti kur
+              </button>
+              <button onClick={addParty}
+                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md
                                  bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20 transition-colors">
                 <Plus className="w-3 h-3" /> Yeni parti
               </button>
