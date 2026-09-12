@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
+export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { withApp, APP_HEADERS } from "@/lib/app-gate";
+import { withApp, APP_HEADERS, appError } from "@/lib/app-gate";
 
 /**
  * Kale buff'ı: oyunda tahtı tutan klan bölgeye süreli bir buff bağışlıyor
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     const effect = String(b.effect ?? "").trim().slice(0, ETKI_MAX);
     const dk = Number(b.minutesLeft);
 
-    if (!castle || !buff) return NextResponse.json({ error: "Kale ve buff adı gerekli." }, { status: 400 });
+    if (!castle || !buff) return appError("Kale ve buff adı gerekli.", 400);
     if (!Number.isFinite(dk) || dk < SURE_MIN_DK || dk > SURE_MAX_DK) {
       return NextResponse.json({ error: `Kalan süre ${SURE_MIN_DK}-${SURE_MAX_DK} dakika arası olmalı.` }, { status: 400 });
     }

@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withApp, APP_HEADERS } from "@/lib/app-gate";

@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
+export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { iconUrl, urnId } from "@/lib/gamedata";
-import { withApp, APP_HEADERS } from "@/lib/app-gate";
+import { withApp, APP_HEADERS, appError } from "@/lib/app-gate";
 
 /**
  * OCR metnini gerçek eşyaya yaklaştırma.
@@ -22,7 +23,7 @@ const MIN_SIM = 0.35;
 export async function GET(req: Request) {
   return withApp(req, async () => {
     const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 120);
-    if (q.length < 3) return NextResponse.json({ error: "q en az 3 karakter." }, { status: 400 });
+    if (q.length < 3) return appError("q en az 3 karakter.", 400);
 
     const rows = await prisma.$queryRaw<Array<{
       id: string; name: string; grade: number; icon: string | null; sim: number;
