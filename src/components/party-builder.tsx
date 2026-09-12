@@ -127,12 +127,13 @@ function buildAutoPartyPlan(
   const eligible = sorted.slice(0, Number.isFinite(t1Limit) ? Math.min(sorted.length, t1Limit) : sorted.length);
   if (eligible.length === 0) return [];
 
-  const defenseTarget = eligible.length >= 4 ? 4 : Math.min(3, eligible.length);
+  const defenseMin = eligible.length >= 3 ? 3 : eligible.length;
+  const defenseCount = eligible.length >= 5 ? 4 : defenseMin;
   const defenseCandidates = eligible.filter((user) => defenseFrequency(user.id, attendanceHistory) > 0);
 
-  const defenseSelected = [...defenseCandidates];
-  for (const user of eligible) {
-    if (defenseSelected.length >= defenseTarget) break;
+  const defenseSelected: User[] = [];
+  for (const user of [...defenseCandidates, ...eligible]) {
+    if (defenseSelected.length >= defenseCount) break;
     if (!defenseSelected.some((member) => member.id === user.id)) defenseSelected.push(user);
   }
 
@@ -140,22 +141,25 @@ function buildAutoPartyPlan(
   const remaining = eligible.filter((user) => !defenseSet.has(user.id));
 
   const plans: { name: string; role: "MAIN" | "DEFENSE" | "FLANK"; members: User[] }[] = [];
-  if (defenseSelected.length) {
+  if (defenseSelected.length > 0) {
     plans.push({
-      name: "Savunma Partisi",
+      name: "Savunma",
       role: "DEFENSE",
-      members: defenseSelected.slice(0, defenseTarget),
+      members: defenseSelected.slice(0, defenseCount),
     });
   }
 
-  for (let index = 0; index < remaining.length; index += 5) {
-    const chunk = remaining.slice(index, index + 5);
-    if (chunk.length === 0) continue;
-    plans.push({
-      name: `Parti ${plans.length + 1}`,
-      role: "MAIN",
-      members: chunk,
-    });
+  if (remaining.length === 0) return plans;
+
+  const main1Target = Math.min(20, Math.max(1, Math.ceil(remaining.length / 2)));
+  const main1 = remaining.slice(0, main1Target);
+  const main2 = remaining.slice(main1Target, Math.min(remaining.length, main1Target + 20));
+
+  if (main1.length > 0) {
+    plans.push({ name: "Main-1", role: "MAIN", members: main1 });
+  }
+  if (main2.length > 0) {
+    plans.push({ name: "Main-2", role: "MAIN", members: main2 });
   }
 
   return plans;
@@ -313,13 +317,15 @@ export function PartyBuilder({
       if (!res.ok) continue;
 
       const createdParty = await res.json();
+      const members = partyPlan.members.map((user) => ({
+        id: 0,
+        userId: user.id,
+        user,
+      }));
+
       created.push({
         ...createdParty,
-        members: partyPlan.members.map((user) => ({
-          id: 0,
-          userId: user.id,
-          user,
-        })),
+        members,
       });
 
       await fetch(`/api/wars/${warId}/parties/${createdParty.id}/members`, {
