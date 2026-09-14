@@ -45,7 +45,8 @@ export async function GET(req: Request) {
         date: w.date,
         deadline: w.deadline,
         isAllyWar: w.isAllyWar,
-        attending: w._count.participants,
+        // Sayı yöneticiye özel; üyeye null
+        attending: me.isAdmin || me.isGuildAdmin ? w._count.participants : null,
         myStatus: w.participants[0]?.status ?? null,
         myClass: w.participants[0]?.asClass ?? null,
         // Kurulan partiler: ad, rol, üyeler — "şu partiler kuruldu" ekranı

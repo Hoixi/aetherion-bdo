@@ -26,7 +26,8 @@ type War = {
   isAllyWar: boolean;
   tier?: string;
   maxParticipants: number | null;
-  _count: { participants: number };
+  /** Yöneticiye gelir; üyeye null (sayı gizli) */
+  _count: { participants: number } | null;
   /** Yalnızca kendi kaydımız gelir — boşsa cevap vermemişiz */
   participants: { status: "ATTENDING" | "DECLINED" }[];
 };
@@ -138,7 +139,7 @@ function WarRow({ w, upcoming = false }: { w: War; upcoming?: boolean }) {
   const loss = w.result === "LOSS";
   const mine = w.participants[0]?.status ?? null;
   const date = new Date(w.date);
-  const full = w.maxParticipants ? w._count.participants >= w.maxParticipants : false;
+  const full = w.maxParticipants && w._count ? w._count.participants >= w.maxParticipants : false;
 
   return (
     <Link href={`/savaslar/${w.id}`} className="t-row px-5 py-3.5 flex items-center gap-4 flex-wrap">
@@ -182,6 +183,7 @@ function WarRow({ w, upcoming = false }: { w: War; upcoming?: boolean }) {
         </span>
       )}
 
+      {w._count && (
       <div className="text-right w-[86px]">
         <div className="t-num text-[13px] flex items-center justify-end gap-1">
           <Users className="w-3 h-3" style={{ color: "var(--t-faint)" }} />
@@ -194,6 +196,7 @@ function WarRow({ w, upcoming = false }: { w: War; upcoming?: boolean }) {
         </div>
         <div className="text-[10px]" style={{ color: "var(--t-faint)" }}>katılım</div>
       </div>
+      )}
 
       <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--t-faint)" }} />
     </Link>

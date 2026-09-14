@@ -6,9 +6,16 @@ import { prisma } from "@/lib/prisma";
 import { notifyAllMembers } from "@/lib/notifications";
 import { getGuildScope } from "@/lib/guild-scope";
 
+/**
+ * Katılım sayısı yalnızca yöneticilere gider. Üyeler sayıyı görünce "30
+ * olmuş, ben gelmesem de olur" diye düşünüyordu; sayı görünmeyince gelebilen
+ * herkes katıl atıyor.
+ */
 export async function GET() {
   const scope = await getGuildScope();
   if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getServerSession(authOptions);
+  const yonetici = !!session?.user.canManageWars;
 
   // Klan içi savaşları sadece ana klan üyeleri görür
   const primary = await prisma.guild.findFirst({ where: { isPrimary: true }, select: { id: true } });
@@ -26,7 +33,7 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(wars);
+  return NextResponse.json(yonetici ? wars : wars.map((w) => ({ ...w, _count: null })));
 }
 
 export async function POST(req: Request) {

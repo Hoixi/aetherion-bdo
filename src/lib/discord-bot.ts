@@ -180,7 +180,7 @@ export async function sendWarToDiscord(war: {
     fields.push({ name: "Not", value: war.notes });
   }
 
-  fields.push({ name: "Katılım", value: "✅ 0 — ❌ 0", inline: false });
+  // Katılım sayısı bilerek yok: "30 olmuş" diye katıl atmayan oluyordu.
 
   const emoji = TYPE_EMOJI[war.type] || "📌";
 
@@ -554,7 +554,8 @@ export async function updateWarEmbed(
     fields.push({ name: "Not", value: war.notes });
   }
 
-  fields.push({ name: "Katılım", value: `✅ ${attendCount} — ❌ ${declineCount}`, inline: false });
+  // Sayılar embed'e yazılmıyor (bkz. postWarEmbed); imzalar uyumluluk için duruyor.
+  void attendCount; void declineCount;
 
   const emoji = TYPE_EMOJI[war.type] || "📌";
 
@@ -577,14 +578,14 @@ export async function updateWarEmbed(
         {
           type: 2,
           style: 3,
-          label: `Katılıyorum (${attendCount})`,
+          label: "Katılıyorum",
           emoji: { name: "✅" },
           custom_id: `war_attend_${war.id}`,
         },
         {
           type: 2,
           style: 4,
-          label: `Katılmıyorum (${declineCount})`,
+          label: "Katılmıyorum",
           emoji: { name: "❌" },
           custom_id: `war_decline_${war.id}`,
         },

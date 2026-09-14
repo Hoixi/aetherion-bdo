@@ -28,6 +28,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 
   if (!war) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Katılan listesi ve sayısı yöneticiye özel; üye yalnızca kendi durumunu görür.
+  // Partiler herkese açık: kurulan parti üyelerinin görmesi gereken şey.
+  if (!session.user.canManageWars) {
+    return NextResponse.json({ ...war, participants: war.participants.filter((p) => p.userId === session.user.id), participantsHidden: true });
+  }
   return NextResponse.json(war);
 }
 

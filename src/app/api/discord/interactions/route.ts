@@ -637,16 +637,14 @@ async function handleCommand(
       where: { date: { gte: new Date() } },
       orderBy: { date: "asc" },
       take: 5,
-      include: { participants: { select: { status: true } } },
     });
 
     if (wars.length === 0) return ephemeral("📭 Yaklaşan savaş yok.");
 
     const lines = wars.map((w) => {
       const date = new Date(w.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
-      const attend = w.participants.filter((p) => p.status === "ATTENDING").length;
       const emoji = { NODE_WAR: "⚔️", SIEGE: "🏰", KARA_TAPINAK: "🕳️", OTHER: "📌" }[w.type] || "📌";
-      return `${emoji} **${w.title}** — ${date} (✅ ${attend} kişi)`;
+      return `${emoji} **${w.title}** — ${date}`;
     });
 
     return publicEmbed([{

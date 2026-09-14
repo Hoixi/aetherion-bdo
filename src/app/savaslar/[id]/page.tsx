@@ -104,6 +104,8 @@ export default function SavasDetayPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("katilim");
+  // Üye Katılım sekmesini görmez; varsayılan sekme partiler
+  useEffect(() => { if (status === "authenticated" && !session?.user?.canManageWars) setTab((t) => (t === "katilim" ? "partiler" : t)); }, [status, session]);
 
   const canManage = !!session?.user?.canManageWars;
 
@@ -232,7 +234,7 @@ export default function SavasDetayPage() {
   const tier = war.tier ?? "T1";
 
   const TABS: { id: Tab; label: string; icon: React.ElementType; meta?: number }[] = [
-    { id: "katilim", label: "Katılım", icon: Users, meta: lists.attending.length },
+    ...(canManage ? [{ id: "katilim" as Tab, label: "Katılım", icon: Users, meta: lists.attending.length }] : []),
     { id: "partiler", label: "Partiler", icon: Layers, meta: partyCount },
     { id: "rapor", label: "Hasar Raporu", icon: Flame, meta: perfs.length },
   ];
@@ -323,11 +325,18 @@ export default function SavasDetayPage() {
           {/* Sayı şeridi */}
           <div className="grid grid-cols-2 sm:grid-cols-4"
                style={{ borderTop: "1px solid var(--t-line)" }}>
-            <Stat label="Katılan" value={lists.attending.length}
-                  sub={war.maxParticipants ? `/ ${war.maxParticipants} kontenjan` : undefined}
-                  tone={overCap ? "var(--t-gold)" : "var(--t-good)"} />
-            <Stat label="Katılmayan" value={lists.declined.length} tone="var(--t-bad)" />
-            <Stat label="Bildirmedi" value={lists.silent.length} tone="var(--t-dim)" />
+            {canManage ? (<>
+              <Stat label="Katılan" value={lists.attending.length}
+                    sub={war.maxParticipants ? `/ ${war.maxParticipants} kontenjan` : undefined}
+                    tone={overCap ? "var(--t-gold)" : "var(--t-good)"} />
+              <Stat label="Katılmayan" value={lists.declined.length} tone="var(--t-bad)" />
+              <Stat label="Bildirmedi" value={lists.silent.length} tone="var(--t-dim)" />
+            </>) : (
+              // Sayılar üyeye gösterilmiyor: "30 olmuş" diye katıl atmayan oluyordu
+              <div className="col-span-3 px-5 py-3 text-[12px]" style={{ color: "var(--t-dim)" }}>
+                Katılım sayısı yöneticide. Gelebiliyorsan katıl at — kontenjan dolunca haber verilir.
+              </div>
+            )}
             <Stat label="Partiye seçilen" value={selectedCount}
                   sub={partyCount > 0 ? `${partyCount} parti` : undefined} tone="var(--t-gold)" />
           </div>
@@ -365,7 +374,7 @@ export default function SavasDetayPage() {
           ))}
         </div>
 
-        {tab === "katilim" && (
+        {tab === "katilim" && canManage && (
           <Katilim lists={lists} guildSplit={guildSplit} counts={statuses.counts}
                    current={statuses.current} />
         )}
