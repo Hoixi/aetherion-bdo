@@ -129,10 +129,18 @@ export default function UygulamaPage() {
           </Card>
 
           <Card>
-            <Head icon={Download} title="İndir" />
-            <p className="px-5 py-4 text-[12.5px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
-              Uygulama henüz yayınlanmadı. İlk sürüm çıkınca indirme bağlantısı burada olacak.
-            </p>
+            <Head icon={Download} title="İndir" meta="Windows" />
+            <div className="px-5 py-4 space-y-3">
+              <a href="/api/companion/download" className="inline-flex items-center gap-2 text-[13px] font-semibold px-4 py-2 rounded-[9px]"
+                 style={{ background: "var(--t-gold)", color: "#000" }}>
+                <Download className="w-4 h-4" /> Aetherion Companion'ı indir
+              </a>
+              <p className="text-[12px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
+                Kurulum dosyası (.exe). Windows SmartScreen uyarırsa "Daha fazla bilgi → Yine de çalıştır".
+                Kurduktan sonra yukarıdan eşleştirme kodu alıp uygulamaya gir. Grind tracker için oyun
+                pencereli/kenarlıksız modda olmalı; tam ekran (exclusive) modda ekran yakalanamaz.
+              </p>
+            </div>
           </Card>
         </div>
       </div>
