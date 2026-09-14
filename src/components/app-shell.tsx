@@ -47,7 +47,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
   { key: "Takip", icon: Search, items: [
     { label: "Üyeler", href: "/uyeler", icon: Users },
     { label: "Karakterim", href: "/profil", icon: Shield },
-    { label: "Grind Tracker", href: "/grind-tracker", icon: Activity },
+    { label: "Grind", href: "/grind", icon: Activity },
     { label: "Forum", href: "/forum", icon: MessageSquare },
     { label: "Yama Notları", href: "/patch-notes", icon: ScrollText },
   ] },

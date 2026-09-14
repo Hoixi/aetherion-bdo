@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/app-shell";
 import { Area, Ava, Btn, Field, Input, Metric, SectionHead, Tag } from "./ui";
+import { GrindSpotlari } from "./grind-spotlari";
 
 /**
  * Bakım araçları.
@@ -421,6 +422,9 @@ export default function AraclarTab({ flash }: { flash: (msg: string) => void }) 
           </Field>
         </div>
       </Card>
+
+      {/* ── Grind spotları ─────────────────────────────────────────── */}
+      <GrindSpotlari mesaj={flash} />
 
       {/* ── Discord daveti ─────────────────────────────────────────── */}
       <Card className="overflow-hidden">

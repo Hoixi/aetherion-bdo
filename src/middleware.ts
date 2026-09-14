@@ -33,7 +33,7 @@ export const config = {
     "/hasar-raporu/:path*",
     "/tier-list/:path*",
     "/patch-notes/:path*",
-    "/grind-tracker/:path*",
+    "/grind/:path*",
     "/ai-asistan/:path*",
     "/optimizer/:path*",
     "/ally/:path*",

@@ -146,6 +146,7 @@ model User {
   appPairCodes         AppPairCode[]
   appTokens            AppToken[]
   castleBuffReports    CastleBuff[]   @relation("CastleBuffReporter")
+  grindSessions        GrindSession[]
 
   @@map("users")
 }
@@ -761,4 +762,61 @@ model CastleBuff {
 
   @@index([expiresAt])
   @@map("castle_buffs")
+}
+
+// ── Grind oturumları (uygulamadan gelir) ───────────────────────────────────
+
+/// Kasılan spot. Yalnızca Edania 2 spotları; liste admin panelinden yönetilir.
+model GrindSpot {
+  id     Int     @id @default(autoincrement())
+  name   String
+  region String  @default("Edania 2")
+  order  Int     @default(0)
+  active Boolean @default(true)
+
+  sessions GrindSession[]
+
+  @@map("grind_spots")
+}
+
+/// Uygulamanın saydığı bir grind oturumu. Uygulama başlarken açar, her
+/// 30 sn'de eşya toplamlarını yollar, dururken kapatır. Site yalnızca okur:
+/// canlı akış, spot istatistikleri, kişi başı geçmiş.
+model GrindSession {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  spotId      Int?
+  character   String    @default("")
+  class       String    @default("")
+  startedAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  endedAt     DateTime?
+  durationSec Int       @default(0)
+  drops       Int       @default(0)
+
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spot  GrindSpot?         @relation(fields: [spotId], references: [id], onDelete: SetNull)
+  items GrindSessionItem[]
+
+  @@index([spotId, startedAt])
+  @@index([userId, startedAt])
+  @@map("grind_sessions")
+}
+
+/// Oturumdaki bir eşyanın toplamı. Her yüklemede baştan yazılır (uygulama
+/// kaynağı; site sadece yansıtır). itemId gamedata kimliği, ad/ikon o anki
+/// eşleşmeden kopya — geçmiş kayıtlar veri tabanı değişse de okunabilsin.
+model GrindSessionItem {
+  sessionId Int
+  itemId    Int
+  name      String
+  grade     Int    @default(0)
+  icon      String @default("")
+  quantity  Int    @default(0)
+  drops     Int    @default(0)
+
+  session GrindSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, itemId])
+  @@map("grind_session_items")
 }
