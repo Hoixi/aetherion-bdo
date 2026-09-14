@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Clock, MapPin, Radio, Users, TrendingUp, Package } from "lucide-react";
+import { Activity, Clock, MapPin, Radio, Users, TrendingUp, Package, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { TestShell, Card, Head, Empty, loadJson, fmt } from "@/components/app-shell";
 import { getClassByID } from "@/lib/classes";
 
@@ -20,7 +21,7 @@ interface Oturum {
   id: number; character: string; class: string; startedAt: string; lastSeenAt: string; endedAt: string | null;
   durationSec: number; drops: number; live: boolean;
   user: { id: number; familyName: string; class: string; avatarUrl: string };
-  spot: { id: number; name: string } | null;
+  spot: { id: number; name: string; region: string } | null;
   items: Esya[];
 }
 interface Istatistik {
@@ -56,7 +57,7 @@ function Ikon({ e, size = 28 }: { e: { icon: string; name: string; grade: number
 }
 
 /** Bir oturum kartı — canlıysa süre işler */
-function OturumKarti({ o, simdi }: { o: Oturum; simdi: number }) {
+function OturumKarti({ o, simdi, benim, onSil }: { o: Oturum; simdi: number; benim: boolean; onSil: (id: number) => void }) {
   // Canlı oturumda süre son nabızdan bu yana da işler; kapalıda kayıtlı süre
   const saniye = o.live ? o.durationSec + Math.max(0, (simdi - Date.parse(o.lastSeenAt)) / 1000) : o.durationSec;
   const dkBasi = saniye >= 60 ? o.drops / (saniye / 60) : 0;
@@ -83,6 +84,12 @@ function OturumKarti({ o, simdi }: { o: Oturum; simdi: number }) {
             <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{sure(saniye)}</span>
             <span>{o.drops} düşüş{dkBasi ? ` · ${dkBasi.toFixed(1)}/dk` : ""}</span>
             <span className="ml-auto">{o.live ? `başladı ${once(o.startedAt, simdi)}` : once(o.lastSeenAt, simdi)}</span>
+            {benim && (
+              <button className="inline-flex items-center gap-1 hover:text-red-400" title="Bu oturumu sil"
+                      onClick={() => { if (confirm("Bu oturum silinsin mi?")) onSil(o.id); }}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {goster.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">
@@ -111,10 +118,18 @@ export default function GrindPage() {
   const [veri, setVeri] = useState<Veri | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [simdi, setSimdi] = useState(() => Date.now());
+  const { data: oturum } = useSession();
+  const benId = oturum?.user?.id ?? null;
 
   useEffect(() => {
     loadJson<Spot[]>("/api/grind/spots").then(setSpotlar).catch(() => setSpotlar([]));
   }, []);
+
+  async function sil(id: number) {
+    const r = await fetch(`/api/grind/sessions?id=${id}`, { method: "DELETE" });
+    if (r.ok) setVeri((v) => v ? { ...v, sessions: v.sessions.filter((o) => o.id !== id) } : v);
+    else alert((await r.json().catch(() => ({}))).error ?? "Silinemedi.");
+  }
 
   const yukle = useCallback(async () => {
     try {
@@ -123,12 +138,30 @@ export default function GrindPage() {
     } catch (e) { setHata((e as Error).message); }
   }, [secili]);
 
-  // 30 sn'de bir yenile (uygulamanın nabzıyla aynı), saat her saniye işlesin
-  useEffect(() => { void yukle(); const t = setInterval(yukle, 30_000); return () => clearInterval(t); }, [yukle]);
+  // 1 dk'da bir yenile (uygulamanın nabzıyla aynı), saat her saniye işlesin
+  useEffect(() => { void yukle(); const t = setInterval(yukle, 60_000); return () => clearInterval(t); }, [yukle]);
   useEffect(() => { const t = setInterval(() => setSimdi(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const canli = useMemo(() => (veri?.sessions ?? []).filter((o) => o.live), [veri]);
   const gecmis = useMemo(() => (veri?.sessions ?? []).filter((o) => !o.live), [veri]);
+  /** Bölge → spot sırasıyla gruplanmış liste; spotsuz oturumlar en sona */
+  const grupla = (l: Oturum[]) => {
+    const m = new Map<string, Oturum[]>();
+    for (const o of l) { const k = o.spot ? `${o.spot.region} · ${o.spot.name}` : "Spot seçilmemiş"; m.set(k, [...(m.get(k) ?? []), o]); }
+    return Array.from(m.entries());
+  };
+  const Gruplu = ({ l }: { l: Oturum[] }) => (
+    <div className="space-y-4">
+      {grupla(l).map(([k, os]) => (
+        <div key={k}>
+          <div className="text-[11px] uppercase tracking-wide mb-1.5 flex items-center gap-1.5" style={{ color: "var(--t-faint)" }}>
+            <MapPin className="w-3 h-3" />{k}
+          </div>
+          <div className="space-y-3">{os.map((o) => <OturumKarti key={o.id} o={o} simdi={simdi} benim={o.user.id === benId} onSil={sil} />)}</div>
+        </div>
+      ))}
+    </div>
+  );
   const ist = veri?.stats ?? null;
 
   const sekmeler = (
@@ -154,7 +187,7 @@ export default function GrindPage() {
             </div>
             {canli.length === 0
               ? <Empty>Şu an kimse kasmıyor. Uygulamada sayacı başlatan burada görünür.</Empty>
-              : <div className="space-y-3">{canli.map((o) => <OturumKarti key={o.id} o={o} simdi={simdi} />)}</div>}
+              : <Gruplu l={canli} />}
           </section>
           <section>
             <div className="flex items-center gap-2 mb-2">
@@ -163,7 +196,7 @@ export default function GrindPage() {
             </div>
             {gecmis.length === 0
               ? <Empty>Henüz kayıtlı oturum yok.</Empty>
-              : <div className="space-y-3">{gecmis.map((o) => <OturumKarti key={o.id} o={o} simdi={simdi} />)}</div>}
+              : <Gruplu l={gecmis} />}
           </section>
         </div>
 

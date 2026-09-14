@@ -21,7 +21,7 @@ const OTURUM_SECIM = {
   id: true, character: true, class: true, startedAt: true, lastSeenAt: true, endedAt: true,
   durationSec: true, drops: true,
   user: { select: { id: true, familyName: true, class: true, avatarUrl: true } },
-  spot: { select: { id: true, name: true } },
+  spot: { select: { id: true, name: true, region: true } },
   items: { orderBy: { quantity: "desc" as const } },
 };
 
