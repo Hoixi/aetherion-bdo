@@ -8,11 +8,15 @@ import { BDO_CLASSES } from "@/lib/classes";
 /**
  * Skill numaralarından sınıf.
  *
- * Oyunun kendi önbelleği (`UserCache/.../gamevariable.xml`) aktif karakterin
- * hızlı yuva skill numaralarını yazıyor; skill'ler sınıfa özel. Uygulama
+ * Oyunun önbelleği (`UserCache/.../gamevariable.xml`) karakterlerin hızlı
+ * yuva skill numaralarını içeriyor; skill'ler sınıfa özel. Uygulama
  * numaraları yollar, burada gamedata `class_skill_groups.ranks[].skillNo`
  * ile eşlenip çoğunluk sınıfı döner. Ortak skill'ler (birden çok sınıf)
  * oy vermez.
+ *
+ * Not: dosyaların değişme zamanı AKTİF karakteri göstermiyor (girişte
+ * sunucudan gelen önbellek paketi açılırken yazılıyorlar); bu uç bir dosyanın
+ * hangi sınıfa ait olduğunu söyler, "şu an hangi karakter" sorusunu değil.
  */
 export async function GET(req: Request) {
   return withApp(req, async () => {
@@ -34,12 +38,9 @@ export async function GET(req: Request) {
     const enIyi = Array.from(oy.entries()).sort((a, b) => b[1] - a[1])[0];
     if (!enIyi) return NextResponse.json({ classKey: null, name: null, id: null }, { headers: APP_HEADERS });
 
-    const ad = await prisma.$queryRaw<Array<{ name: string }>>`
-      select data ->> 'name' as name from gamedata.entity
-      where dataset = 'character_classes' and (data ->> 'characterKey')::int = ${enIyi[0]} limit 1
-    `;
-    const name = ad[0]?.name ?? null;
-    const site = name ? BDO_CLASSES.find((c) => c.name.toLocaleLowerCase("tr") === name.toLocaleLowerCase("tr")) : null;
-    return NextResponse.json({ classKey: enIyi[0], name, id: site?.id ?? null, votes: enIyi[1] }, { headers: APP_HEADERS });
+    // `classes` dizisi BDO_CLASSES.classType numaralandırması (ölçüldü: 21 = Maehwa,
+    // 34 = Deadeye) — character_classes.characterKey DEĞİL (orada 21 = Musa).
+    const site = BDO_CLASSES.find((c) => c.classType === enIyi[0]) ?? null;
+    return NextResponse.json({ classKey: enIyi[0], name: site?.name ?? null, id: site?.id ?? null, votes: enIyi[1] }, { headers: APP_HEADERS });
   });
 }
