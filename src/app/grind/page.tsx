@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Clock, MapPin, Radio, Users, TrendingUp, Package, Trash2 } from "lucide-react";
+import { Activity, Clock, MapPin, Radio, Users, TrendingUp, Package, Trash2, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { TestShell, Card, Head, Empty, loadJson, fmt } from "@/components/app-shell";
 import { getClassByID } from "@/lib/classes";
@@ -57,14 +57,14 @@ function Ikon({ e, size = 28 }: { e: { icon: string; name: string; grade: number
 }
 
 /** Bir oturum kartı — canlıysa süre işler */
-function OturumKarti({ o, simdi, benim, onSil }: { o: Oturum; simdi: number; benim: boolean; onSil: (id: number) => void }) {
+function OturumKarti({ o, simdi, benim, onSil, onAc }: { o: Oturum; simdi: number; benim: boolean; onSil: (id: number) => void; onAc: (o: Oturum) => void }) {
   // Canlı oturumda süre son nabızdan bu yana da işler; kapalıda kayıtlı süre
   const saniye = o.live ? o.durationSec + Math.max(0, (simdi - Date.parse(o.lastSeenAt)) / 1000) : o.durationSec;
   const dkBasi = saniye >= 60 ? o.drops / (saniye / 60) : 0;
   const goster = o.items.slice(0, 6);
   return (
-    <Card className={`p-4 ${o.live ? "t-card-hi" : ""}`}>
-      <div className="flex items-start gap-3">
+    <Card className={`p-4 cursor-pointer transition-colors hover:border-[rgba(232,180,81,.35)] ${o.live ? "t-card-hi" : ""}`}>
+      <div className="flex items-start gap-3" onClick={() => onAc(o)}>
         <span className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0" style={{ background: "var(--t-raised)" }}>
           {o.user.avatarUrl && <img src={o.user.avatarUrl} alt="" width={36} height={36} />}
         </span>
@@ -86,7 +86,7 @@ function OturumKarti({ o, simdi, benim, onSil }: { o: Oturum; simdi: number; ben
             <span className="ml-auto">{o.live ? `başladı ${once(o.startedAt, simdi)}` : once(o.lastSeenAt, simdi)}</span>
             {benim && (
               <button className="inline-flex items-center gap-1 hover:text-red-400" title="Bu oturumu sil"
-                      onClick={() => { if (confirm("Bu oturum silinsin mi?")) onSil(o.id); }}>
+                      onClick={(e) => { e.stopPropagation(); if (confirm("Bu oturum silinsin mi?")) onSil(o.id); }}>
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
@@ -112,6 +112,81 @@ function OturumKarti({ o, simdi, benim, onSil }: { o: Oturum; simdi: number; ben
   );
 }
 
+/** Oturum detayı — tüm düşen eşyalar, saatlik hız, oturum bilgisi */
+function OturumDetay({ o, simdi, onKapat }: { o: Oturum; simdi: number; onKapat: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onKapat();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onKapat]);
+  const saniye = o.live ? o.durationSec + Math.max(0, (simdi - Date.parse(o.lastSeenAt)) / 1000) : o.durationSec;
+  const saat = saniye / 3600;
+  const toplam = o.items.reduce((a, e) => a + e.quantity, 0);
+  const bas = new Date(o.startedAt);
+  return (
+    <div className="fixed inset-0 z-[9998] flex items-start justify-center p-4 pt-[6vh]"
+         style={{ background: "rgba(0,0,0,.65)" }} onClick={onKapat}>
+      <div className="t-card w-full max-w-[680px] max-h-[84vh] flex flex-col overflow-hidden"
+           onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-5 py-4 relative overflow-hidden" style={{ borderBottom: "1px solid var(--t-line)" }}>
+          <div className="absolute inset-0 pointer-events-none"
+               style={{ background: "radial-gradient(600px 120px at 20% 0%, rgba(232,180,81,.12), transparent 70%)" }} />
+          <span className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 relative" style={{ background: "var(--t-raised)", border: "1px solid var(--t-line-strong)" }}>
+            {o.user.avatarUrl && <img src={o.user.avatarUrl} alt="" width={44} height={44} />}
+          </span>
+          <div className="min-w-0 flex-1 relative">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-[15px]">{o.user.familyName || "—"}</span>
+              {o.character && <span className="text-[13px]" style={{ color: "var(--t-dim)" }}>{o.character}</span>}
+              {(o.class || o.user.class) && <span className="t-chip">{sinifAdi(o.class || o.user.class)}</span>}
+              {o.live && <span className="t-chip inline-flex items-center gap-1" style={{ color: "#5fd39a", borderColor: "#5fd39a44" }}><Radio className="w-3 h-3" /> canlı</span>}
+            </div>
+            <div className="text-[12px] mt-0.5 flex items-center gap-3 flex-wrap" style={{ color: "var(--t-dim)" }}>
+              {o.spot && <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{o.spot.region} · {o.spot.name}</span>}
+              <span>{bas.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} {bas.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+          </div>
+          <button onClick={onKapat} className="relative" aria-label="Kapat"><X className="w-4 h-4" style={{ color: "var(--t-dim)" }} /></button>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 px-5 pt-4">
+          {[
+            { l: "süre", v: sure(saniye) },
+            { l: "toplam eşya", v: fmt(toplam), gold: true },
+            { l: "düşüş", v: String(o.drops) },
+            { l: "düşüş / dk", v: saniye >= 60 ? (o.drops / (saniye / 60)).toFixed(1) : "—" },
+          ].map((k) => (
+            <div key={k.l} className="rounded-md p-2.5 text-center" style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+              <div className={`text-[17px] font-semibold tabular-nums ${k.gold ? "t-stat-num" : ""}`}>{k.v}</div>
+              <div className="text-[10.5px] uppercase tracking-wide" style={{ color: "var(--t-faint)" }}>{k.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 pt-4 pb-1 flex items-center text-[10.5px] uppercase tracking-wide" style={{ color: "var(--t-faint)" }}>
+          <span className="flex-1">eşya</span>
+          <span className="w-[72px] text-right">adet</span>
+          <span className="w-[64px] text-right">düşüş</span>
+          <span className="w-[72px] text-right">/ saat</span>
+        </div>
+        <div className="overflow-y-auto px-5 pb-5 flex flex-col gap-1.5">
+          {o.items.length === 0 && <div className="text-[12.5px] py-6 text-center" style={{ color: "var(--t-dim)" }}>Henüz düşen eşya yok.</div>}
+          {o.items.map((e) => (
+            <div key={e.itemId} className="flex items-center gap-3 rounded-md px-2.5 py-2"
+                 style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+              <Ikon e={e} size={34} />
+              <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: GRADE_COLOR[e.grade] ?? "var(--t-text)" }}>{e.name}</span>
+              <span className="w-[72px] text-right text-[15px] font-semibold tabular-nums">{fmt(e.quantity)}</span>
+              <span className="w-[64px] text-right text-[12px] tabular-nums" style={{ color: "var(--t-dim)" }}>{e.drops}</span>
+              <span className="w-[72px] text-right text-[12px] tabular-nums" style={{ color: "var(--t-dim)" }}>{saat >= 0.05 ? fmt(e.quantity / saat) : "—"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GrindPage() {
   const [spotlar, setSpotlar] = useState<Spot[]>([]);
   const [secili, setSecili] = useState<number | null>(null);
@@ -120,6 +195,8 @@ export default function GrindPage() {
   const [simdi, setSimdi] = useState(() => Date.now());
   const { data: oturum } = useSession();
   const benId = oturum?.user?.id ?? null;
+  const [acik, setAcik] = useState<Oturum | null>(null);
+  const kapat = useCallback(() => setAcik(null), []);
 
   useEffect(() => {
     loadJson<Spot[]>("/api/grind/spots").then(setSpotlar).catch(() => setSpotlar([]));
@@ -157,7 +234,7 @@ export default function GrindPage() {
           <div className="text-[11px] uppercase tracking-wide mb-1.5 flex items-center gap-1.5" style={{ color: "var(--t-faint)" }}>
             <MapPin className="w-3 h-3" />{k}
           </div>
-          <div className="space-y-3">{os.map((o) => <OturumKarti key={o.id} o={o} simdi={simdi} benim={o.user.id === benId} onSil={sil} />)}</div>
+          <div className="space-y-3">{os.map((o) => <OturumKarti key={o.id} o={o} simdi={simdi} benim={o.user.id === benId} onSil={sil} onAc={setAcik} />)}</div>
         </div>
       ))}
     </div>
@@ -173,9 +250,12 @@ export default function GrindPage() {
     </div>
   );
 
+  const acikGuncel = acik ? (veri?.sessions.find((x) => x.id === acik.id) ?? acik) : null;
+
   return (
     <TestShell title="Grind" subtitle="Uygulamadan gelen oturumlar — kim nerede kasıyor, ne düşüyor" tabs={sekmeler}>
       {hata && <Empty>{hata}</Empty>}
+      {acikGuncel && <OturumDetay o={acikGuncel} simdi={simdi} onKapat={kapat} />}
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <section>
