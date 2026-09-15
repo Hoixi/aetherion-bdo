@@ -41,7 +41,12 @@ async function sendReminder(war: {
     embeds: [{
       title: `${emoji} ${urgency} — ${war.title}`,
       url: warUrl,
-      description: `Savaş **${hoursLeft} saat** içinde başlıyor!\n\n⏰ Saat: **${timeStr}**\n✅ Katılım: **${attendCount}** kişi\n\n🔗 [Savaş sayfasına git](${warUrl})`,
+      description: `Savaş **${hoursLeft} saat** içinde başlıyor!
+
+⏰ Saat: **${timeStr}**
+✅ Gelebiliyorsan katıl at
+
+🔗 [Savaş sayfasına git](${warUrl})`,
       color: hoursLeft <= 4 ? 0xe74c3c : GOLD,
       footer: { text: "Aetherion" },
     }],
