@@ -147,6 +147,8 @@ model User {
   appTokens            AppToken[]
   castleBuffReports    CastleBuff[]   @relation("CastleBuffReporter")
   grindSessions        GrindSession[]
+  voiceInvites         VoiceInvite[]  @relation("VoiceInvitee")
+  voiceInvitesSent     VoiceInvite[]  @relation("VoiceInviter")
 
   @@map("users")
 }
@@ -819,4 +821,23 @@ model GrindSessionItem {
 
   @@id([sessionId, itemId])
   @@map("grind_session_items")
+}
+
+/// Parti sesine misafir daveti: parti üyesi, partide olmayan birini (başka
+/// partiden, partisiz katılan, yönetici) kendi parti odasına çağırır.
+/// Token ucu daveti olan kişiye o odayı açar. Savaş bitince anlamsızlaşır.
+model VoiceInvite {
+  id        Int      @id @default(autoincrement())
+  warId     Int
+  partyId   Int
+  userId    Int
+  invitedBy Int
+  createdAt DateTime @default(now())
+
+  user    User @relation("VoiceInvitee", fields: [userId], references: [id], onDelete: Cascade)
+  inviter User @relation("VoiceInviter", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@unique([warId, partyId, userId])
+  @@index([userId, createdAt])
+  @@map("voice_invites")
 }

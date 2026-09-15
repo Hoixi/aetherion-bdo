@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const url = process.env.LIVEKIT_URL, key = process.env.LIVEKIT_API_KEY, secret = process.env.LIVEKIT_API_SECRET;
     if (!url || !key || !secret) return appError("Sesli sohbet sunucusu ayarlı değil.", 503);
 
-    const b = (await req.json().catch(() => ({}))) as { warId?: number; room?: "parti" | "genel" };
+    const b = (await req.json().catch(() => ({}))) as { warId?: number; room?: "parti" | "genel"; partyId?: number };
     const warId = Number(b.warId);
     if (!Number.isInteger(warId)) return appError("warId gerekli.", 400);
     const tur = b.room === "genel" ? "genel" : "parti";
@@ -41,7 +41,14 @@ export async function POST(req: Request) {
 
     let room: string, label: string;
     if (tur === "parti") {
-      const parti = war.parties.find((p) => p.members.some((m) => m.userId === me.id));
+      // Kendi partim; ya da davet edildiğim parti (partyId ile)
+      let parti = war.parties.find((p) => p.members.some((m) => m.userId === me.id));
+      if (Number.isInteger(b.partyId) && Number(b.partyId) !== parti?.id) {
+        const davet = await prisma.voiceInvite.findUnique({ where: { warId_partyId_userId: { warId: war.id, partyId: Number(b.partyId), userId: me.id } } });
+        const hedef = war.parties.find((p) => p.id === Number(b.partyId));
+        if (!davet || !hedef) return appError("Bu partiye davetin yok.", 403);
+        parti = hedef;
+      }
       if (!parti) return appError("Bu savaşta bir partide değilsin.", 403);
       room = `savas-${war.id}-parti-${parti.id}`; label = parti.name;
     } else {

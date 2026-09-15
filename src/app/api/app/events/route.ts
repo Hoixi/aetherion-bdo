@@ -21,12 +21,13 @@ import { withApp, APP_HEADERS } from "@/lib/app-gate";
 type Olay =
   | { type: "castle_buff"; at: string; id: number; castle: string; buff: string; effect: string; expiresAt: string; reportedBy: string; refreshed: boolean }
   | { type: "war_created"; at: string; id: number; title: string; date: string; tier: string }
-  | { type: "war_starting"; at: string; id: number; title: string; date: string; startsInMinutes: number };
+  | { type: "war_starting"; at: string; id: number; title: string; date: string; startsInMinutes: number }
+  | { type: "voice_invite"; at: string; warId: number; warTitle: string; partyId: number; partyName: string; from: string };
 
 const YAKIN_DK = 30;
 
 export async function GET(req: Request) {
-  return withApp(req, async () => {
+  return withApp(req, async (me) => {
     const url = new URL(req.url);
     const sinceParam = url.searchParams.get("since");
     const since = sinceParam && !Number.isNaN(Date.parse(sinceParam))
@@ -68,6 +69,20 @@ export async function GET(req: Request) {
         date: w.date.toISOString(),
         startsInMinutes: Math.max(0, Math.round((w.date.getTime() - simdi.getTime()) / 60_000)),
       });
+    }
+
+    // Ses davetleri: bana gelen, imleçten yeni
+    const davetler = await prisma.voiceInvite.findMany({
+      where: { userId: me.id, createdAt: { gt: since } },
+      include: { inviter: { select: { familyName: true } } },
+    });
+    if (davetler.length) {
+      const wars = await prisma.war.findMany({ where: { id: { in: davetler.map((d) => d.warId) } }, select: { id: true, title: true, parties: { select: { id: true, name: true } } } });
+      for (const d of davetler) {
+        const w = wars.find((x) => x.id === d.warId); if (!w) continue;
+        olaylar.push({ type: "voice_invite", at: d.createdAt.toISOString(), warId: d.warId, warTitle: w.title,
+                       partyId: d.partyId, partyName: w.parties.find((p) => p.id === d.partyId)?.name ?? "?", from: d.inviter.familyName });
+      }
     }
 
     olaylar.sort((a, b) => a.at.localeCompare(b.at));
