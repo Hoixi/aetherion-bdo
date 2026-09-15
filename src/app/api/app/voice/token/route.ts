@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
-import { AccessToken } from "livekit-server-sdk";
+import { AccessToken, TrackSource } from "livekit-server-sdk";
 import { prisma } from "@/lib/prisma";
 import { withApp, APP_HEADERS, appError } from "@/lib/app-gate";
 
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     const at = new AccessToken(key, secret, { identity: String(me.id), name: me.familyName || `Üye ${me.id}`, ttl: SURE });
-    at.addGrant({ room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true, canPublishSources: ["microphone"] });
+    at.addGrant({ room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true, canPublishSources: [TrackSource.MICROPHONE] });
     return NextResponse.json({ url, token: await at.toJwt(), room, label, war: { id: war.id, title: war.title } }, { headers: APP_HEADERS });
   });
 }
