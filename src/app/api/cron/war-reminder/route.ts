@@ -28,10 +28,7 @@ async function sendReminder(war: {
   date: Date;
   isAllyWar: boolean;
 }, hoursLeft: number): Promise<string | null> {
-  const attendCount = await prisma.warParticipant.count({
-    where: { warId: war.id, status: "ATTENDING" },
-  });
-
+  // Katılım sayısı bilerek yazılmıyor: "30 olmuş" diye katıl atmayan oluyordu.
   const emoji = hoursLeft <= 4 ? "🚨" : "⏰";
   const urgency = hoursLeft <= 4 ? "Son çağrı!" : "Hatırlatma";
   const timeStr = new Date(war.date).toLocaleTimeString("tr-TR", {
