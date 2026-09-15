@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Swords, Castle, Users, Gauge, ArrowRight, ExternalLink, Skull, BarChart3, Sparkles,
+  Monitor, Bell, Radio, Crosshair,
 } from "lucide-react";
 import { fmt } from "@/components/app-shell";
 
@@ -213,6 +214,52 @@ export default function LandingPage() {
             </a>
           </section>
         ) : null}
+
+        {/* Masaüstü uygulaması */}
+        <section className="mt-10 relative overflow-hidden rounded-[var(--t-r)]"
+                 style={{ background: "var(--t-surface)", border: "1px solid rgba(232,180,81,.28)" }}>
+          <div className="absolute inset-0 pointer-events-none"
+               style={{ background: "radial-gradient(700px 220px at 15% 0%, rgba(232,180,81,.14), transparent 70%)" }} />
+          <div className="relative grid md:grid-cols-[1fr_auto] gap-5 items-center px-6 py-6">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="inline-grid place-items-center w-7 h-7 rounded-lg text-[13px] font-extrabold"
+                      style={{ background: "linear-gradient(135deg,#f1c979,var(--t-gold))", color: "#000" }}>A</span>
+                <h2 className="text-[16px] font-semibold">Aetherion Companion</h2>
+                <span className="t-chip" style={{ color: "var(--t-gold)", borderColor: "rgba(232,180,81,.4)" }}>Windows</span>
+              </div>
+              <p className="text-[13px] leading-relaxed max-w-[560px]" style={{ color: "var(--t-dim)" }}>
+                Oyunun yanında çalışan masaüstü uygulamamız: ganimet balonunu ekrandan okuyup grind
+                oturumunu otomatik sayar, savaş yaklaşınca sesli uyarır, kale buff&apos;ını herkese
+                duyurur ve partini oyunun üstünde gösterir. Oyuna dokunmaz — yalnızca ekrana bakar.
+              </p>
+              <ul className="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px]" style={{ color: "var(--t-dim)" }}>
+                {[
+                  [Crosshair, "Otomatik grind sayacı — ne düştü, kaç adet, saatte kaç"],
+                  [Bell, "Savaş 30/10 dk kala ses + Windows bildirimi"],
+                  [Radio, "Kale buff'ı bildir, herkes anında görsün"],
+                  [Monitor, "Oyun üstü overlay: geri sayım, parti, canlı sayım"],
+                ].map(([Icon, metin]) => {
+                  const I = Icon as React.ElementType;
+                  return (
+                    <li key={String(metin)} className="flex items-center gap-2">
+                      <I className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} style={{ color: "var(--t-gold)" }} />
+                      <span>{String(metin)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="flex flex-col items-start md:items-end gap-2">
+              <Link href="/uygulama"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-semibold"
+                    style={{ background: "var(--t-gold)", color: "#000" }}>
+                Uygulamayı indir <ArrowRight className="w-4 h-4" strokeWidth={2.2} />
+              </Link>
+              <span className="text-[11px]" style={{ color: "var(--t-faint)" }}>Üyelere özel · giriş yapınca indirilir</span>
+            </div>
+          </div>
+        </section>
 
         {/* Panelde neler var */}
         <section className="mt-10">
