@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // Savaştan 6 saat sonrasına kadar oda açık; eski savaşlara ses yok
     if (Date.now() - war.date.getTime() > 6 * 3600_000) return appError("Bu savaşın sesi kapandı.", 410);
 
-    let room: string, label: string;
+    let room: string, label: string, partyId: number | null = null;
     if (tur === "parti") {
       // Kendi partim; ya da davet edildiğim parti (partyId ile)
       let parti = war.parties.find((p) => p.members.some((m) => m.userId === me.id));
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         parti = hedef;
       }
       if (!parti) return appError("Bu savaşta bir partide değilsin.", 403);
-      room = `savas-${war.id}-parti-${parti.id}`; label = parti.name;
+      room = `savas-${war.id}-parti-${parti.id}`; label = parti.name; partyId = parti.id;
     } else {
       const katilan = war.participants[0]?.status === "ATTENDING" || war.parties.some((p) => p.members.some((m) => m.userId === me.id));
       if (!katilan && !me.isAdmin && !me.isGuildAdmin) return appError("Genel ses için savaşa katıl demiş olman gerekiyor.", 403);
@@ -59,6 +59,6 @@ export async function POST(req: Request) {
 
     const at = new AccessToken(key, secret, { identity: String(me.id), name: me.familyName || `Üye ${me.id}`, ttl: SURE });
     at.addGrant({ room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true, canPublishSources: [TrackSource.MICROPHONE] });
-    return NextResponse.json({ url, token: await at.toJwt(), room, label, war: { id: war.id, title: war.title } }, { headers: APP_HEADERS });
+    return NextResponse.json({ url, token: await at.toJwt(), room, label, partyId, war: { id: war.id, title: war.title } }, { headers: APP_HEADERS });
   });
 }
