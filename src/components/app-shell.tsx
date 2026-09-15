@@ -3,11 +3,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Swords, Users, Shield, Activity, Target, ChevronDown, BarChart3,
-  Wrench, Search, ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
+  ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
   Menu, X, ScrollText, CalendarClock, Package, Gem, Sparkles as SparklesIcon,
+  Hammer, MessagesSquare, Monitor,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 
@@ -19,44 +21,73 @@ import { UserMenu } from "@/components/user-menu";
  * ama menü artık oraya götürmüyor.
  */
 
-type Item = { label: string; href: string; icon: React.ElementType };
+type Item = { label: string; href: string; icon: React.ElementType; yonetici?: boolean };
 
-const NAV: { key: string; icon: React.ElementType; items: Item[] }[] = [
-  { key: "Savaşlar", icon: Swords, items: [
+/**
+ * Menü, işe göre gruplu — "Araçlar" dokuz maddelik bir torbaydı, "Takip"
+ * de profil/forum/grind karışığı. Şimdi:
+ *  Savaş      → savaşa hazırlık ve katılım (liste, takvim, etkinlik, kale, harita)
+ *  İstatistik → savaş sonrası ve performans (analiz, hasar, tier, grind)
+ *  Build      → karakteri kurma (eşya, kristal, eser, beceri, optimizer, profil)
+ *  Topluluk   → insanlar ve sohbet (üyeler, forum, yama notları, AI, geo)
+ *  Yönetim    → yalnızca yöneticilere görünür
+ */
+const NAV: { key: string; icon: React.ElementType; items: Item[]; yonetici?: boolean }[] = [
+  { key: "Savaş", icon: Swords, items: [
     { label: "Savaş Listesi", href: "/savaslar", icon: Swords },
-    { label: "Savaş Yönetimi", href: "/savaslar/yonetim", icon: CalendarClock },
     { label: "Takvim", href: "/takvim", icon: CalendarDays },
     { label: "Etkinlikler", href: "/etkinlikler", icon: Zap },
+    { label: "Kale Kurulumları", href: "/kaleler", icon: Castle },
+    { label: "Harita", href: "/harita", icon: MapIcon },
+    { label: "Savaş Yönetimi", href: "/savaslar/yonetim", icon: CalendarClock, yonetici: true },
   ] },
   { key: "İstatistik", icon: BarChart3, items: [
     { label: "Savaş Analizi", href: "/analiz", icon: BarChart3 },
     { label: "Hasar Raporu", href: "/hasar-raporu", icon: Flame },
     { label: "Tier List", href: "/tier-list", icon: ListOrdered },
+    { label: "Grind", href: "/grind", icon: Activity },
   ] },
-  { key: "Araçlar", icon: Wrench, items: [
-    { label: "Kale Kurulumları", href: "/kaleler", icon: Castle },
-    { label: "Harita", href: "/harita", icon: MapIcon },
-    { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
+  { key: "Build", icon: Hammer, items: [
+    { label: "Karakterim", href: "/profil", icon: Shield },
     { label: "Eşya Veritabanı", href: "/esyalar", icon: Package },
     { label: "Kristal Kurulumu", href: "/kristaller", icon: Gem },
     { label: "Eser & Işık Taşı", href: "/eserler", icon: SparklesIcon },
     { label: "Beceriler", href: "/beceriler", icon: Swords },
     { label: "Optimizer", href: "/optimizer", icon: Target },
-    { label: "GeoGuessr", href: "/geo", icon: MapIcon },
   ] },
-  { key: "Takip", icon: Search, items: [
+  { key: "Topluluk", icon: MessagesSquare, items: [
     { label: "Üyeler", href: "/uyeler", icon: Users },
-    { label: "Karakterim", href: "/profil", icon: Shield },
-    { label: "Grind", href: "/grind", icon: Activity },
     { label: "Forum", href: "/forum", icon: MessageSquare },
     { label: "Yama Notları", href: "/patch-notes", icon: ScrollText },
-  ] },
-  { key: "Yönetim", icon: ClipboardList, items: [
-    { label: "Admin Paneli", href: "/admin", icon: Shield },
-    { label: "Başvurular", href: "/basvuru", icon: UserPlus },
+    { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
+    { label: "GeoGuessr", href: "/geo", icon: MapIcon },
     { label: "Müttefikler", href: "/ally", icon: Users },
   ] },
+  { key: "Yönetim", icon: ClipboardList, yonetici: true, items: [
+    { label: "Admin Paneli", href: "/admin", icon: Shield },
+    { label: "Başvurular", href: "/admin?tab=basvurular", icon: UserPlus },
+    { label: "Savaş Yönetimi", href: "/savaslar/yonetim", icon: CalendarClock },
+  ] },
 ];
+
+/** Üst çubuktaki uygulama düğmesi — göze çarpsın diye altın çerçeve */
+function CompanionButton({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
+  const on = pathname === "/uygulama";
+  return (
+    <Link href="/uygulama" title="Aetherion Companion — masaüstü uygulaması"
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold flex-shrink-0"
+          style={{
+            color: on ? "#000" : "var(--t-gold)",
+            background: on ? "var(--t-gold)" : "var(--t-gold-soft)",
+            border: "1px solid rgba(232,180,81,.45)",
+            boxShadow: on ? "none" : "0 0 14px rgba(232,180,81,.12)",
+          }}>
+      <Monitor className="w-3.5 h-3.5" strokeWidth={2.2} />
+      {!compact && <span>Companion</span>}
+    </Link>
+  );
+}
+
 export function TestShell({
   title, subtitle, tabs, aside, bare = false, noNav = false, children,
 }: {
@@ -82,6 +113,10 @@ export function TestShell({
   const [open, setOpen] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const yonetici = !!session?.user?.canManageWars;
+  const menu = NAV.filter((n) => !n.yonetici || yonetici)
+    .map((n) => ({ ...n, items: n.items.filter((i) => !i.yonetici || yonetici) }));
 
   // Menü dışına tıklayınca kapansın; hover tek dayanak kalmasın
   useEffect(() => {
@@ -145,7 +180,7 @@ export function TestShell({
             <Link href="/panel" className="t-tab" data-on={pathname === "/panel"}>
               <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={2} /> Panel
             </Link>
-            {NAV.map((n) => {
+            {menu.map((n) => {
               const here = n.items.some((i) => i.href === pathname);
               return (
                 <div key={n.key} className="relative" onClick={(e) => e.stopPropagation()}>
@@ -174,6 +209,7 @@ export function TestShell({
 
           <div className="ml-auto flex items-center gap-2">
             {aside}
+            <CompanionButton pathname={pathname} />
             <UserMenu />
           </div>
         </div>
@@ -186,7 +222,7 @@ export function TestShell({
                   data-on={pathname === "/panel"} onClick={() => setDrawer(false)}>
               <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={2} /> Panel
             </Link>
-            {NAV.map((n) => (
+            {menu.map((n) => (
               <div key={n.key} className="mt-4">
                 <div className="flex items-center gap-1.5 px-1 mb-1.5 text-[10px] uppercase tracking-[0.08em]"
                      style={{ color: "var(--t-faint)" }}>

@@ -76,6 +76,32 @@ export default function TestPage() {
         {/* Klan geneline bakmadan önce insan kendi durumunu görsün */}
         {d?.me && <CharacterCard me={d.me} warsCounted={d.totals.warsCounted} />}
 
+        {/* Masaüstü uygulaması — herkes indirsin diye panelin tepesinde */}
+        <Card className="relative overflow-hidden" hi>
+          <div className="absolute inset-0 pointer-events-none"
+               style={{ background: "radial-gradient(600px 160px at 10% 0%, rgba(232,180,81,.14), transparent 70%)" }} />
+          <div className="relative flex flex-wrap items-center gap-4 px-5 py-4">
+            <span className="inline-grid place-items-center w-10 h-10 rounded-[12px] text-[16px] font-extrabold flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg,#f1c979,var(--t-gold))", color: "#000" }}>A</span>
+            <div className="min-w-[240px] flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[14px] font-semibold">Aetherion Companion</span>
+                <span className="t-chip">Windows</span>
+                <span className="t-chip" style={{ color: "var(--t-gold)", borderColor: "rgba(232,180,81,.4)" }}>yeni</span>
+              </div>
+              <p className="text-[12.5px] mt-1" style={{ color: "var(--t-dim)" }}>
+                Grind oturumunu ekrandan otomatik sayar, savaş yaklaşınca sesle uyarır, kale buff&apos;ını duyurur,
+                partini oyunun üstünde gösterir. Oyuna dokunmaz — yalnızca ekrana bakar.
+              </p>
+            </div>
+            <Link href="/uygulama"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold flex-shrink-0"
+                  style={{ background: "var(--t-gold)", color: "#000" }}>
+              İndir ve eşleştir
+            </Link>
+          </div>
+        </Card>
+
         {err && <Card className="p-4"><p className="text-[13px]" style={{ color: "var(--t-bad)" }}>{err}</p></Card>}
         {!d && !err && <Card className="p-8 text-center"><span className="text-[13px]" style={{ color: "var(--t-dim)" }}>Veriler geliyor…</span></Card>}
 

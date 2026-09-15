@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Users, UserPlus, BarChart3, Megaphone, Flag, Shield, Wrench,
@@ -46,10 +46,17 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType; guildAdmin: b
 
 type WarLite = { id: number; title: string; date: string };
 
+/** useSearchParams statik derlemede Suspense ister */
 export default function AdminPage() {
+  return <Suspense fallback={null}><AdminInner /></Suspense>;
+}
+
+function AdminInner() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [tab, setTab] = useState<TabKey>("uyeler");
+  // ?tab=basvurular gibi doğrudan sekme açma (menüden "Başvurular")
+  const istenen = useSearchParams().get("tab");
+  const [tab, setTab] = useState<TabKey>(TABS.some((t) => t.key === istenen) ? (istenen as TabKey) : "uyeler");
   const [toast, setToast] = useState<string | null>(null);
   const [wars, setWars] = useState<WarLite[]>([]);
 
