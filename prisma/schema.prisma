@@ -149,6 +149,7 @@ model User {
   grindSessions        GrindSession[]
   voiceInvites         VoiceInvite[]  @relation("VoiceInvitee")
   voiceInvitesSent     VoiceInvite[]  @relation("VoiceInviter")
+  voiceRooms           VoiceRoom[]
 
   @@map("users")
 }
@@ -840,4 +841,22 @@ model VoiceInvite {
   @@unique([warId, partyId, userId])
   @@index([userId, createdAt])
   @@map("voice_invites")
+}
+
+/// Kalıcı ses odası — savaşa bağlı olmayan, yöneticinin açtığı sabit oda
+/// ("Genel", "Yönetim", "Chill"). Girmek için üye olmak yeter; yalnızca
+/// yöneticiler (admin / klan yöneticisi) açar ve siler.
+model VoiceRoom {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  order     Int      @default(0)
+  /** true = yalnızca yöneticiler girebilir */
+  adminOnly Boolean  @default(false)
+  createdBy Int
+  createdAt DateTime @default(now())
+
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("voice_rooms")
 }
