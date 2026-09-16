@@ -150,6 +150,7 @@ model User {
   voiceInvites         VoiceInvite[]  @relation("VoiceInvitee")
   voiceInvitesSent     VoiceInvite[]  @relation("VoiceInviter")
   voiceRooms           VoiceRoom[]
+  chatMessages         ChatMessage[]
 
   @@map("users")
 }
@@ -861,4 +862,18 @@ model VoiceRoom {
   creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   @@map("voice_rooms")
+}
+
+/// Uygulama içi genel sohbet (tek kanal). Etiketler metinde "@AileAdı"
+/// olarak durur; uygulama kendi adını görünce bildirir.
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  text      String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("chat_messages")
 }
