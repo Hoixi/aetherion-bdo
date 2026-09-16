@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
-import { AccessToken, TrackSource } from "livekit-server-sdk";
+import { odaAnahtari } from "@/lib/livekit";
 import { prisma } from "@/lib/prisma";
 import { withApp, APP_HEADERS, appError } from "@/lib/app-gate";
 
@@ -19,8 +19,7 @@ const SURE = "4h";
 
 export async function POST(req: Request) {
   return withApp(req, async (me) => {
-    const url = process.env.LIVEKIT_URL, key = process.env.LIVEKIT_API_KEY, secret = process.env.LIVEKIT_API_SECRET;
-    if (!url || !key || !secret) return appError("Sesli sohbet sunucusu ayarlı değil.", 503);
+    if (!process.env.LIVEKIT_URL || !process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return appError("Sesli sohbet sunucusu ayarlı değil.", 503);
 
     const b = (await req.json().catch(() => ({}))) as { warId?: number; room?: "parti" | "genel"; partyId?: number };
     const warId = Number(b.warId);
@@ -52,8 +51,7 @@ export async function POST(req: Request) {
       room = `savas-${war.id}-genel`; label = "Genel";
     }
 
-    const at = new AccessToken(key, secret, { identity: String(me.id), name: me.familyName || `Üye ${me.id}`, ttl: SURE });
-    at.addGrant({ room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true, canPublishSources: [TrackSource.MICROPHONE] });
-    return NextResponse.json({ url, token: await at.toJwt(), room, label, partyId, war: { id: war.id, title: war.title } }, { headers: APP_HEADERS });
+    const t = await odaAnahtari(me, room, SURE);
+    return NextResponse.json({ ...t, room, label, partyId, war: { id: war.id, title: war.title } }, { headers: APP_HEADERS });
   });
 }
