@@ -850,6 +850,8 @@ model VoiceRoom {
   id        Int      @id @default(autoincrement())
   name      String
   slug      String   @unique
+  /** Discord'daki kategori gibi: odalar bunun altında gruplanır */
+  category  String   @default("Genel")
   order     Int      @default(0)
   /** true = yalnızca yöneticiler girebilir */
   adminOnly Boolean  @default(false)

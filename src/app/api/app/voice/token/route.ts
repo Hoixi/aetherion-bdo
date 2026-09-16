@@ -40,20 +40,15 @@ export async function POST(req: Request) {
     if (Date.now() - war.date.getTime() > 6 * 3600_000) return appError("Bu savaşın sesi kapandı.", 410);
 
     let room: string, label: string, partyId: number | null = null;
+    // Savaş odaları Discord kanalı gibi: üye olan istediği odaya girer.
+    // Varsayılan kendi partim; partyId verilirse o parti.
     if (tur === "parti") {
-      // Kendi partim; ya da davet edildiğim parti (partyId ile)
-      let parti = war.parties.find((p) => p.members.some((m) => m.userId === me.id));
-      if (Number.isInteger(b.partyId) && Number(b.partyId) !== parti?.id) {
-        const davet = await prisma.voiceInvite.findUnique({ where: { warId_partyId_userId: { warId: war.id, partyId: Number(b.partyId), userId: me.id } } });
-        const hedef = war.parties.find((p) => p.id === Number(b.partyId));
-        if (!davet || !hedef) return appError("Bu partiye davetin yok.", 403);
-        parti = hedef;
-      }
-      if (!parti) return appError("Bu savaşta bir partide değilsin.", 403);
+      const parti = Number.isInteger(b.partyId)
+        ? war.parties.find((p) => p.id === Number(b.partyId))
+        : war.parties.find((p) => p.members.some((m) => m.userId === me.id));
+      if (!parti) return appError("Parti bulunamadı.", 404);
       room = `savas-${war.id}-parti-${parti.id}`; label = parti.name; partyId = parti.id;
     } else {
-      const katilan = war.participants[0]?.status === "ATTENDING" || war.parties.some((p) => p.members.some((m) => m.userId === me.id));
-      if (!katilan && !me.isAdmin && !me.isGuildAdmin) return appError("Genel ses için savaşa katıl demiş olman gerekiyor.", 403);
       room = `savas-${war.id}-genel`; label = "Genel";
     }
 

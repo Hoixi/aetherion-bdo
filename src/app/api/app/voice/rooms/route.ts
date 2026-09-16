@@ -19,7 +19,7 @@ const yonetici = (me: { isAdmin: boolean; isGuildAdmin: boolean }) => me.isAdmin
 
 export async function GET(req: Request) {
   return withApp(req, async (me) => {
-    const odalar = await prisma.voiceRoom.findMany({ orderBy: [{ order: "asc" }, { id: "asc" }] });
+    const odalar = await prisma.voiceRoom.findMany({ orderBy: [{ category: "asc" }, { order: "asc" }, { id: "asc" }] });
     // Yaklaşan savaşın odaları da listede görünsün (kim seste)
     const simdi = new Date();
     const savas = await prisma.war.findFirst({
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     ] : [];
     const kisiler = await odaKatilimcilari([...odalar.map((o) => `oda-${o.slug}`), ...savasOdalari.map((o) => o.room)]);
     return NextResponse.json({
-      rooms: odalar.map((o) => ({ id: o.id, name: o.name, slug: o.slug, adminOnly: o.adminOnly,
+      rooms: odalar.map((o) => ({ id: o.id, name: o.name, slug: o.slug, category: o.category, adminOnly: o.adminOnly,
                                   canJoin: !o.adminOnly || yonetici(me), members: kisiler[`oda-${o.slug}`] ?? [] })),
       warRooms: savasOdalari.map((o) => ({ ...o, members: kisiler[o.room] ?? [] })),
       canManage: yonetici(me),
@@ -43,13 +43,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return withApp(req, async (me) => {
     if (!yonetici(me)) return appError("Oda açmak yöneticiye özel.", 403);
-    const b = (await req.json().catch(() => ({}))) as { name?: string; adminOnly?: boolean };
+    const b = (await req.json().catch(() => ({}))) as { name?: string; adminOnly?: boolean; category?: string };
     const name = String(b.name ?? "").trim().slice(0, AD_MAX);
+    const category = String(b.category ?? "").trim().slice(0, AD_MAX) || "Genel";
     if (!name) return appError("Oda adı gerekli.", 400);
     let slug = slugla(name);
     if (await prisma.voiceRoom.findUnique({ where: { slug } })) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
     const son = await prisma.voiceRoom.aggregate({ _max: { order: true } });
-    const oda = await prisma.voiceRoom.create({ data: { name, slug, adminOnly: !!b.adminOnly, createdBy: me.id, order: (son._max.order ?? 0) + 1 } });
+    const oda = await prisma.voiceRoom.create({ data: { name, slug, category, adminOnly: !!b.adminOnly, createdBy: me.id, order: (son._max.order ?? 0) + 1 } });
     return NextResponse.json({ id: oda.id, name: oda.name, slug: oda.slug }, { headers: APP_HEADERS });
   });
 }
