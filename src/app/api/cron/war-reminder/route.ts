@@ -44,7 +44,7 @@ async function sendReminder(war: {
       description: `Savaş **${hoursLeft} saat** içinde başlıyor!
 
 ⏰ Saat: **${timeStr}**
-✅ Gelebiliyorsan katıl at
+✅ Yarınki savaş için katıl atabilirsiniz
 
 🔗 [Savaş sayfasına git](${warUrl})`,
       color: hoursLeft <= 4 ? 0xe74c3c : GOLD,
