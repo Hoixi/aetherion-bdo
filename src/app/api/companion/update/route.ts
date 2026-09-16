@@ -35,8 +35,9 @@ export async function GET(req: Request) {
     const current = new URL(req.url).searchParams.get("current") ?? "";
     if (current && current === j.version) return new NextResponse(null, { status: 204, headers: APP_HEADERS });
 
-    // İndirme adresini sitenin proxy'sine çevir (asset id ile)
-    const kok = new URL(req.url).origin;
+    // İndirme adresini sitenin proxy'sine çevir (asset id ile). Konteyner
+    // içinde req.url "localhost:3000" — dış adres sabit.
+    const kok = (process.env.NEXTAUTH_URL ?? "https://aetheri.online").replace(/\/$/, "");
     const platforms: typeof j.platforms = {};
     for (const [k, v] of Object.entries(j.platforms)) {
       const dosya = decodeURIComponent(v.url.split("/").pop() ?? "");
