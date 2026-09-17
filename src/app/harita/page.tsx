@@ -7,7 +7,7 @@ import {
   Check, Eye, EyeOff, DownloadCloud, X, ChevronLeft, ChevronRight,
   Maximize2, Minimize2, Route as RouteIcon, Search, RefreshCw, PictureInPicture2,
 } from "lucide-react";
-import { CATEGORY_ORDER, categoryMeta } from "@/lib/map-categories";
+import { CATEGORY_ORDER, categoryMeta, NEW_COLOR } from "@/lib/map-categories";
 import { planRoute } from "@/lib/route";
 import type { EdaniaMarker } from "@/components/edania-map";
 import { PipGuide, pipSupported } from "@/components/pip-guide";
@@ -42,6 +42,8 @@ type Point = {
   mapX: number;
   mapY: number;
   imageUrl: string | null;
+  /** son yamayla eklendi — mor çizilir */
+  isNew?: boolean;
 };
 
 /** Oyun modu penceresi sayfa CSS'ini devralmıyor; renkler elle veriliyor */
@@ -62,6 +64,7 @@ export default function HaritaPage() {
   const [active, setActive] = useState<Set<string>>(new Set(CATEGORY_ORDER));
   const [selected, setSelected] = useState<number | null>(null);
   const [hideDone, setHideDone] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(false);
   const [query, setQuery] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
@@ -161,6 +164,7 @@ export default function HaritaPage() {
     return points.filter((p) => {
       if (!active.has(p.category)) return false;
       if (hideDone && done.has(p.id)) return false;
+      if (onlyNew && !p.isNew) return false;
       if (!q) return true;
       return (
         p.title.toLocaleLowerCase("tr").includes(q) ||
@@ -168,7 +172,7 @@ export default function HaritaPage() {
         categoryMeta(p.category).label.toLocaleLowerCase("tr").includes(q)
       );
     });
-  }, [points, active, hideDone, done, query]);
+  }, [points, active, hideDone, onlyNew, done, query]);
 
   /** Rotaya girebilecek duraklar: görünür, toplanabilir, henüz işaretlenmemiş */
   const eligible = useMemo(
@@ -216,7 +220,7 @@ export default function HaritaPage() {
   const markers: EdaniaMarker[] = useMemo(
     () => visible.map((p) => ({
       id: p.id, nx: p.mapX, ny: p.mapY,
-      color: categoryMeta(p.category).color,
+      color: p.isNew ? NEW_COLOR : categoryMeta(p.category).color,
       label: p.title,
       done: done.has(p.id),
       order: orderOf.get(p.id),
@@ -349,6 +353,24 @@ export default function HaritaPage() {
               </button>
             );
           })}
+          {points.some((p) => p.isNew) && (() => {
+            const yeni = points.filter((p) => p.isNew);
+            const got = yeni.filter((p) => done.has(p.id)).length;
+            return (
+              <button onClick={() => setOnlyNew((v) => !v)}
+                      title="Son yamayla eklenen noktalar (XCI–C). Açıkken sadece bunlar görünür."
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-[var(--t-r-sm)] text-[12px] transition-colors"
+                      style={{
+                        background: onlyNew ? NEW_COLOR + "22" : "var(--t-raised)",
+                        border: `1px solid ${NEW_COLOR + (onlyNew ? "aa" : "55")}`,
+                        color: onlyNew ? NEW_COLOR : undefined,
+                      }}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: NEW_COLOR, boxShadow: `0 0 8px ${NEW_COLOR}` }} />
+                <span>Yeni</span>
+                <span className="t-num" style={{ color: onlyNew ? NEW_COLOR : "var(--t-faint)" }}>{got}/{yeni.length}</span>
+              </button>
+            );
+          })()}
 
           <div className="ml-auto flex items-center gap-2 flex-wrap">
             {route && (
@@ -393,9 +415,12 @@ export default function HaritaPage() {
             <div className="space-y-3">
               <div className="flex items-start gap-2">
                 <span className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
-                      style={{ background: categoryMeta(sel.category).color }} />
+                      style={{ background: sel.isNew ? NEW_COLOR : categoryMeta(sel.category).color }} />
                 <div className="min-w-0">
-                  <h3 className="text-[15px] font-bold break-words">{sel.title}</h3>
+                  <h3 className="text-[15px] font-bold break-words">
+                    {sel.title}
+                    {sel.isNew && <span className="t-chip ml-2 align-middle" style={{ color: NEW_COLOR, borderColor: NEW_COLOR + "66", background: NEW_COLOR + "1a" }}>Yeni</span>}
+                  </h3>
                   <p className="text-[11px]" style={{ color: "var(--t-faint)" }}>
                     {categoryMeta(sel.category).label}
                     {sel.description ? " · " + sel.description : ""}
@@ -467,7 +492,7 @@ export default function HaritaPage() {
                 display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 12px", borderBottom: `1px solid ${PIP.line}`,
               }}>
-                <span style={{ width: 9, height: 9, borderRadius: "50%", background: meta.color }} />
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: stop.isNew ? NEW_COLOR : meta.color }} />
                 <strong style={{ fontSize: 13 }}>{stop.title}</strong>
                 <span style={{ marginLeft: "auto", fontSize: 11, color: PIP.faint }}>
                   {idx + 1} / {stops.length}

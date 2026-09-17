@@ -10,6 +10,9 @@ export const MAP_CATEGORIES = {
 
 export type MapCategory = keyof typeof MAP_CATEGORIES;
 
+/** Son yamayla eklenen noktalar (edania-points.json `isNew`) haritada bu renkle çizilir */
+export const NEW_COLOR = "#b56cff";
+
 export const CATEGORY_ORDER: MapCategory[] = ["relic", "trace", "klore", "node", "quest", "npc"];
 
 export function categoryMeta(c: string) {

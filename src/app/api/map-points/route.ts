@@ -2,6 +2,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGuildScope } from "@/lib/guild-scope";
+import data from "@/data/edania-points.json";
+
+/** Yeni eklenen noktaların başlıkları — veri dosyasındaki `isNew` bayrağından */
+const YENI = new Set((data as { points: Array<{ title: string; isNew?: boolean }> }).points.filter((p) => p.isNew).map((p) => p.title));
 
 /** Bütün noktalar + giriş yapan kullanıcının topladıkları */
 export async function GET() {
@@ -22,5 +26,5 @@ export async function GET() {
     }),
   ]);
 
-  return NextResponse.json({ points, done: done.map((d) => d.pointId) });
+  return NextResponse.json({ points: points.map((p) => ({ ...p, isNew: YENI.has(p.title) })), done: done.map((d) => d.pointId) });
 }
