@@ -6,7 +6,10 @@ import { getGuildScope } from "@/lib/guild-scope";
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 const GOLD = 0xd4a853;
 
-/** Başvuru geldiğinde klanın duyuru kanalına haber ver */
+/**
+ * Başvuru geldiğinde haber ver: DISCORD_APPLICATION_CHANNEL_ID (başvuru
+ * kanalı) varsa oraya, yoksa klanın savaş kanalına.
+ */
 async function notifyOfficers(app: {
   id: number; familyName: string; discordUsername: string;
   class: string; ap: number; dp: number; guildId: number | null;
@@ -17,7 +20,7 @@ async function notifyOfficers(app: {
     where: { id: app.guildId },
     select: { name: true, warChannelId: true, allyWarChannelId: true },
   });
-  const channelId = guild?.warChannelId || guild?.allyWarChannelId;
+  const channelId = process.env.DISCORD_APPLICATION_CHANNEL_ID || guild?.warChannelId || guild?.allyWarChannelId;
   if (!channelId) return;
 
   const site = process.env.NEXTAUTH_URL || "";
