@@ -8,6 +8,7 @@ import type { AttendanceStatus, WarAttendanceSummary } from "@/app/api/wars/atte
 import { displayOf, DISPLAY_META } from "@/lib/attendance";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { scoreColor } from "@/lib/score";
+import { GuvenRozeti, type GuvenOzet } from "@/components/guven-rozeti";
 
 /**
  * Parti kurarken sürüklenen üye kartı.
@@ -98,11 +99,13 @@ interface MemberChipProps {
   asClass?: string | null;
   /** Havuzdaki kartlar dar; parti içindekiler tam genişlik */
   compact?: boolean;
+  /** Katılım güvenilirliği (yalnızca yöneticiye gelir) */
+  guven?: GuvenOzet | null;
 }
 
 export function MemberChip({
   id, user, isDragOverlay, perf, attendanceHistory,
-  currentStatus, asClass, compact,
+  currentStatus, asClass, compact, guven,
 }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [tip, setTip] = useState<{ top: number; left: number } | null>(null);
@@ -226,6 +229,8 @@ export function MemberChip({
           <span className="text-[10px] font-mono text-bdo-text-muted shrink-0">
             {user.ap}/{user.dp}
           </span>
+
+          {guven !== undefined && <GuvenRozeti g={guven} small />}
 
           {perf && (
             <span className="text-[10px] font-mono font-bold shrink-0 w-7 text-right"

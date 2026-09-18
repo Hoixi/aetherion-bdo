@@ -114,6 +114,8 @@ model User {
   siteRoleId  Int?
   guildId     Int?
   absenceCount Int     @default(0)
+  /** Siteye son geliş (oturum yenilendikçe, saatte en çok bir kez yazılır) */
+  lastSeenAt  DateTime?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -275,6 +277,8 @@ model War {
   discordMessageId    String?
   /** JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse */
   discordMessages     String   @default("[]") @db.Text
+  /** Discord "Zamanlanmış Etkinlik" kimliği — savaş açılınca oluşturulur, tarih/başlık değişince güncellenir */
+  discordEventId      String?
   reminder10hSent     Boolean  @default(false)
   reminder4hSent      Boolean  @default(false)
   reminder10hMsgId    String?

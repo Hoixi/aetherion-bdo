@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyWarParticipants } from "@/lib/notifications";
+import { etkinlikGuncelle, etkinlikSil } from "@/lib/discord-events";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -58,6 +59,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     },
   });
 
+  // Tarih/başlık/kademe/not değiştiyse Discord etkinliğini de eşle
+  if (title !== undefined || date !== undefined || tier !== undefined || notes !== undefined) await etkinlikGuncelle(war);
+
   // Sonuç açıklandıysa katılımcılara bildirim gönder
   if (result && ["WIN", "LOSS", "DRAW"].includes(result)) {
     const resultText = result === "WIN" ? "Kazandık! 🎉" : result === "LOSS" ? "Kaybettik" : "Berabere";
@@ -77,6 +81,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const session = await getServerSession(authOptions);
   if (!session?.user.canManageWars) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const war = await prisma.war.findUnique({ where: { id: Number(params.id) }, select: { discordEventId: true } });
   await prisma.war.delete({ where: { id: Number(params.id) } });
+  await etkinlikSil(war?.discordEventId);
   return NextResponse.json({ ok: true });
 }

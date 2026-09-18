@@ -11,6 +11,7 @@ import {
 import { PartyBuilder } from "@/components/party-builder";
 import type { UserPerfStats } from "@/components/member-chip";
 import type { WarAttendanceSummary } from "@/app/api/wars/attendance-history/route";
+import type { GuvenOzet } from "@/components/guven-rozeti";
 import { getTypeName, BDO_CLASSES } from "@/lib/classes";
 import { classifyAttendance, ATTENDANCE_META, attendanceKnown } from "@/lib/attendance";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
@@ -95,6 +96,7 @@ export default function SavasDetayPage() {
   const [absent, setAbsent] = useState<{ id: number; familyName: string; avatarUrl: string }[]>([]);
   const [memberStats, setMemberStats] = useState<Record<number, UserPerfStats>>({});
   const [history, setHistory] = useState<WarAttendanceSummary[]>([]);
+  const [guven, setGuven] = useState<Record<number, GuvenOzet> | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
 
   const [myStatus, setMyStatus] = useState<string | null>(null);
@@ -140,6 +142,10 @@ export default function SavasDetayPage() {
       }
       if (statRes.ok) setMemberStats(await statRes.json());
       if (histRes.ok) setHistory(await histRes.json());
+      // Güvenilirlik yalnızca yöneticiye; 403 gelirse prop hiç verilmez, rozet çizilmez
+      if (session?.user?.canManageWars) {
+        fetch("/api/wars/reliability").then(async (r) => { if (r.ok && !dead) setGuven(((await r.json()) as { kisiler: Record<number, GuvenOzet> }).kisiler); }).catch(() => {});
+      }
     })().catch(() => { if (!dead) setErr("Veri alınamadı."); });
 
     return () => { dead = true; };
@@ -382,7 +388,7 @@ export default function SavasDetayPage() {
         {tab === "partiler" && (
           canManage ? (
             <AdminPartiler war={war} attendees={lists.attending} memberStats={memberStats}
-                           history={history} current={statuses.current}
+                           history={history} current={statuses.current} guven={guven}
                            publishing={publishing} publishMsg={publishMsg}
                            onPublish={async () => {
                              setPublishing(true);
@@ -533,12 +539,13 @@ function Katilim({ lists, guildSplit, counts, current }: {
 }
 
 function AdminPartiler({
-  war, attendees, memberStats, history, current, publishing, publishMsg, onPublish,
+  war, attendees, memberStats, history, current, publishing, publishMsg, onPublish, guven,
 }: {
   war: WarDetail;
   attendees: User[];
   memberStats: Record<number, UserPerfStats>;
   history: WarAttendanceSummary[];
+  guven?: Record<number, GuvenOzet>;
   current: Record<number, ReturnType<typeof classifyAttendance>>;
   publishing: boolean;
   publishMsg: string | null;
@@ -591,6 +598,11 @@ function AdminPartiler({
             <span style={{ color: "var(--t-faint)" }}>
               · Sağdaki puan son {RECENT_WAR_WINDOW} savaşın form ortalaması
             </span>
+            {guven && (
+              <span style={{ color: "var(--t-faint)" }}>
+                · <b style={{ color: "var(--t-good)" }}>%</b> katılım güvenilirliği: seçildiğinde gelme oranı (raporlu son 10 savaş); soluksa az veri
+              </span>
+            )}
           </div>
         </Card>
       )}
@@ -604,6 +616,7 @@ function AdminPartiler({
         memberStats={memberStats}
         attendanceHistory={history}
         currentStatuses={current}
+        guven={guven}
       />
     </div>
   );

@@ -196,6 +196,10 @@ export const authOptions: NextAuthOptions = {
           session.user.guild = dbUser.guild;
           session.user.familyName = dbUser.familyName;
           session.user.role = dbUser.siteRole?.name ?? "Üye";
+          // Aktivite takibi için "siteye son geliş" — saatte en çok bir yazma
+          if (!dbUser.lastSeenAt || Date.now() - dbUser.lastSeenAt.getTime() > 3600_000) {
+            void prisma.user.update({ where: { id: dbUser.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+          }
         }
       }
       return session;

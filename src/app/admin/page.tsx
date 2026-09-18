@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Users, UserPlus, BarChart3, Megaphone, Flag, Shield, Wrench,
-  Map as MapIcon, Swords, Info, ChevronRight,
+  Map as MapIcon, Swords, Info, ChevronRight, Activity,
 } from "lucide-react";
 import { WarPerformanceTab } from "@/components/war-performance-tab";
 import { TestShell, Card, Empty } from "@/components/app-shell";
@@ -19,6 +19,7 @@ import KlanlarTab from "./klanlar";
 import RollerTab from "./roller";
 import AraclarTab from "./araclar";
 import GeoTab from "./geo";
+import AktiviteTab from "./aktivite";
 
 /**
  * Yönetim paneli.
@@ -31,10 +32,11 @@ import GeoTab from "./geo";
  * (/savaslar/yonetim). Panelde yalnızca oraya bir bağlantı var.
  */
 
-type TabKey = "uyeler" | "basvurular" | "hasar" | "duyurular" | "klanlar" | "roller" | "araclar" | "geo";
+type TabKey = "uyeler" | "aktivite" | "basvurular" | "hasar" | "duyurular" | "klanlar" | "roller" | "araclar" | "geo";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType; guildAdmin: boolean }[] = [
   { key: "uyeler",     label: "Üyeler",       icon: Users,     guildAdmin: true },
+  { key: "aktivite",   label: "Aktivite",     icon: Activity,  guildAdmin: true },
   { key: "basvurular", label: "Başvurular",   icon: UserPlus,  guildAdmin: true },
   { key: "hasar",      label: "Hasar Raporu", icon: BarChart3, guildAdmin: true },
   { key: "duyurular",  label: "Duyurular",    icon: Megaphone, guildAdmin: false },
@@ -140,6 +142,7 @@ function AdminInner() {
 
       {/* Sekme içeriği — anahtarla monte edilip sökülüyor, veri de öyle */}
       {tab === "uyeler" && <UyelerTab isSiteAdmin={isSiteAdmin} flash={flash} />}
+      {tab === "aktivite" && <AktiviteTab />}
       {tab === "basvurular" && <BasvurularTab flash={flash} />}
       {tab === "hasar" && <WarPerformanceTab wars={wars} />}
       {tab === "duyurular" && <DuyurularTab flash={flash} />}

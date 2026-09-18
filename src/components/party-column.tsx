@@ -6,6 +6,8 @@ import { MemberChip, UserPerfStats } from "./member-chip";
 import { useState } from "react";
 import { Trash2, Pencil } from "lucide-react";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
+import { getClassIconUrl, getClassByID } from "@/lib/classes";
+import { guvenRengi, type GuvenOzet } from "@/components/guven-rozeti";
 
 /**
  * Tek bir parti sütunu.
@@ -42,11 +44,13 @@ interface PartyColumnProps {
   attendanceHistory?: WarAttendanceSummary[];
   /** Parti başına üye sınırı */
   capacity?: number;
+  /** userId → güvenilirlik (yalnızca yöneticiye) */
+  guven?: Record<number, GuvenOzet>;
 }
 
 export function PartyColumn({
   party, onRename, onDelete, onSetRole, memberStats, attendanceHistory,
-  currentStatuses, capacity = 20,
+  currentStatuses, capacity = 20, guven,
 }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
@@ -72,6 +76,18 @@ export function PartyColumn({
       return m;
     }, new Map<string, { tag: string; color: string; n: number }>()).values(),
   ).sort((a, b) => b.n - a.n);
+
+  // Class dağılımı: bir bakışta "3 Shai 2 Valk" — ikon + sayı
+  const siniflar = Array.from(
+    party.members.reduce((m, mem) => {
+      const c = mem.asClass || mem.user.class; if (!c) return m;
+      m.set(c, (m.get(c) ?? 0) + 1); return m;
+    }, new Map<string, number>()).entries(),
+  ).sort((a, b) => b[1] - a[1]);
+  // Ortalama güvenilirlik (yüzdesi olanların) ve kaç kişinin "gelmedi" sicili var
+  const guvenli = guven ? party.members.map((m) => guven[m.userId]).filter((g): g is GuvenOzet => !!g && g.yuzde !== null) : [];
+  const ortGuven = guvenli.length ? Math.round(guvenli.reduce((s, g) => s + (g.yuzde ?? 0), 0) / guvenli.length) : null;
+  const riskli = guven ? party.members.filter((m) => { const g = guven[m.userId]; return g && g.yuzde !== null && g.secildi >= 2 && g.yuzde < 50; }).length : 0;
 
   function saveName() {
     setEditing(false);
@@ -132,6 +148,23 @@ export function PartyColumn({
         </div>
         {roleErr && <p className="text-[10px] text-red-400 mt-1">{roleErr}</p>}
 
+        {/* Class dağılımı */}
+        {siniflar.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 mt-2">
+            {siniflar.map(([c, n]) => {
+              const icon = getClassIconUrl(c);
+              return (
+                <span key={c} title={`${getClassByID(c)?.name ?? c} × ${n}`}
+                      className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-mono bg-bdo-bg border border-bdo-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {icon ? <img src={icon} alt="" className="w-3 h-3 opacity-80" /> : <span>{c}</span>}
+                  <span className="text-bdo-text-muted">{n}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Ortalama gear + klan dağılımı */}
         {count > 0 && (
           <div className="flex items-center gap-2 mt-2 text-[10px] font-mono">
@@ -139,6 +172,12 @@ export function PartyColumn({
               {avgAp}/{avgDp}
             </span>
             <span className="text-bdo-gold" title="Ortalama gear puanı">GS {avgAp + avgDp}</span>
+            {ortGuven !== null && (
+              <span title={`Ortalama katılım güvenilirliği (${guvenli.length} kişi)${riskli ? ` · ${riskli} kişinin gelmeme sicili var` : ""}`}
+                    style={{ color: guvenRengi({ yuzde: ortGuven } as GuvenOzet) }}>
+                %{ortGuven}{riskli > 0 && <span style={{ color: "var(--t-bad)" }}> ⚠{riskli}</span>}
+              </span>
+            )}
             {guilds.length > 0 && (
               <span className="ml-auto flex items-center gap-1">
                 {guilds.map((g) => (
@@ -164,7 +203,8 @@ export function PartyColumn({
           {party.members.map((m) => (
             <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user}
                         perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory}
-                        currentStatus={currentStatuses?.[m.userId]} asClass={m.asClass} />
+                        currentStatus={currentStatuses?.[m.userId]} asClass={m.asClass}
+                        guven={guven ? guven[m.userId] ?? null : undefined} />
           ))}
         </div>
       </SortableContext>

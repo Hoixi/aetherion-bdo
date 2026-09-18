@@ -13,6 +13,7 @@ import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
 import { getClassByID } from "@/lib/classes";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
+import type { GuvenOzet } from "@/components/guven-rozeti";
 
 /**
  * Parti kurma ekranı.
@@ -58,10 +59,12 @@ interface PartyBuilderProps {
   tier?: string | null;
   memberStats?: Record<number, UserPerfStats>;
   attendanceHistory?: WarAttendanceSummary[];
+  /** userId → güvenilirlik; yalnızca yöneticiye yüklenir */
+  guven?: Record<number, GuvenOzet>;
   currentStatuses?: Record<number, AttendanceStatus>;
 }
 
-type PoolSort = "gs" | "score" | "name" | "class";
+type PoolSort = "gs" | "score" | "guven" | "name" | "class";
 
 /**
  * Form sıralaması üç bant hâlinde: önce yeterli örneklemi olanlar, sonra
@@ -77,6 +80,7 @@ function formRank(p?: UserPerfStats): number {
 const POOL_SORTS: [PoolSort, string, string][] = [
   ["gs", "Gear", "Gear skoruna göre"],
   ["score", "Form", `Son ${RECENT_WAR_WINDOW} savaşın performans puanına göre`],
+  ["guven", "Güven", "Katılım güvenilirliğine göre: seçildiğinde gelme oranı (raporlu son savaşlar)"],
   ["class", "Class", "Class'a göre"],
   ["name", "İsim", "Aile adına göre"],
 ];
@@ -167,7 +171,7 @@ function buildAutoPartyPlan(
 
 export function PartyBuilder({
   warId, attendees, initialParties, maxParticipants, tier, memberStats,
-  attendanceHistory, currentStatuses,
+  attendanceHistory, currentStatuses, guven,
 }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
   const [activeUser, setActiveUser] = useState<User | null>(null);
@@ -194,6 +198,10 @@ export function PartyBuilder({
     return [...list].sort((a, b) => {
       if (sort === "name") return a.familyName.localeCompare(b.familyName, "tr");
       if (sort === "score") return formRank(memberStats?.[b.id]) - formRank(memberStats?.[a.id]);
+      if (sort === "guven") {
+        const g = (u: User) => { const x = guven?.[u.id]; return x && x.yuzde !== null ? x.yuzde + Math.min(x.secildi, 10) / 100 : -1; };
+        return g(b) - g(a) || (b.ap + b.dp) - (a.ap + a.dp);
+      }
       if (sort === "class") {
         const an = getClassByID(a.class)?.name ?? a.class;
         const bn = getClassByID(b.class)?.name ?? b.class;
@@ -202,7 +210,7 @@ export function PartyBuilder({
       return b.ap + b.dp - (a.ap + a.dp);
     });
     // `assigned` her render'da yeniden kuruluyor; parties'e bağlamak yeterli
-  }, [attendees, parties, q, sort, memberStats]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [attendees, parties, q, sort, memberStats, guven]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Üstteki özet — rol ve klan dağılımı tek bakışta */
   const summary = useMemo(() => {
@@ -470,7 +478,8 @@ export function PartyBuilder({
               {unassigned.map((user) => (
                 <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user}
                             perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory}
-                            currentStatus={currentStatuses?.[user.id]} compact />
+                            currentStatus={currentStatuses?.[user.id]} compact
+                            guven={guven ? guven[user.id] ?? null : undefined} />
               ))}
               {unassigned.length === 0 && q.trim() !== "" && (
                 <span className="text-[11px] text-bdo-text-secondary self-center">
@@ -497,7 +506,7 @@ export function PartyBuilder({
               <PartyColumn key={party.id} party={party} onRename={renameParty}
                            onDelete={deleteParty} onSetRole={setRole}
                            memberStats={memberStats} attendanceHistory={attendanceHistory}
-                           currentStatuses={currentStatuses} />
+                           currentStatuses={currentStatuses} guven={guven} />
             ))}
           </div>
         )}

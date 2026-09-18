@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyAllMembers } from "@/lib/notifications";
 import { getGuildScope } from "@/lib/guild-scope";
+import { etkinlikOlustur } from "@/lib/discord-events";
 
 /**
  * Katılım sayısı yalnızca yöneticilere gider. Üyeler sayıyı görünce "30
@@ -57,6 +58,9 @@ export async function POST(req: Request) {
       createdBy: session.user.id,
     },
   });
+
+  // Discord takvimine de düşsün (izin yoksa sessizce atlanır)
+  await etkinlikOlustur(war);
 
   // Tüm üyelere bildirim gönder
   await notifyAllMembers(
