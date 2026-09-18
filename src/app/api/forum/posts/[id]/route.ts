@@ -65,6 +65,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   return NextResponse.json(updated);
 }
 
+/** Konu sayfası düzenleme ve sabitlemeyi PATCH ile yolluyor; aynı işlem */
+export const PATCH = PUT;
+
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

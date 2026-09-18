@@ -56,9 +56,19 @@ function timeAgo(date: string) {
   return new Date(date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
 }
 
-/** Markdown/HTML kırıntılarını atıp ilk satırı çıkarır */
+/**
+ * Liste özeti: HTML atılır, gömülü kristal/eser kurulumu kartı ham etiket
+ * yerine "◈ Eserler" gibi kısa bir işarete iner, kalan metnin ilk satırı alınır.
+ */
 function preview(content: string, len = 160) {
   const flat = content
+    .replace(/<div[^>]*data-loadout="(kristal|eser)"[^>]*>[\s\S]*?<\/div>/gi, (m, kind: string) => {
+      const label = /data-label="([^"]*)"/.exec(m)?.[1];
+      return ` ◈ ${label || (kind === "eser" ? "Eser kurulumu" : "Kristal kurulumu")} `;
+    })
+    .replace(/<a[^>]*class="loadout-ref"[^>]*>[\s\S]*?<\/a>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
     .replace(/[#*_`>~\[\]()]/g, "")
     .replace(/\s+/g, " ")
     .trim();
