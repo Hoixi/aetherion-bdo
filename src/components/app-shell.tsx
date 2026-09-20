@@ -9,7 +9,7 @@ import {
   ClipboardList, Map as MapIcon, Sparkles, CalendarDays,
   ListOrdered, Castle, Zap, MessageSquare, UserPlus, Flame, LayoutDashboard,
   Menu, X, ScrollText, CalendarClock, Package, Gem, Sparkles as SparklesIcon,
-  Hammer, MessagesSquare, Monitor,
+  Hammer, MessagesSquare, Monitor, Mic,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 
@@ -58,6 +58,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[]; yonetici?: boo
   { key: "Topluluk", icon: MessagesSquare, items: [
     { label: "Üyeler", href: "/uyeler", icon: Users },
     { label: "Forum", href: "/forum", icon: MessageSquare },
+    { label: "Sesli Sohbet", href: "/ses", icon: Mic },
     { label: "Yama Notları", href: "/patch-notes", icon: ScrollText },
     { label: "AI Asistan", href: "/ai-asistan", icon: Sparkles },
     { label: "GeoGuessr", href: "/geo", icon: MapIcon },

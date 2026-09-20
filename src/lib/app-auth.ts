@@ -1,5 +1,7 @@
 import crypto from "crypto";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 /**
  * Masaüstü uygulamasının kimliği.
@@ -89,7 +91,10 @@ export interface AppActor {
 export async function authenticateApp(req: Request): Promise<AppActor | null> {
   const baslik = req.headers.get("authorization") ?? "";
   const m = /^Bearer\s+([a-f0-9]{64})$/i.exec(baslik);
-  if (!m) return null;
+  // Anahtar yoksa site oturumu: tarayıcıdaki sesli sohbet (/ses) aynı uçları
+  // çerezle kullanıyor. Yazma uçları için CSRF'i NextAuth'un SameSite=Lax
+  // çerezi karşılıyor; kökene bağlı kalmak için Bearer'sız istekte tokenId 0.
+  if (!m) return oturumdanAktor();
 
   const row = await prisma.appToken.findUnique({
     where: { tokenHash: hashToken(m[1]) },
@@ -117,6 +122,17 @@ export async function authenticateApp(req: Request): Promise<AppActor | null> {
     guildId: u.guildId, isAdmin: u.isAdmin, isGuildAdmin: u.isGuildAdmin,
     tokenId: row.id,
   };
+}
+
+async function oturumdanAktor(): Promise<AppActor | null> {
+  const session = await getServerSession(authOptions).catch(() => null);
+  if (!session?.user?.id) return null;
+  const u = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, familyName: true, class: true, spec: true, guildId: true, isAdmin: true, isGuildAdmin: true, deletedAt: true },
+  });
+  if (!u || u.deletedAt) return null;
+  return { id: u.id, familyName: u.familyName, class: u.class, spec: u.spec, guildId: u.guildId, isAdmin: u.isAdmin, isGuildAdmin: u.isGuildAdmin, tokenId: 0 };
 }
 
 export async function revokeAppToken(userId: number, tokenId: number) {

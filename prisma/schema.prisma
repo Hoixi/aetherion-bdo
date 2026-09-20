@@ -116,6 +116,8 @@ model User {
   absenceCount Int     @default(0)
   /** Siteye son geliş (oturum yenilendikçe, saatte en çok bir kez yazılır) */
   lastSeenAt  DateTime?
+  /** Tarayıcı sesli sohbet sayfası açıkken dakikada bir yazılır (çevrimiçi listesi) */
+  webSeenAt   DateTime?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
