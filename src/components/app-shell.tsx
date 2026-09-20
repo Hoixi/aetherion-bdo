@@ -89,6 +89,48 @@ function CompanionButton({ pathname, compact = false }: { pathname: string; comp
   );
 }
 
+/**
+ * Sesli sohbet düğmesi — Companion'ın yanında, göz önünde. Odalarda kimse
+ * varsa yeşil nokta + sayı gösterir (dakikada bir; yalnızca oturum açıkken).
+ */
+function SesButonu({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
+  const on = pathname === "/ses";
+  const { status } = useSession();
+  const [kisi, setKisi] = useState(0);
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const cek = () => fetch("/api/app/voice/rooms", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { rooms?: Array<{ members: string[] }>; warRooms?: Array<{ members: string[] }> } | null) => {
+        if (!d) return;
+        setKisi([...(d.rooms ?? []), ...(d.warRooms ?? [])].reduce((n, r) => n + r.members.length, 0));
+      }).catch(() => {});
+    cek();
+    const t = setInterval(cek, 60_000);
+    return () => clearInterval(t);
+  }, [status]);
+  return (
+    <Link href="/ses" title="Sesli sohbet — tarayıcıdan odaya gir"
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold flex-shrink-0"
+          style={{
+            color: on ? "#000" : "var(--t-good)",
+            background: on ? "var(--t-good)" : "rgba(56,208,127,.10)",
+            border: "1px solid rgba(56,208,127,.45)",
+            boxShadow: on ? "none" : "0 0 14px rgba(56,208,127,.12)",
+          }}>
+      <Mic className="w-3.5 h-3.5" strokeWidth={2.2} />
+      {!compact && <span>Sesli Sohbet</span>}
+      {kisi > 0 && (
+        <span className="inline-flex items-center gap-1 t-num text-[11px] font-bold rounded-full px-1.5"
+              style={{ background: on ? "rgba(0,0,0,.18)" : "rgba(56,208,127,.18)" }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: on ? "#000" : "var(--t-good)", boxShadow: on ? "none" : "0 0 6px var(--t-good)" }} />
+          {kisi}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function TestShell({
   title, subtitle, tabs, aside, bare = false, noNav = false, children,
 }: {
@@ -210,6 +252,7 @@ export function TestShell({
 
           <div className="ml-auto flex items-center gap-2">
             {aside}
+            <SesButonu pathname={pathname} />
             <CompanionButton pathname={pathname} />
             <UserMenu />
           </div>
