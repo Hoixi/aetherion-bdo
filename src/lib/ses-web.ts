@@ -1,6 +1,6 @@
 "use client";
 
-import { Room, RoomEvent, Track, LocalAudioTrack, createAudioAnalyser, type RemoteAudioTrack, type RemoteParticipant, type Participant } from "livekit-client";
+import { Room, RoomEvent, Track, LocalAudioTrack, createAudioAnalyser, ScreenSharePresets, type RemoteAudioTrack, type RemoteParticipant, type Participant, type RemoteVideoTrack, type LocalVideoTrack } from "livekit-client";
 import { useEffect, useState } from "react";
 import { RnnoiseWorkletNode, GtcrnWorkletNode, loadRnnoise, loadGtcrn } from "@sapphi-red/web-noise-suppressor";
 
@@ -56,6 +56,9 @@ export interface SesDurum {
   yayinIzni: boolean;
   /** sunucuya gidiş-dönüş, ms (3 sn'de bir) */
   gecikmeMs: number | null;
+  /** odadaki ekran yayınları (kimlik + ad); kendi yayınım da dahil */
+  yayinlar: Array<{ id: string; ad: string; ben: boolean }>;
+  ekranPaylasiyorum: boolean;
 }
 export type AnonsMod = "kapali" | "tus" | "otomatik";
 export type GurultuMod = "kapali" | "tarayici" | "rnnoise" | "gtcrn";
@@ -121,7 +124,7 @@ class SesYoneticisi {
   private gecikmeZamanlayici: number | null = null;
 
   durum: SesDurum = { bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, ptt: false,
-                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null };
+                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null, yayinlar: [], ekranPaylasiyorum: false };
 
   abone(f: Dinleyici) { this.dinleyiciler.add(f); f(this.durum); return () => { this.dinleyiciler.delete(f); }; }
   private yay(p: Partial<SesDurum>) { this.durum = { ...this.durum, ...p }; this.dinleyiciler.forEach((f) => f(this.durum)); }
@@ -284,8 +287,18 @@ class SesYoneticisi {
           .on(RoomEvent.ActiveSpeakersChanged, () => this.tazele())
           .on(RoomEvent.TrackMuted, () => this.tazele())
           .on(RoomEvent.TrackUnmuted, () => this.tazele())
-          .on(RoomEvent.TrackSubscribed, (track, _pub, p) => { if (track.kind === Track.Kind.Audio) { track.attach(); this.uygulaHacim(p.identity); this.analizEkle(p.identity, track as RemoteAudioTrack); } this.tazele(); })
-          .on(RoomEvent.TrackUnsubscribed, (track, _pub, p) => { track.detach(); this.analizSil(p.identity); this.tazele(); })
+          .on(RoomEvent.TrackSubscribed, (track, pub, p) => {
+            if (track.kind === Track.Kind.Audio) {
+              track.attach(); this.uygulaHacim(p.identity);
+              // Ekran sesi konuşma ışığını yakmasın
+              if (pub.source !== Track.Source.ScreenShareAudio) this.analizEkle(p.identity, track as RemoteAudioTrack);
+            }
+            if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele();
+            this.tazele();
+          })
+          .on(RoomEvent.TrackUnsubscribed, (track, pub, p) => { track.detach(); if (pub.source !== Track.Source.ScreenShareAudio) this.analizSil(p.identity); if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); this.tazele(); })
+          .on(RoomEvent.LocalTrackPublished, (pub) => { if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); })
+          .on(RoomEvent.LocalTrackUnpublished, (pub) => { if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); })
           .on(RoomEvent.Disconnected, () => { this.room = null; this.gecikmeDurdur(); this.mikrofonuKapat(); this.analizleriTemizle(); this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] }); })
           .on(RoomEvent.Reconnecting, () => this.yay({ baglaniyor: true }))
           .on(RoomEvent.Reconnected, () => this.yay({ baglaniyor: false }))
@@ -314,6 +327,38 @@ class SesYoneticisi {
       if (r) await r.disconnect().catch(() => {});
       this.yay({ bagli: false, baglaniyor: false, hata: (e as Error).message });
     }
+  }
+
+  // ---- Ekran yayını ----
+
+  /** Ekranı (ya da pencereyi) odaya yayınla; tarayıcının kendi seçim penceresi açılır */
+  async ekranPaylas(acik: boolean) {
+    const r = this.room; if (!r) return;
+    try {
+      await r.localParticipant.setScreenShareEnabled(acik,
+        { audio: true, resolution: { width: 1920, height: 1080, frameRate: 30 }, contentHint: "detail", selfBrowserSurface: "exclude" },
+        { screenShareEncoding: ScreenSharePresets.h1080fps30.encoding, screenShareSimulcastLayers: [ScreenSharePresets.h720fps15] });
+    } catch (e) {
+      const m = (e as Error).message ?? String(e);
+      if (!/NotAllowedError|Permission denied|cancel/i.test(m)) this.yay({ hata: `Yayın açılamadı: ${m}` });
+    }
+    this.yayinlariTazele();
+  }
+
+  private yayinlariTazele() {
+    const r = this.room; if (!r) { if (this.durum.yayinlar.length || this.durum.ekranPaylasiyorum) this.yay({ yayinlar: [], ekranPaylasiyorum: false }); return; }
+    const liste: SesDurum["yayinlar"] = [];
+    const benim = r.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track;
+    if (benim) liste.push({ id: r.localParticipant.identity, ad: r.localParticipant.name || "sen", ben: true });
+    r.remoteParticipants.forEach((p) => { if (p.getTrackPublication(Track.Source.ScreenShare)?.track) liste.push({ id: p.identity, ad: p.name || p.identity, ben: false }); });
+    this.yay({ yayinlar: liste, ekranPaylasiyorum: !!benim });
+  }
+
+  /** Bir katılımcının ekran görüntüsü parçası — UI <video>'ya bağlar */
+  ekranParcasi(identity: string): RemoteVideoTrack | LocalVideoTrack | null {
+    const r = this.room; if (!r) return null;
+    const p = r.localParticipant.identity === identity ? r.localParticipant : r.remoteParticipants.get(identity);
+    return (p?.getTrackPublication(Track.Source.ScreenShare)?.track as RemoteVideoTrack | LocalVideoTrack | undefined) ?? null;
   }
 
   /** RTT: WebRTC aday çiftinin gidiş-dönüşü, 3 sn'de bir */
@@ -351,7 +396,7 @@ class SesYoneticisi {
     this.mikrofonuKapat(); this.analizleriTemizle();
     await this.anonstanAyril();
     if (r) await r.disconnect();
-    this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [], yayinIzni: true });
+    this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [], yayinIzni: true, yayinlar: [], ekranPaylasiyorum: false });
   }
 
   async mikrofon(acik: boolean) {

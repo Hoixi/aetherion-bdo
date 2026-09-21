@@ -38,7 +38,8 @@ export async function odaAnahtari(me: { id: number; familyName: string }, room: 
   await digerOdalardanCikar(a, String(me.id), room);
   const at = new AccessToken(a.key, a.secret, { identity: String(me.id), name: me.familyName || `Üye ${me.id}`, ttl });
   // yayin=false: konuşma kısıtlı odada dinleyici — yetki verilince sunucu tarafından canlı açılır (yayinIzniAyarla)
-  at.addGrant({ room, roomJoin: true, canPublish: yayin, canSubscribe: true, canPublishData: true, canPublishSources: yayin ? [TrackSource.MICROPHONE] : [] });
+  // Mikrofon + ekran paylaşımı (görüntü ve sistem sesi); kamera yok
+  at.addGrant({ room, roomJoin: true, canPublish: yayin, canSubscribe: true, canPublishData: true, canPublishSources: yayin ? [TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO] : [] });
   return { url: a.url, token: await at.toJwt() };
 }
 

@@ -7,6 +7,7 @@ import { ses, useSes } from "@/lib/ses-web";
 import { MikIkon, KulaklikIkon, HoparlorIkon } from "./ikon";
 import { SesAyarlariPaneli } from "./ayarlar";
 import { Sohbet } from "./sohbet";
+import { YayinPaneli } from "./yayin";
 import { onayla, toast } from "./dialog";
 import { getClassByID } from "@/lib/classes";
 
@@ -183,6 +184,7 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
                             <i />
                             <Avatar src={u.avatar} />
                             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}{ben ? " (sen)" : ""}</span>
+                            {buradayim && d.yayinlar.some((y) => y.id === String(u.id)) && <span title="Ekran yayınlıyor" style={{ fontSize: 10 }}>📺</span>}
                             {o.kisitli && !u.canSpeak && <span className="faint" title="Dinleyici — konuşma yetkisi yok" style={{ fontSize: 10 }}>👂</span>}
                             {k?.susturuldu && <HoparlorIkon acik={false} size={11} />}
                             {sessizler.has(u.id) && <MikIkon acik={false} size={11} />}
@@ -246,14 +248,19 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
           <button className="btn btn-ghost ikon-btn" disabled={!d.bagli} title={d.sagir ? "Kulaklığı aç" : "Kulaklığı kapat"} onClick={() => ses.sagirlik(!d.sagir)}>
             <KulaklikIkon acik={!d.sagir} size={18} />
           </button>
+          <button className={`btn ikon-btn ${d.ekranPaylasiyorum ? "" : "btn-ghost"}`} disabled={!d.bagli || !d.yayinIzni}
+                  title={!d.yayinIzni ? "Bu odada yayın yetkin yok" : d.ekranPaylasiyorum ? "Yayını kapat" : "Ekran yayını aç (ekran / pencere / sekme)"}
+                  style={d.ekranPaylasiyorum ? { color: "var(--t-good)", borderColor: "rgba(56,208,127,.5)" } : undefined}
+                  onClick={() => ses.ekranPaylas(!d.ekranPaylasiyorum)}>📺</button>
           <button className={`btn ikon-btn ${sag === "ayar" ? "" : "btn-ghost"}`} title="Ses ayarları" onClick={() => setSag(sag === "ayar" ? "oda" : "ayar")}>⚙</button>
           {d.bagli && <button className="btn btn-ghost ikon-btn" title="Odadan ayrıl" style={{ color: "var(--t-bad)" }} onClick={() => ses.ayril()}>✕</button>}
         </div>
       </div>
 
       {/* Orta: sohbet (ya da ses ayarları) */}
-      <div style={{ minHeight: 0, display: "grid", gridTemplateRows: d.anonsKonusanlar.length ? "auto 1fr" : "1fr" }}>
+      <div style={{ minHeight: 0, display: "grid", gridTemplateRows: `${d.anonsKonusanlar.length ? "auto " : ""}${d.yayinlar.length ? "minmax(180px, 42%) " : ""}1fr` }}>
         {d.anonsKonusanlar.length > 0 && <div className="anons-serit">📢 {d.anonsKonusanlar.join(", ")} tüm odalara konuşuyor</div>}
+        <YayinPaneli yayinlar={d.yayinlar} />
         {sag === "ayar" ? (
           <div style={{ overflow: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
