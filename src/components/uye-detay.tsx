@@ -22,7 +22,7 @@ const spesAd = (s: string) => (s === "succession" ? "Succession" : "Awakening");
 const fmt = (n: number) => (n >= 1_000_000 ? (n / 1_000_000).toFixed(1) + "M" : n >= 1_000 ? Math.round(n / 1_000) + "K" : String(Math.round(n)));
 
 export function UyeDetay({ user, perf, guven, history, karakter, partyId, secili, onKapat, onKarakter }: {
-  user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl?: string; guild?: { tag: string; color: string } | null };
+  user: { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl?: string; guild?: { tag: string; color: string } | null; not?: string | null };
   perf?: UserPerfStats;
   guven?: GuvenOzet | null;
   history?: WarAttendanceSummary[];
@@ -83,6 +83,11 @@ export function UyeDetay({ user, perf, guven, history, karakter, partyId, secili
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 text-[12px]">
+        {user.not && (
+          <div className="px-3 py-2 rounded-lg text-[12px]" style={{ background: "var(--t-gold-soft)", border: "1px solid rgba(232,180,81,.3)", color: "var(--t-text)" }}>
+            <span style={{ color: "var(--t-gold)" }}>📝 Notu:</span> {user.not}
+          </div>
+        )}
         {/* Karakter seçimi */}
         <section>
           <div className="text-[10px] uppercase tracking-[0.08em] mb-1.5" style={{ color: "var(--t-faint)" }}>Bu savaşa hangi karakterle</div>

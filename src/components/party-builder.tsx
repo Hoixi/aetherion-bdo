@@ -43,6 +43,7 @@ interface User {
   dp: number;
   avatarUrl: string;
   guild?: { tag: string; color: string } | null;
+  not?: string | null;
 }
 
 interface PartyData {

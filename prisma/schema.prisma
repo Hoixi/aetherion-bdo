@@ -325,6 +325,8 @@ model WarParticipant {
   /** Katılırken bildirdiği karakter — profilindekinden farklı olabilir */
   asClass     String?
   asSpec      String?
+  /** İsteğe bağlı not: "uygunsa Ranger'la gelmek isterim", "20:30'a kadar yokum" */
+  note        String?           @db.VarChar(200)
   respondedAt DateTime          @default(now())
 
   war  War  @relation(fields: [warId], references: [id], onDelete: Cascade)

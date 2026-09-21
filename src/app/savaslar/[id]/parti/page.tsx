@@ -23,7 +23,7 @@ import { classifyAttendance, attendanceKnown } from "@/lib/attendance";
  */
 
 type User = { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { id: number; tag: string; color: string } | null };
-type Participant = { id: number; status: string; asClass?: string | null; asSpec?: string | null; user: User };
+type Participant = { id: number; status: string; asClass?: string | null; asSpec?: string | null; note?: string | null; user: User };
 type Party = { id: number; name: string; order: number; isDefense: boolean; role?: string; members: Array<{ id: number; userId: number; asClass?: string | null; asSpec?: string | null; user: User }> };
 type WarDetail = { id: number; title: string; date: string; tier?: string | null; maxParticipants: number | null; participants: Participant[]; parties: Party[]; participantsHidden?: boolean };
 type Perf = { inGameName: string; user?: { familyName: string } | null };
@@ -69,7 +69,7 @@ export default function PartiTamEkran() {
   // Katılanlar — class'ı bu savaş için bildirdiği (yoksa profildeki)
   const attendees = useMemo(() => (war?.participants ?? [])
     .filter((p) => p.status === "ATTENDING")
-    .map((p) => ({ ...p.user, class: p.asClass || p.user.class })), [war]);
+    .map((p) => ({ ...p.user, class: p.asClass || p.user.class, not: p.note ?? null })), [war]);
 
   const current = useMemo(() => {
     if (!war) return {};

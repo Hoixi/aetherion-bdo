@@ -32,10 +32,12 @@ import {
 type User = {
   id: number; familyName: string; class: string; ap: number; dp: number;
   avatarUrl: string; guild?: (Guild & { id: number }) | null;
+  /** katılırken yazdığı not */
+  not?: string | null;
 };
 type PartyMember = { id: number; userId: number; order: number; asClass?: string | null; user: User };
 type Party = { id: number; name: string; order: number; isDefense: boolean; role?: string; members: PartyMember[] };
-type Participant = { id: number; status: string; asClass?: string | null; user: User };
+type Participant = { id: number; status: string; asClass?: string | null; note?: string | null; user: User };
 
 type WarDetail = {
   id: number;
@@ -103,6 +105,8 @@ export default function SavasDetayPage() {
   const [saving, setSaving] = useState(false);
   /** Boş = profildeki karakter */
   const [joinClass, setJoinClass] = useState("");
+  const [joinNote, setJoinNote] = useState("");
+  const [noteSaved, setNoteSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("katilim");
@@ -132,7 +136,9 @@ export default function SavasDetayPage() {
       if (!warRes.ok) { setErr("Savaş bulunamadı."); return; }
       const data: WarDetail = await warRes.json();
       setWar(data);
-      setMyStatus(data.participants.find((p) => p.user.id === session?.user?.id)?.status ?? null);
+      const benim = data.participants.find((p) => p.user.id === session?.user?.id);
+      setMyStatus(benim?.status ?? null);
+      setJoinNote(benim?.note ?? "");
 
       if (memRes.ok) setAllMembers(await memRes.json());
       if (perfRes.ok) {
@@ -151,15 +157,16 @@ export default function SavasDetayPage() {
     return () => { dead = true; };
   }, [status, warId, session?.user?.id]);
 
-  async function participate(next: string, cls?: string) {
+  async function participate(next: string, cls?: string, note?: string) {
     if (!war) return;
     setSaving(true);
     const res = await fetch(`/api/wars/${war.id}/participate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Seçim yapılmazsa sunucu profildeki class'ı yazıyor
-      body: JSON.stringify({ status: next, asClass: cls ?? (joinClass || undefined) }),
+      // Seçim yapılmazsa sunucu profildeki class'ı yazıyor; not gönderilmezse eskisi kalıyor
+      body: JSON.stringify({ status: next, asClass: cls ?? (joinClass || undefined), note }),
     });
+    if (res.ok && note !== undefined) { setNoteSaved(true); setTimeout(() => setNoteSaved(false), 2000); }
     if (res.ok) {
       setMyStatus(next);
       const again = await fetch(`/api/wars/${war.id}`);
@@ -173,7 +180,7 @@ export default function SavasDetayPage() {
   const lists = useMemo(() => {
     if (!war) return null;
     // Parti kurarken class = bu savaş için bildirdiği (yoksa profildeki)
-    const attending = war.participants.filter((p) => p.status === "ATTENDING").map((p) => ({ ...p.user, class: p.asClass || p.user.class }));
+    const attending = war.participants.filter((p) => p.status === "ATTENDING").map((p) => ({ ...p.user, class: p.asClass || p.user.class, not: p.note ?? null }));
     const declined = war.participants.filter((p) => p.status === "DECLINED").map((p) => p.user);
     const responded = new Set(war.participants.map((p) => p.user.id));
     return {
@@ -324,6 +331,17 @@ export default function SavasDetayPage() {
                             : { color: "var(--t-dim)", background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
                     <X className="w-3.5 h-3.5" strokeWidth={2.5} /> Katılmıyorum
                   </button>
+
+                  {myStatus && (
+                    <input value={joinNote} maxLength={200}
+                           onChange={(e) => setJoinNote(e.target.value)}
+                           onBlur={() => participate(myStatus, undefined, joinNote)}
+                           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                           placeholder="Not (isteğe bağlı): uygunsa Ranger'la gelirim…"
+                           title="Parti kuranlar görür. Enter ya da alandan çıkınca kaydedilir."
+                           className="h-[34px] px-2.5 rounded-[var(--t-r-sm)] text-[12px] outline-none w-[260px]"
+                           style={{ background: "var(--t-raised)", border: `1px solid ${noteSaved ? "rgba(56,208,127,.5)" : "var(--t-line)"}`, color: "var(--t-text)" }} />
+                  )}
                 </div>
               )}
             </div>
@@ -477,7 +495,10 @@ function Katilim({ lists, guildSplit, counts, current }: {
               return (
                 <div key={u.id} className="t-row px-5 py-2.5 flex items-center gap-2.5">
                   <Ava src={u.avatarUrl} />
-                  <span className="text-[12.5px] truncate flex-1">{u.familyName}</span>
+                  <span className="text-[12.5px] truncate flex-1">
+                    {u.familyName}
+                    {u.not && <span className="block text-[10.5px] truncate" style={{ color: "var(--t-gold)" }} title={u.not}>📝 {u.not}</span>}
+                  </span>
                   <span title={meta.label}
                         className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
                         style={{ color: meta.color, background: meta.bg }}>

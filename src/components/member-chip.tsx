@@ -89,6 +89,8 @@ interface MemberChipProps {
   user: {
     id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
     guild?: { tag: string; color: string } | null;
+    /** katılırken yazdığı not */
+    not?: string | null;
   };
   isDragOverlay?: boolean;
   perf?: UserPerfStats;
@@ -224,6 +226,10 @@ export function MemberChip({
           <span className="text-xs font-semibold text-bdo-text-primary truncate flex-1">
             {user.familyName}
           </span>
+
+          {user.not && (
+            <span className="text-[11px] shrink-0" title={`Not: ${user.not}`}>📝</span>
+          )}
 
           {swapped && (
             <span className="text-[9px] font-bold px-1 rounded shrink-0

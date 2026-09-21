@@ -32,6 +32,7 @@ export type PartyMemberData = {
   user: {
     id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
     guild?: { tag: string; color: string } | null;
+    not?: string | null;
   };
 };
 

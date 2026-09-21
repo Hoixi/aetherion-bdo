@@ -18,7 +18,7 @@ export type KatilimSonuc =
 export async function setParticipation(
   userId: number,
   warId: number,
-  input: { status: string; asClass?: unknown; asSpec?: unknown },
+  input: { status: string; asClass?: unknown; asSpec?: unknown; note?: unknown },
 ): Promise<KatilimSonuc> {
   const status = input.status;
   if (status !== "ATTENDING" && status !== "DECLINED") {
@@ -40,6 +40,8 @@ export async function setParticipation(
   const pickedClass =
     input.asClass && getClassByID(String(input.asClass)) ? String(input.asClass) : me?.class ?? null;
   const pickedSpec = input.asSpec ? String(input.asSpec) : me?.spec ?? null;
+  // Not: gönderilmediyse eskisi kalsın (undefined), boş gönderildiyse silinsin
+  const note = input.note === undefined ? undefined : String(input.note).trim().slice(0, 200) || null;
 
   const participant = await prisma.warParticipant.upsert({
     where: { warId_userId: { warId, userId } },
@@ -49,11 +51,13 @@ export async function setParticipation(
       // Katılmıyorsa karakter bilgisi anlamsız
       asClass: status === "ATTENDING" ? pickedClass : null,
       asSpec: status === "ATTENDING" ? pickedSpec : null,
+      note,
     },
     create: {
       warId, userId, status, respondedAt: new Date(),
       asClass: status === "ATTENDING" ? pickedClass : null,
       asSpec: status === "ATTENDING" ? pickedSpec : null,
+      note: note ?? null,
     },
   });
 

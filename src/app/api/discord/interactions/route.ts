@@ -112,6 +112,48 @@ async function syncUserFromDiscordInteraction(discordUserId: string, member?: Di
 
 // ─── BUTTON HANDLERS ────────────────────────────────────────
 
+/**
+ * 📝 Not: küçük bir pencere (modal) açar; gönderilince katılım kaydına
+ * yazılır. "Uygunsa Ranger'la gelirim", "21:30'a kadar yokum" gibi. Not
+ * için önce Katıl/Katılmıyorum demiş olmak gerekiyor — durumsuz kayıt yok.
+ */
+async function handleWarNoteButton(customId: string, discordUserId: string) {
+  const m = customId.match(/^war_note_(\d+)$/);
+  if (!m) return null;
+  const warId = parseInt(m[1]);
+  const user = await prisma.user.findUnique({ where: { discordId: discordUserId }, select: { id: true } });
+  if (!user) return ephemeral("❌ Hesabın sitede bulunamadı. Önce siteye giriş yap.");
+  const p = await prisma.warParticipant.findUnique({ where: { warId_userId: { warId, userId: user.id } }, select: { note: true } });
+  if (!p) return ephemeral("Önce ✅ Katılıyorum ya da ❌ Katılmıyorum'a bas, sonra not ekle.");
+  return NextResponse.json({
+    type: 9,
+    data: {
+      custom_id: `war_note_modal_${warId}`,
+      title: "Savaş notu",
+      components: [{
+        type: 1,
+        components: [{
+          type: 4, custom_id: "not", style: 2, label: "Not (isteğe bağlı, 200 karakter)",
+          placeholder: "Uygunsa Ranger'la gelmek isterim / 21:30'a kadar yokum…",
+          required: false, max_length: 200, value: p.note ?? "",
+        }],
+      }],
+    },
+  });
+}
+
+async function handleWarNoteModal(customId: string, discordUserId: string, components: Array<{ components?: Array<{ custom_id: string; value?: string }> }>) {
+  const m = customId.match(/^war_note_modal_(\d+)$/);
+  if (!m) return null;
+  const warId = parseInt(m[1]);
+  const user = await prisma.user.findUnique({ where: { discordId: discordUserId }, select: { id: true } });
+  if (!user) return ephemeral("❌ Hesabın sitede bulunamadı.");
+  const not = (components?.flatMap((r) => r.components ?? []).find((c) => c.custom_id === "not")?.value ?? "").trim().slice(0, 200);
+  const r = await prisma.warParticipant.updateMany({ where: { warId, userId: user.id }, data: { note: not || null } });
+  if (!r.count) return ephemeral("Önce ✅ Katılıyorum ya da ❌ Katılmıyorum'a bas.");
+  return ephemeral(not ? `📝 Notun kaydedildi: _${not}_` : "📝 Notun silindi.");
+}
+
 async function handleWarButton(customId: string, discordUserId: string) {
   const attendMatch = customId.match(/^war_attend_(\d+)$/);
   const declineMatch = customId.match(/^war_decline_(\d+)$/);
@@ -1203,6 +1245,8 @@ export async function POST(req: NextRequest) {
     // War buttons
     const warResult = await handleWarButton(customId, discordUserId);
     if (warResult) return warResult;
+    const noteResult = await handleWarNoteButton(customId, discordUserId);
+    if (noteResult) return noteResult;
 
     // Boss party buttons
     const bpResult = await handleBossPartyButton(customId, discordUserId, interaction.id, interaction.token);
@@ -1213,6 +1257,13 @@ export async function POST(req: NextRequest) {
     if (actResult) return actResult;
 
     return ephemeral("❌ Bilinmeyen işlem.");
+  }
+
+  // MODAL_SUBMIT
+  if (interaction.type === 5) {
+    const r = await handleWarNoteModal(interaction.data.custom_id, discordUserId, interaction.data.components ?? []);
+    if (r) return r;
+    return ephemeral("❌ Bilinmeyen form.");
   }
 
   return NextResponse.json({ type: 1 });

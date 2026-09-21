@@ -216,6 +216,13 @@ export async function sendWarToDiscord(war: {
         },
         {
           type: 2,
+          style: 2,
+          label: "Not",
+          emoji: { name: "📝" },
+          custom_id: `war_note_${war.id}`,
+        },
+        {
+          type: 2,
           style: 5,
           label: "Detaylar",
           emoji: { name: "🔗" },
@@ -595,6 +602,13 @@ export async function updateWarEmbed(
           label: "Katılmıyorum",
           emoji: { name: "❌" },
           custom_id: `war_decline_${war.id}`,
+        },
+        {
+          type: 2,
+          style: 2,
+          label: "Not",
+          emoji: { name: "📝" },
+          custom_id: `war_note_${war.id}`,
         },
         {
           type: 2,
