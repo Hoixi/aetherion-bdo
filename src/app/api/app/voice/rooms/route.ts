@@ -3,7 +3,8 @@ export { OPTIONS } from "@/lib/app-gate";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withApp, APP_HEADERS, appError } from "@/lib/app-gate";
-import { odaAnahtari, odaKatilimcilari } from "@/lib/livekit";
+import { odaAnahtari } from "@/lib/livekit";
+import { sesTablosu } from "@/lib/voice-presence";
 
 /**
  * Kalıcı ses odaları.
@@ -30,7 +31,8 @@ export async function GET(req: Request) {
       { room: `savas-${savas.id}-genel`, label: `${savas.title} · Genel` },
       ...savas.parties.map((p) => ({ room: `savas-${savas.id}-parti-${p.id}`, label: `${savas.title} · ${p.name}` })),
     ] : [];
-    const kisiler = await odaKatilimcilari([...odalar.map((o) => `oda-${o.slug}`), ...savasOdalari.map((o) => o.room)]);
+    // Bellekteki canlı tablo (webhook'la güncel); LiveKit'e her seferinde gitmiyoruz
+    const kisiler = await sesTablosu();
     return NextResponse.json({
       rooms: odalar.map((o) => ({ id: o.id, name: o.name, slug: o.slug, category: o.category, adminOnly: o.adminOnly,
                                   canJoin: !o.adminOnly || yonetici(me), members: kisiler[`oda-${o.slug}`] ?? [] })),

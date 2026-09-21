@@ -91,8 +91,8 @@ function CompanionButton({ pathname, compact = false }: { pathname: string; comp
 
 /**
  * Sesli sohbet düğmesi — Companion'ın yanında, göz önünde. Odalarda kimse
- * varsa yeşil nokta + sayı gösterir (20 sn'de bir ve sekmeye dönünce;
- * yalnızca oturum açıkken).
+ * varsa yeşil nokta + sayı gösterir; sayı sunucunun canlı akışından (SSE)
+ * anında gelir, dakikalık yoklama yalnızca yedek. Yalnızca oturum açıkken.
  */
 function SesButonu({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
   const on = pathname === "/ses";
@@ -107,10 +107,17 @@ function SesButonu({ pathname, compact = false }: { pathname: string; compact?: 
         setKisi([...(d.rooms ?? []), ...(d.warRooms ?? [])].reduce((n, r) => n + r.members.length, 0));
       }).catch(() => {});
     cek();
-    const t = setInterval(cek, 20_000);
+    const es = new EventSource("/api/app/voice/events");
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data) as { odalar: Record<string, string[]> };
+        setKisi(Object.values(d.odalar).reduce((n, a) => n + a.length, 0));
+      } catch { /* bozuk satır */ }
+    };
+    const t = setInterval(cek, 60_000);
     const gor = () => { if (document.visibilityState === "visible") cek(); };
     document.addEventListener("visibilitychange", gor);
-    return () => { clearInterval(t); document.removeEventListener("visibilitychange", gor); };
+    return () => { es.close(); clearInterval(t); document.removeEventListener("visibilitychange", gor); };
   }, [status]);
   return (
     <Link href="/ses" title={kisi > 0 ? `Seste ${kisi} kişi var — tıkla, odaya gir` : "Sesli sohbet — tarayıcıdan odaya gir"}

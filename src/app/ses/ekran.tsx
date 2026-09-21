@@ -49,13 +49,16 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
   const partim = savas?.parties.find((p) => p.members.some((m) => m.id === benId)) ?? null;
 
   const yukle = useCallback(() => { api.voiceRooms().then(setOdalar).catch(() => {}); }, [api]);
-  // Odadakiler 10 sn'de bir; sekmeye dönünce hemen (odaya girmeden kimin nerede olduğu görünsün)
+  // Odadakiler canlı: sunucu her giriş/çıkışta SSE ile haber veriyor; 30 sn'lik
+  // yoklama yalnızca bağlantı koparsa diye
   useEffect(() => {
     yukle();
-    const t = setInterval(yukle, 10_000);
+    const es = new EventSource("/api/app/voice/events");
+    es.onmessage = () => yukle();
+    const t = setInterval(yukle, 30_000);
     const gor = () => { if (document.visibilityState === "visible") yukle(); };
     document.addEventListener("visibilitychange", gor);
-    return () => { clearInterval(t); document.removeEventListener("visibilitychange", gor); };
+    return () => { es.close(); clearInterval(t); document.removeEventListener("visibilitychange", gor); };
   }, [yukle]);
   // Bağlanınca/ayrılınca listeyi hemen tazele (dakika beklemesin)
   useEffect(() => { const t = setTimeout(yukle, 1500); return () => clearTimeout(t); }, [d.bagli, d.oda, yukle]);
