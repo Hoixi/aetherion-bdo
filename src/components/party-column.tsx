@@ -28,6 +28,7 @@ export type PartyMemberData = {
   id: number;
   userId: number;
   asClass?: string | null;
+  asSpec?: string | null;
   user: {
     id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string;
     guild?: { tag: string; color: string } | null;
@@ -46,11 +47,13 @@ interface PartyColumnProps {
   capacity?: number;
   /** userId → güvenilirlik (yalnızca yöneticiye) */
   guven?: Record<number, GuvenOzet>;
+  onSecim?: (userId: number) => void;
+  seciliId?: number | null;
 }
 
 export function PartyColumn({
   party, onRename, onDelete, onSetRole, memberStats, attendanceHistory,
-  currentStatuses, capacity = 20, guven,
+  currentStatuses, capacity = 20, guven, onSecim, seciliId,
 }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
@@ -204,7 +207,8 @@ export function PartyColumn({
             <MemberChip key={`member-${m.userId}`} id={`member-${m.userId}`} user={m.user}
                         perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory}
                         currentStatus={currentStatuses?.[m.userId]} asClass={m.asClass}
-                        guven={guven ? guven[m.userId] ?? null : undefined} />
+                        guven={guven ? guven[m.userId] ?? null : undefined}
+                        onSecim={onSecim} secili={seciliId === m.userId} />
           ))}
         </div>
       </SortableContext>

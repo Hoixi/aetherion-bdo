@@ -1,4 +1,4 @@
-import { getTypeName } from "./classes";
+import { getTypeName, getClassByID } from "./classes";
 import { prisma } from "./prisma";
 
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
@@ -315,7 +315,7 @@ export async function sendPartiesToDiscord(war: {
   isAllyWar?: boolean;
   parties: {
     name: string;
-    members: { user: { familyName: string; ap: number; dp: number; class: string } }[];
+    members: { asClass?: string | null; user: { familyName: string; ap: number; dp: number; class: string } }[];
   }[];
 }) {
   const emoji = TYPE_EMOJI[war.type] || "📌";
@@ -354,8 +354,12 @@ Seçilenlere özel mesaj gönderildi.`,
   }
 
   const fields: EmbedField[] = war.parties.map((party) => {
-    const lines = party.members.map((m, i) =>
-      `\`${String(i + 1).padStart(2, " ")}.\` **${m.user.familyName}** — ${m.user.ap + m.user.dp} GS`);
+    // Yönetici farklı karakter seçtiyse (⇄) üye görsün: "fazla Shai var, Guardian'la gel"
+    const lines = party.members.map((m, i) => {
+      const cls = m.asClass || m.user.class;
+      const ad = getClassByID(cls)?.name ?? cls;
+      return `\`${String(i + 1).padStart(2, " ")}.\` **${m.user.familyName}** — ${m.user.ap + m.user.dp} GS${ad ? ` · ${ad}` : ""}${m.asClass && m.asClass !== m.user.class ? " ⇄" : ""}`;
+    });
     const avgGs = party.members.length
       ? Math.round(party.members.reduce((s, m) => s + m.user.ap + m.user.dp, 0) / party.members.length)
       : 0;
@@ -383,7 +387,7 @@ export async function dmPartyAssignments(war: {
   tier?: string;
   parties: {
     name: string;
-    members: { user: { discordId: string | null; familyName: string } }[];
+    members: { asClass?: string | null; user: { discordId: string | null; familyName: string; class?: string } }[];
   }[];
 }): Promise<{ sent: number; failed: number }> {
   const tier = war.tier ?? "T1";
@@ -413,6 +417,9 @@ export async function dmPartyAssignments(war: {
               `**${party.name}** partisindesin.
 
 ` +
+              (m.asClass && m.asClass !== m.user.class ? `🎭 Bu savaşa **${getClassByID(m.asClass)?.name ?? m.asClass}** ile gelmen isteniyor.
+
+` : "") +
               `${joinHint(tier)}`,
             color: GOLD,
             url: `${SITE_URL}/savaslar/${war.id}`,

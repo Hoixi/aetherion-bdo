@@ -120,7 +120,8 @@ export async function POST(req: Request) {
         parties: {
           include: {
             members: {
-              include: {
+              select: {
+                asClass: true,
                 user: {
                   select: {
                     familyName: true, ap: true, dp: true, class: true, discordId: true,

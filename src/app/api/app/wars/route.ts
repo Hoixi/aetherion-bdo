@@ -54,7 +54,7 @@ export async function GET(req: Request) {
           id: p.id, name: p.name, role: p.role,
           members: p.members.map((m) => ({
             id: m.user.id, familyName: m.user.familyName,
-            class: m.asClass ?? m.user.class, spec: m.user.spec,
+            class: m.asClass ?? m.user.class, spec: m.asSpec ?? m.user.spec,
           })),
         })),
         myParty: benimParti ? { id: benimParti.id, name: benimParti.name, role: benimParti.role } : null,

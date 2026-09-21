@@ -155,6 +155,7 @@ model User {
   voiceInvitesSent     VoiceInvite[]  @relation("VoiceInviter")
   voiceRooms           VoiceRoom[]
   chatMessages         ChatMessage[]
+  characters           UserCharacter[]
 
   @@map("users")
 }
@@ -354,14 +355,35 @@ model PartyMember {
   partyId Int
   userId  Int
   order   Int @default(0)
-  /** O savaşa geldiği class — kayıtlı class'ından farklıysa doldurulur (çoğunlukla Shai) */
+  /** Parti kuranın seçtiği karakter — üyenin bildirdiğinden farklıysa (izin verdiği alternatiflerden) */
   asClass String?
+  asSpec  String?
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([partyId, userId])
   @@map("party_members")
+}
+
+/**
+ * Üyenin oynayabildiği alternatif karakterler (ana karakter User.class/spec).
+ * `pickable`: parti kuran yönetici bu karakteri o savaş için seçebilir.
+ * Sıra = öncelik (0 en öncelikli).
+ */
+model UserCharacter {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  class     String
+  spec      String   @default("awakening")
+  order     Int      @default(0)
+  pickable  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, class, spec])
+  @@map("user_characters")
 }
 
 model Announcement {

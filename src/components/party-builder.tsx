@@ -6,7 +6,7 @@ import {
   useSensor, useSensors, useDroppable,
   type DragStartEvent, type DragEndEvent, type CollisionDetection,
 } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Search, Plus, Users, AlertTriangle, Wand2 } from "lucide-react";
 import { MemberChip, UserPerfStats, scoreColor, LOW_SAMPLE } from "./member-chip";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
@@ -14,6 +14,8 @@ import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
 import { getClassByID } from "@/lib/classes";
 import type { WarAttendanceSummary, AttendanceStatus } from "@/app/api/wars/attendance-history/route";
 import type { GuvenOzet } from "@/components/guven-rozeti";
+import { UyeDetay } from "@/components/uye-detay";
+import type { KarakterBilgi } from "@/app/api/wars/[id]/characters/route";
 
 /**
  * Parti kurma ekranı.
@@ -62,6 +64,13 @@ interface PartyBuilderProps {
   /** userId → güvenilirlik; yalnızca yöneticiye yüklenir */
   guven?: Record<number, GuvenOzet>;
   currentStatuses?: Record<number, AttendanceStatus>;
+  /**
+   * Tam ekran düzen: havuz solda dikey, partiler ortada, tıklanan üyenin
+   * detayı sağda (karakter seçimi dahil). Kart düzeninde yok.
+   */
+  tam?: boolean;
+  /** userId → karakter bilgisi (ana / bildirdiği / alternatifler) — tam görünüm için */
+  karakterler?: Record<number, KarakterBilgi>;
 }
 
 type PoolSort = "gs" | "score" | "guven" | "name" | "class";
@@ -94,6 +103,17 @@ function DroppablePool({ children, empty }: { children: React.ReactNode; empty: 
       {empty
         ? <span className="text-[11px] text-bdo-text-secondary self-center">Herkes bir partiye atandı.</span>
         : children}
+    </div>
+  );
+}
+
+/** Tam ekran: havuz dikey liste */
+function DroppablePoolDikey({ children, empty }: { children: React.ReactNode; empty: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id: "pool" });
+  return (
+    <div ref={setNodeRef}
+         className={`flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5 transition-colors ${isOver ? "bg-bdo-gold/5" : ""}`}>
+      {empty ? <span className="block text-[11px] text-bdo-text-secondary text-center py-6">Herkes bir partiye atandı.</span> : children}
     </div>
   );
 }
@@ -171,9 +191,10 @@ function buildAutoPartyPlan(
 
 export function PartyBuilder({
   warId, attendees, initialParties, maxParticipants, tier, memberStats,
-  attendanceHistory, currentStatuses, guven,
+  attendanceHistory, currentStatuses, guven, tam = false, karakterler,
 }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
+  const [seciliId, setSeciliId] = useState<number | null>(null);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -348,6 +369,23 @@ export function PartyBuilder({
     setTimeout(() => setSaveStatus(null), 2500);
   }
 
+  /** Yönetici seçimi: partideki üyenin bu savaşa geleceği karakter (null = bildirdiğine dön) */
+  async function karakterSec(partyId: number, userId: number, secim: { class: string; spec: string } | null) {
+    const res = await fetch(`/api/wars/${warId}/parties/${partyId}/members/${userId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ asClass: secim?.class ?? null, asSpec: secim?.spec ?? null }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setSaveStatus(d.error ?? "Karakter seçilemedi."); setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+    setParties(parties.map((p) => p.id === partyId
+      ? { ...p, members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: secim?.class ?? null, asSpec: secim?.spec ?? null } : m)) }
+      : p));
+    setSaveStatus("Karakter kaydedildi"); setTimeout(() => setSaveStatus(null), 2000);
+  }
+
   async function renameParty(partyId: number, name: string) {
     await fetch(`/api/wars/${warId}/parties/${partyId}`, {
       method: "PUT",
@@ -378,6 +416,103 @@ export function PartyBuilder({
         !window.confirm(`${p.name} içinde ${p.members.length} kişi var. Silinsin mi?`)) return;
     await fetch(`/api/wars/${warId}/parties/${partyId}`, { method: "DELETE" });
     setParties(parties.filter((x) => x.id !== partyId));
+  }
+
+  // Seçili üye — havuzda ya da bir partide
+  const seciliUser = seciliId !== null ? attendees.find((u) => u.id === seciliId) ?? null : null;
+  const seciliParti = seciliId !== null ? parties.find((p) => p.members.some((m) => m.userId === seciliId)) ?? null : null;
+  const seciliUye = seciliParti?.members.find((m) => m.userId === seciliId) ?? null;
+  const onSecim = tam ? (id: number) => setSeciliId((v) => (v === id ? null : id)) : undefined;
+
+  const detayPaneli = tam && seciliUser ? (
+    <UyeDetay user={seciliUser} perf={memberStats?.[seciliUser.id]} guven={guven?.[seciliUser.id] ?? null}
+              history={attendanceHistory} karakter={karakterler?.[seciliUser.id]}
+              partyId={seciliParti?.id ?? null}
+              secili={seciliUye?.asClass ? { class: seciliUye.asClass, spec: seciliUye.asSpec ?? "awakening" } : null}
+              onKapat={() => setSeciliId(null)}
+              onKarakter={(k) => (seciliParti ? karakterSec(seciliParti.id, seciliUser.id, k) : Promise.resolve())} />
+  ) : null;
+
+  if (tam) {
+    return (
+      <DndContext sensors={sensors} collisionDetection={collide}
+                  onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: seciliUser ? "250px 1fr 320px" : "250px 1fr", height: "calc(100vh - 150px)", minHeight: 560 }}>
+          {/* Sol: havuz */}
+          <div className="flex flex-col min-h-0 rounded-xl border border-bdo-border bg-bdo-surface overflow-hidden">
+            <div className="p-2.5 space-y-2" style={{ borderBottom: "1px solid var(--t-line)" }}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-semibold text-bdo-text-muted uppercase tracking-wider">
+                  Atanmamış <span className="font-mono text-bdo-text-primary">{unassigned.length}</span>
+                </h3>
+                <span className="text-[10.5px] text-bdo-text-secondary">{totalAssigned}{maxParticipants ? `/${maxParticipants}` : ""} partide</span>
+              </div>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-bdo-text-secondary" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="İsim ya da class"
+                       className="pl-8 pr-2 h-[30px] w-full rounded-lg text-[12px] bg-bdo-bg border border-bdo-border focus:border-bdo-gold focus:outline-none" />
+              </div>
+              <div className="flex flex-wrap gap-0.5">
+                {POOL_SORTS.map(([k, label, hint]) => (
+                  <button key={k} onClick={() => setSort(k)} title={hint} className="text-[10.5px] px-1.5 py-0.5 rounded-md"
+                          style={sort === k ? { background: "rgb(var(--bdo-gold) / .14)", color: "rgb(var(--bdo-gold))" } : { color: "#5e5e66" }}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <SortableContext items={unassigned.map((u) => `member-${u.id}`)} strategy={verticalListSortingStrategy}>
+              <DroppablePoolDikey empty={unassigned.length === 0 && q.trim() === ""}>
+                {unassigned.map((user) => (
+                  <MemberChip key={`member-${user.id}`} id={`member-${user.id}`} user={user}
+                              perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory}
+                              currentStatus={currentStatuses?.[user.id]} compact
+                              guven={guven ? guven[user.id] ?? null : undefined}
+                              onSecim={onSecim} secili={seciliId === user.id} />
+                ))}
+                {unassigned.length === 0 && q.trim() !== "" && <span className="text-[11px] text-bdo-text-secondary">Aramaya uyan kimse yok.</span>}
+              </DroppablePoolDikey>
+            </SortableContext>
+          </div>
+
+          {/* Orta: partiler */}
+          <div className="flex flex-col min-h-0 gap-3">
+            <div className="flex items-center gap-x-4 gap-y-1 flex-wrap px-3 py-2 rounded-xl bg-bdo-surface border border-bdo-border text-[12px]">
+              {ROLES.map((r) => { const n = summary.byRole.get(r.key) ?? 0; return n ? (
+                <span key={r.key} className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: r.tone }} /><span className="text-bdo-text-muted">{r.label}</span><span className="font-mono font-bold">{n}</span></span>
+              ) : null; })}
+              {summary.avgGs > 0 && <span className="text-bdo-text-muted">Ort. GS <span className="font-mono font-bold text-bdo-gold">{summary.avgGs}</span></span>}
+              {summary.guilds.map((g) => <span key={g.tag} className="font-mono" style={{ color: g.color }}>{g.tag} {g.n}</span>)}
+              {isOverMax && <span className="flex items-center gap-1 font-semibold text-red-400"><AlertTriangle className="w-3.5 h-3.5" /> Katılım sınırı aşıldı</span>}
+              <span className="ml-auto flex items-center gap-1">
+                {saveStatus && <span className="text-[11px] text-bdo-gold mr-2">{saveStatus}</span>}
+                <button onClick={autoCreateParties} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20"><Wand2 className="w-3 h-3" /> Otomatik</button>
+                <button onClick={addParty} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-bdo-gold/10 text-bdo-gold hover:bg-bdo-gold/20"><Plus className="w-3 h-3" /> Yeni parti</button>
+              </span>
+            </div>
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+              {parties.length === 0 ? (
+                <div className="h-full rounded-xl border border-dashed border-bdo-border grid place-items-center text-[13px] text-bdo-text-muted">Henüz parti yok — soldan sürükle ya da &quot;Yeni parti&quot;.</div>
+              ) : (
+                <div className="flex gap-3 h-full pb-2">
+                  {parties.map((party) => (
+                    <div key={party.id} className="h-full overflow-y-auto">
+                      <PartyColumn party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole}
+                                   memberStats={memberStats} attendanceHistory={attendanceHistory}
+                                   currentStatuses={currentStatuses} guven={guven} onSecim={onSecim} seciliId={seciliId} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sağ: detay */}
+          {detayPaneli}
+        </div>
+        <DragOverlay>
+          {activeUser && <MemberChip id={`overlay-${activeUser.id}`} user={activeUser} perf={memberStats?.[activeUser.id]} isDragOverlay compact />}
+        </DragOverlay>
+      </DndContext>
+    );
   }
 
   return (

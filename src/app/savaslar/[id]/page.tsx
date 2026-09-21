@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronLeft, Check, X, HelpCircle, AlertTriangle, Users, Send, Clock,
-  Swords, Trophy, Layers, Flame, Image as ImageIcon, StickyNote,
+  Swords, Trophy, Layers, Flame, Image as ImageIcon, StickyNote, Maximize2,
 } from "lucide-react";
 import { PartyBuilder } from "@/components/party-builder";
 import type { UserPerfStats } from "@/components/member-chip";
@@ -35,7 +35,7 @@ type User = {
 };
 type PartyMember = { id: number; userId: number; order: number; asClass?: string | null; user: User };
 type Party = { id: number; name: string; order: number; isDefense: boolean; role?: string; members: PartyMember[] };
-type Participant = { id: number; status: string; user: User };
+type Participant = { id: number; status: string; asClass?: string | null; user: User };
 
 type WarDetail = {
   id: number;
@@ -172,7 +172,8 @@ export default function SavasDetayPage() {
 
   const lists = useMemo(() => {
     if (!war) return null;
-    const attending = war.participants.filter((p) => p.status === "ATTENDING").map((p) => p.user);
+    // Parti kurarken class = bu savaş için bildirdiği (yoksa profildeki)
+    const attending = war.participants.filter((p) => p.status === "ATTENDING").map((p) => ({ ...p.user, class: p.asClass || p.user.class }));
     const declined = war.participants.filter((p) => p.status === "DECLINED").map((p) => p.user);
     const responded = new Set(war.participants.map((p) => p.user.id));
     return {
@@ -564,8 +565,15 @@ function AdminPartiler({
           </p>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href={`/savaslar/${war.id}/parti`}
+                className="text-[12px] font-semibold px-3 h-[34px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5"
+                title="Solda havuz, ortada partiler, sağda üye detayı ve karakter seçimi"
+                style={{ color: "var(--t-text)", background: "var(--t-raised)", border: "1px solid var(--t-line-strong)" }}>
+            <Maximize2 className="w-3.5 h-3.5" strokeWidth={2} /> Tam ekran kurulum
+          </Link>
         {hasParties && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <>
             {publishMsg && (
               <span className="text-[11.5px]" style={{ color: "var(--t-gold)" }}>{publishMsg}</span>
             )}
@@ -581,8 +589,9 @@ function AdminPartiler({
               <Send className="w-3.5 h-3.5" strokeWidth={2} />
               {publishing ? "Gönderiliyor…" : "Discord'a gönder"}
             </button>
-          </div>
+          </>
         )}
+        </div>
       </Card>
 
       {history.length > 0 && (

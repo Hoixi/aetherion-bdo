@@ -11,6 +11,7 @@ import {
   hasClassVariants,
 } from "@/lib/classes";
 import { TestShell, Card, Head, Empty, GuildTag, loadJson, type Guild } from "@/components/app-shell";
+import { Karakterlerim } from "@/components/karakterlerim";
 
 /**
  * Profil düzenleme.
@@ -344,6 +345,9 @@ export default function ProfilDuzenlePage() {
               </button>
             </div>
           </div>
+
+          {/* Alternatif karakterler — ayrı kaydedilir */}
+          <Karakterlerim anaClass={cls} />
         </>
       )}
 

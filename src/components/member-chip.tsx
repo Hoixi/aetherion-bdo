@@ -101,11 +101,14 @@ interface MemberChipProps {
   compact?: boolean;
   /** Katılım güvenilirliği (yalnızca yöneticiye gelir) */
   guven?: GuvenOzet | null;
+  /** Tam ekran görünümde: tıklayınca detay paneli */
+  onSecim?: (userId: number) => void;
+  secili?: boolean;
 }
 
 export function MemberChip({
   id, user, isDragOverlay, perf, attendanceHistory,
-  currentStatus, asClass, compact, guven,
+  currentStatus, asClass, compact, guven, onSecim, secili,
 }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [tip, setTip] = useState<{ top: number; left: number } | null>(null);
@@ -197,12 +200,14 @@ export function MemberChip({
         ref={chipRef}
         {...attributes}
         {...listeners}
-        onMouseEnter={handleEnter}
+        onMouseEnter={onSecim ? undefined : handleEnter}
         onMouseLeave={() => setTip(null)}
-        className={`relative overflow-hidden bg-bdo-surface-2 border border-bdo-border rounded-lg
+        onClick={onSecim ? () => onSecim(user.id) : undefined}
+        className={`relative overflow-hidden bg-bdo-surface-2 border rounded-lg
                     cursor-grab active:cursor-grabbing select-none transition-colors
                     ${compact ? "pl-3 pr-2 py-1.5" : "pl-3 pr-2.5 py-2"}
-                    ${isDragOverlay ? "border-bdo-gold/50 shadow-lg" : "hover:border-bdo-gold/30"}`}
+                    ${isDragOverlay ? "border-bdo-gold/50 shadow-lg" : secili ? "border-bdo-gold" : "border-bdo-border hover:border-bdo-gold/30"}`}
+        style={secili ? { boxShadow: "0 0 0 1px rgba(232,180,81,.5)" } : undefined}
       >
         {/* Bu savaştaki durum: rozet yerine sol kenar şeridi */}
         {status && (
