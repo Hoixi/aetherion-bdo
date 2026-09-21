@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       orderBy: { date: "asc" },
       take: 10,
       include: {
-        participants: { where: { userId: me.id }, select: { status: true, asClass: true } },
+        participants: { where: { userId: me.id }, select: { status: true, asClass: true, note: true } },
         _count: { select: { participants: { where: { status: "ATTENDING" } } } },
         parties: {
           orderBy: { order: "asc" },
@@ -49,6 +49,7 @@ export async function GET(req: Request) {
         attending: me.isAdmin || me.isGuildAdmin ? w._count.participants : null,
         myStatus: w.participants[0]?.status ?? null,
         myClass: w.participants[0]?.asClass ?? null,
+        myNote: w.participants[0]?.note ?? null,
         // Kurulan partiler: ad, rol, üyeler — "şu partiler kuruldu" ekranı
         parties: w.parties.map((p) => ({
           id: p.id, name: p.name, role: p.role,
