@@ -50,6 +50,17 @@ export async function sesTablosu(): Promise<Record<string, string[]>> {
   return anlikTablo();
 }
 
+/** Oda → [{id, name}] — avatar vb. için kimlikli sürüm (identity = kullanıcı id) */
+export async function sesTablosuKimlikli(): Promise<Record<string, Array<{ id: number; name: string }>>> {
+  if (!depo.hazir || Date.now() - depo.sonSenk > 60_000) await sesSenkronla();
+  const out: Record<string, Array<{ id: number; name: string }>> = {};
+  for (const [oda, uyeler] of Array.from(depo.odalar)) {
+    if (oda === ANONS_ODASI || !uyeler.size) continue;
+    out[oda] = Array.from(uyeler).map(([id, name]) => ({ id: Number(id), name })).sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  }
+  return out;
+}
+
 /** Webhook olayı — LiveKit'ten */
 export function sesOlayiIsle(ev: { event: string; room?: { name?: string }; participant?: { identity?: string; name?: string } }) {
   const oda = ev.room?.name; if (!oda) return;

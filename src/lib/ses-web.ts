@@ -52,6 +52,10 @@ export interface SesDurum {
   anonsAcik: boolean;
   /** anons odasından şu an konuşanlar (benim odamda olmayanlar) */
   anonsKonusanlar: string[];
+  /** bu odada konuşma iznim var mı (konuşma kısıtlı odada dinleyici olabilirim) */
+  yayinIzni: boolean;
+  /** sunucuya gidiş-dönüş, ms (3 sn'de bir) */
+  gecikmeMs: number | null;
 }
 export type AnonsMod = "kapali" | "tus" | "otomatik";
 export type GurultuMod = "kapali" | "tarayici" | "rnnoise" | "gtcrn";
@@ -114,9 +118,10 @@ class SesYoneticisi {
   private konusmaZamanlayici: number | null = null;
   private benKonusuyor = false;
   private benSonSes = 0;
+  private gecikmeZamanlayici: number | null = null;
 
   durum: SesDurum = { bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, ptt: false,
-                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [] };
+                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null };
 
   abone(f: Dinleyici) { this.dinleyiciler.add(f); f(this.durum); return () => { this.dinleyiciler.delete(f); }; }
   private yay(p: Partial<SesDurum>) { this.durum = { ...this.durum, ...p }; this.dinleyiciler.forEach((f) => f(this.durum)); }
@@ -208,6 +213,10 @@ class SesYoneticisi {
     }, 50);
 
     if (yayinla && this.room) {
+      // Konuşma kısıtlı odada dinleyici: yayın açılmaz, ölçer yine çalışır; yetki gelince (izin olayı) yeniden kurulur
+      const izin = this.room.localParticipant.permissions?.canPublish !== false;
+      if (izin !== this.durum.yayinIzni) this.yay({ yayinIzni: izin });
+      if (!izin) { this.tazele(); return; }
       const track = new LocalAudioTrack(hedef.stream.getAudioTracks()[0], undefined, false);
       await this.room.localParticipant.publishTrack(track, { source: Track.Source.Microphone, dtx: true, red: true, audioPreset: { maxBitrate: 32_000 } });
       this.yayin = track;
@@ -277,11 +286,17 @@ class SesYoneticisi {
           .on(RoomEvent.TrackUnmuted, () => this.tazele())
           .on(RoomEvent.TrackSubscribed, (track, _pub, p) => { if (track.kind === Track.Kind.Audio) { track.attach(); this.uygulaHacim(p.identity); this.analizEkle(p.identity, track as RemoteAudioTrack); } this.tazele(); })
           .on(RoomEvent.TrackUnsubscribed, (track, _pub, p) => { track.detach(); this.analizSil(p.identity); this.tazele(); })
-          .on(RoomEvent.Disconnected, () => { this.room = null; this.mikrofonuKapat(); this.analizleriTemizle(); this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] }); })
+          .on(RoomEvent.Disconnected, () => { this.room = null; this.gecikmeDurdur(); this.mikrofonuKapat(); this.analizleriTemizle(); this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] }); })
           .on(RoomEvent.Reconnecting, () => this.yay({ baglaniyor: true }))
-          .on(RoomEvent.Reconnected, () => this.yay({ baglaniyor: false }));
+          .on(RoomEvent.Reconnected, () => this.yay({ baglaniyor: false }))
+          // Yönetici konuşma yetkisi verdi/aldı → yayını yeniden kur
+          .on(RoomEvent.ParticipantPermissionsChanged, (_eski, p) => {
+            if (p !== room.localParticipant || !this.ham) return;
+            void this.mikrofonuKur(true).catch((e) => this.yay({ hata: mikrofonHatasi(e) }));
+          });
       await room.connect(t.url, t.token);
       this.room = room;
+      this.gecikmeBaslat();
       await this.anonsaBaglan(api);
       await room.startAudio().catch(() => {});
       if (this.ayar.hoparlor) await room.switchActiveDevice("audiooutput", this.ayar.hoparlor).catch(() => {});
@@ -301,12 +316,42 @@ class SesYoneticisi {
     }
   }
 
+  /** RTT: WebRTC aday çiftinin gidiş-dönüşü, 3 sn'de bir */
+  private gecikmeBaslat() {
+    this.gecikmeDurdur();
+    const olc = async () => {
+      const r = this.room; if (!r) return;
+      try {
+        const pm = (r as unknown as { engine?: { pcManager?: { subscriber?: { getStats?: () => Promise<RTCStatsReport> | undefined }; publisher?: { getStats?: () => Promise<RTCStatsReport> | undefined } } } }).engine?.pcManager;
+        let enIyi: number | null = null;
+        for (const pc of [pm?.subscriber, pm?.publisher]) {
+          const st = await pc?.getStats?.(); if (!st) continue;
+          st.forEach((v) => {
+            const x = v as { type?: string; state?: string; nominated?: boolean; currentRoundTripTime?: number };
+            if (x.type === "candidate-pair" && x.state === "succeeded" && typeof x.currentRoundTripTime === "number") {
+              const ms = Math.round(x.currentRoundTripTime * 1000);
+              if (enIyi === null || ms < enIyi) enIyi = ms;
+            }
+          });
+        }
+        if (enIyi !== this.durum.gecikmeMs) this.yay({ gecikmeMs: enIyi });
+      } catch { /* istatistik yoksa geç */ }
+    };
+    void olc();
+    this.gecikmeZamanlayici = window.setInterval(olc, 3000);
+  }
+  private gecikmeDurdur() {
+    if (this.gecikmeZamanlayici) { clearInterval(this.gecikmeZamanlayici); this.gecikmeZamanlayici = null; }
+    if (this.durum.gecikmeMs !== null) this.yay({ gecikmeMs: null });
+  }
+
   async ayril() {
     const r = this.room; this.room = null;
+    this.gecikmeDurdur();
     this.mikrofonuKapat(); this.analizleriTemizle();
     await this.anonstanAyril();
     if (r) await r.disconnect();
-    this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] });
+    this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [], yayinIzni: true });
   }
 
   async mikrofon(acik: boolean) {

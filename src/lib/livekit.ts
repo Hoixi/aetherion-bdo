@@ -33,12 +33,19 @@ async function digerOdalardanCikar(a: { url: string; key: string; secret: string
   }));
 }
 
-export async function odaAnahtari(me: { id: number; familyName: string }, room: string, ttl = "4h") {
+export async function odaAnahtari(me: { id: number; familyName: string }, room: string, ttl = "4h", yayin = true) {
   const a = livekitAyar(); if (!a) throw new Error("LiveKit ayarlı değil");
   await digerOdalardanCikar(a, String(me.id), room);
   const at = new AccessToken(a.key, a.secret, { identity: String(me.id), name: me.familyName || `Üye ${me.id}`, ttl });
-  at.addGrant({ room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true, canPublishSources: [TrackSource.MICROPHONE] });
+  // yayin=false: konuşma kısıtlı odada dinleyici — yetki verilince sunucu tarafından canlı açılır (yayinIzniAyarla)
+  at.addGrant({ room, roomJoin: true, canPublish: yayin, canSubscribe: true, canPublishData: true, canPublishSources: yayin ? [TrackSource.MICROPHONE] : [] });
   return { url: a.url, token: await at.toJwt() };
+}
+
+/** Odadaki kişinin konuşma iznini anında değiştir (odada değilse sessizce geç) */
+export async function yayinIzniAyarla(room: string, userId: number, yayin: boolean) {
+  const a = livekitAyar(); if (!a) return;
+  await servis(a).updateParticipant(room, String(userId), undefined, { canPublish: yayin, canSubscribe: true, canPublishData: true }).catch(() => {});
 }
 
 /**

@@ -886,12 +886,27 @@ model VoiceRoom {
   order     Int      @default(0)
   /** true = yalnızca yöneticiler girebilir */
   adminOnly Boolean  @default(false)
+  /** true = herkes girer, yalnızca yöneticiler ve yetki verilenler (speakers) konuşur */
+  speakRestricted Boolean @default(false)
   createdBy Int
   createdAt DateTime @default(now())
 
-  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  creator  User               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  speakers VoiceRoomSpeaker[]
 
   @@map("voice_rooms")
+}
+
+/** Konuşma kısıtlı odada konuşma yetkisi verilen üye */
+model VoiceRoomSpeaker {
+  id     Int @id @default(autoincrement())
+  roomId Int
+  userId Int
+
+  room VoiceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("voice_room_speakers")
 }
 
 /// Uygulama içi genel sohbet (tek kanal). Etiketler metinde "@AileAdı"
