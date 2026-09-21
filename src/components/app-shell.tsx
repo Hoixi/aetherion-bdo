@@ -91,7 +91,8 @@ function CompanionButton({ pathname, compact = false }: { pathname: string; comp
 
 /**
  * Sesli sohbet düğmesi — Companion'ın yanında, göz önünde. Odalarda kimse
- * varsa yeşil nokta + sayı gösterir (dakikada bir; yalnızca oturum açıkken).
+ * varsa yeşil nokta + sayı gösterir (20 sn'de bir ve sekmeye dönünce;
+ * yalnızca oturum açıkken).
  */
 function SesButonu({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
   const on = pathname === "/ses";
@@ -106,11 +107,13 @@ function SesButonu({ pathname, compact = false }: { pathname: string; compact?: 
         setKisi([...(d.rooms ?? []), ...(d.warRooms ?? [])].reduce((n, r) => n + r.members.length, 0));
       }).catch(() => {});
     cek();
-    const t = setInterval(cek, 60_000);
-    return () => clearInterval(t);
+    const t = setInterval(cek, 20_000);
+    const gor = () => { if (document.visibilityState === "visible") cek(); };
+    document.addEventListener("visibilitychange", gor);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", gor); };
   }, [status]);
   return (
-    <Link href="/ses" title="Sesli sohbet — tarayıcıdan odaya gir"
+    <Link href="/ses" title={kisi > 0 ? `Seste ${kisi} kişi var — tıkla, odaya gir` : "Sesli sohbet — tarayıcıdan odaya gir"}
           className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold flex-shrink-0"
           style={{
             color: on ? "#000" : "var(--t-good)",
