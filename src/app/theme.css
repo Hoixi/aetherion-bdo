@@ -256,3 +256,15 @@
 
 /* Sağ uca yaslanan menü — hesap düğmesi için */
 .t-menu.right-0 { left: auto; right: 0; }
+
+/* Kale haritasındaki kale işaretleri (her zaman görünür) */
+.fort-pin-kutu { background: none; border: 0; }
+.fort-pin { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; }
+.fort-pin img { width: 30px; height: 30px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)); }
+.fort-pin b {
+  font-size: 10.5px; font-weight: 700; white-space: nowrap; padding: 1px 6px; border-radius: 99px;
+  color: var(--t-text); background: rgba(10, 20, 24, 0.82); border: 1px solid var(--t-line-strong);
+}
+.fort-pin:hover b { color: var(--t-gold); border-color: rgba(232, 180, 81, 0.5); }
+.fort-pin.on img { filter: drop-shadow(0 0 6px var(--t-gold)); }
+.fort-pin.on b { color: #000; background: var(--t-gold); border-color: var(--t-gold); }

@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import {
   TILE_URL, TILE_SIZE, MIN_ZOOM, MAX_ZOOM, MAX_TILE_ZOOM, WORLD,
   toProj, toCoord, toProjRadius, iconUrl, trLabel, iconLabel, focusBounds, fortIdAt,
-  type Shape,
+  type Shape, type FortMarker,
 } from "@/lib/garmoth-forts";
 
 /**
@@ -35,17 +35,26 @@ type Props = {
   fitKey: string;
   /** Bölge haritasında bir kale ikonuna tıklanınca kalenin kimliği döner */
   onFortClick?: (fortId: string) => void;
+  /** Her zaman duran kale işaretleri (hangi kale nerede) */
+  markers?: FortMarker[];
+  /** Seçili kale — işareti vurgulanır */
+  activeFort?: string | null;
+  /** Planı olan kaleler — işaretinde ✓ */
+  planned?: Set<string>;
+  /** İşarete tıklanınca (onFortClick yerine doğrudan seçim) */
+  onMarkerClick?: (fortId: string) => void;
   className?: string;
 };
 
 export default function FortMap({
   shapes, drawn, draft, showSource, showLabels, tool, onPick, fitKey,
-  onFortClick, className,
+  onFortClick, markers, activeFort, planned, onMarkerClick, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const srcRef = useRef<LayerGroup | null>(null);
   const ownRef = useRef<LayerGroup | null>(null);
+  const markRef = useRef<LayerGroup | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
   // Harita async kuruluyor; çizim efektleri kurulum bitmeden çalışırsa
@@ -55,9 +64,11 @@ export default function FortMap({
   const pickRef = useRef(onPick);
   const toolRef = useRef(tool);
   const fortRef = useRef(onFortClick);
+  const markerRef = useRef(onMarkerClick);
   pickRef.current = onPick;
   toolRef.current = tool;
   fortRef.current = onFortClick;
+  markerRef.current = onMarkerClick;
 
   // ── Kurulum
   useEffect(() => {
@@ -102,6 +113,7 @@ export default function FortMap({
 
       srcRef.current = L.layerGroup().addTo(map);
       ownRef.current = L.layerGroup().addTo(map);
+      markRef.current = L.layerGroup().addTo(map);
 
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         if (toolRef.current === "pan") return;
@@ -143,6 +155,26 @@ export default function FortMap({
     }
     paint(L, ownRef.current, [...drawn, ...draft], true, false);
   }, [shapes, drawn, draft, showSource, showLabels, ready]);
+
+  // ── Kale işaretleri (her zaman görünür)
+  useEffect(() => {
+    const L = LRef.current;
+    if (!L || !markRef.current) return;
+    markRef.current.clearLayers();
+    for (const m of markers ?? []) {
+      const secili = m.id === activeFort;
+      const plan = planned?.has(m.id);
+      const html = `<span class="fort-pin${secili ? " on" : ""}">`
+        + `<img src="${iconUrl("nodewarfort")}" alt="" />`
+        + `<b>${escapeHtml(m.name)}${plan ? " ✓" : ""}</b></span>`;
+      L.marker(toProj(m.x, m.y), {
+        icon: L.divIcon({ className: "fort-pin-kutu", html, iconSize: [120, 46], iconAnchor: [60, 46] }),
+        title: m.name,
+        keyboard: false,
+      }).addTo(markRef.current)
+        .on("click", (e) => { L.DomEvent.stopPropagation(e); markerRef.current?.(m.id); });
+    }
+  }, [markers, activeFort, planned, ready]);
 
   // ── Kale değişince oraya odaklan
   useEffect(() => {

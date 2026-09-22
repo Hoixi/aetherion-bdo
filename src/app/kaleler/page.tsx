@@ -6,20 +6,26 @@ import dynamic from "next/dynamic";
 import {
   Circle as CircleIcon, Type as TypeIcon, Minus,
   Square, Trash2, MousePointer2, Save, Undo2, Eye, EyeOff, Tag, Check,
-  Cloud, HardDrive, Lock, X, Flag, ChevronRight,
+  Cloud, HardDrive, Lock, X, Flag, ChevronRight, Map as MapIcon,
 } from "lucide-react";
 import { TestShell } from "@/components/app-shell";
 import balenosRaw from "@/data/forts/balenos.json";
 import serendiaRaw from "@/data/forts/serendia.json";
 import {
-  buildForts, iconUrl, iconLabel, ICON_LABELS, guideImg, FORT_NAMES,
+  buildForts, fortMarkers, iconUrl, iconLabel, ICON_LABELS, guideImg, FORT_NAMES,
   type Shape, type FortSpot,
 } from "@/lib/garmoth-forts";
 import spotsTr from "@/data/forts/spots-tr.json";
 import type { DrawTool } from "@/components/fort-map";
 
 /**
- * Kale kurulum haritaları.
+ * Kale kurulum haritaları — tam ekran.
+ *
+ * Tek harita: açılışta Balenos ve Serendia birlikte, her kale kendi
+ * yerinde işaretli (planı olanda ✓). Bir kaleye tıklayınca harita oraya
+ * oturuyor ve o kalenin kurulum noktaları + bizim planımız çiziliyor;
+ * diğer kaleler işaret olarak durmaya devam ediyor, nerede olduklarını
+ * kaybetmiyorsun.
  *
  * Harita garmoth karolarından canlı çiziliyor, kurulum noktaları da
  * garmoth'un kendi şekil verisinden geliyor — ikisi de kaynağında ne ise o.
@@ -48,6 +54,10 @@ const FORTS = buildForts(
 );
 
 const SPOTS = spotsTr as Record<string, FortSpot[]>;
+const MARKERS = fortMarkers(FORTS);
+/** Genel bakış: her iki bölge haritası birden */
+const HEPSI = "hepsi";
+const GENEL_SHAPES = FORTS.filter((f) => f.id.endsWith("-genel")).flatMap((f) => f.shapes);
 
 const STORE = "aetherion_fort_draw_v1";
 const COLORS = ["#e8b451", "#48bb78", "#ef5f5f", "#6b93ff", "#b98cff", "#ffffff"];
@@ -67,7 +77,7 @@ type Source = "loading" | "server" | "local";
 type PlanMeta = { by: string; updatedAt: string };
 
 export default function KalelerPage() {
-  const [sel, setSel] = useState("balenos-genel");
+  const [sel, setSel] = useState(HEPSI);
   const [tool, setTool] = useState<DrawTool>("pan");
   const [color, setColor] = useState(COLORS[0]);
   const [draft, setDraft] = useState<Shape[]>([]);
@@ -84,9 +94,14 @@ export default function KalelerPage() {
   /** Kutu çizerken bekleyen ilk köşe */
   const cornerRef = useRef<[number, number] | null>(null);
 
+  const genelMi = sel === HEPSI;
   const fort = useMemo(() => FORTS.find((f) => f.id === sel) ?? FORTS[0], [sel]);
-  const drawn = saved[fort.id] ?? [];
-  const editable = source === "local" || canEdit;
+  /** Haritada çizilecek kaynak şekiller — genel bakışta iki bölge birden */
+  const shapes = genelMi ? GENEL_SHAPES : fort.shapes;
+  /** Genel bakışta bütün planlar üst üste; tek kalede yalnızca onunki */
+  const drawn = genelMi ? Object.values(saved).flat() : (saved[fort.id] ?? []);
+  const planlilar = useMemo(() => new Set(Object.keys(saved).filter((k) => (saved[k] ?? []).length > 0)), [saved]);
+  const editable = (source === "local" || canEdit) && !genelMi;
 
   useEffect(() => {
     let dead = false;
@@ -234,170 +249,154 @@ export default function KalelerPage() {
   /** Bu haritada geçen ikonlar — efsane kutusu için */
   const legend = useMemo(() => {
     const ids = new Set<string>();
-    for (const s of fort.shapes) if (s.t === "i") ids.add(s.i);
+    for (const s of shapes) if (s.t === "i") ids.add(s.i);
     return Array.from(ids).sort(
       (a, b) => (ICON_LABELS[a] ? 0 : 1) - (ICON_LABELS[b] ? 0 : 1),
     );
-  }, [fort]);
+  }, [shapes]);
 
   const spots = useMemo(
-    () => fort.shapes.filter((s) => s.t === "i" && s.i === "notretreatingflag").length,
-    [fort],
+    () => shapes.filter((s) => s.t === "i" && s.i === "notretreatingflag").length,
+    [shapes],
   );
 
   return (
     <TestShell
-      title={fort.name}
+      title={genelMi ? "Kale Haritası" : fort.name}
       subtitle={
-        source === "loading"
-          ? "Yükleniyor…"
-          : `${fort.region} · garmoth kurulum noktaları üzerine çizim`
+        source === "loading" ? "Yükleniyor…"
+          : genelMi ? "Balenos ve Serendia · kaleye tıkla, kurulum noktaları gelsin"
+            : `${fort.region} · garmoth kurulum noktaları üzerine çizim`
       }
       aside={msg ? <span className="t-chip" style={{ color: "var(--t-gold)" }}>{msg}</span> : null}
-      tabs={
-        <div className="space-y-2">
-          {(["Balenos", "Serendia"] as const).map((region) => (
-            <div key={region} className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-[0.08em] w-[70px] flex-shrink-0"
-                    style={{ color: "var(--t-faint)" }}>{region}</span>
-              {FORTS.filter((f) => f.region === region).map((f) => (
-                <button key={f.id} className="t-tab" data-on={f.id === sel}
-                        onClick={() => setSel(f.id)}>
-                  {f.name}
-                  {saved[f.id]?.length ? (
-                    <Check className="w-3 h-3" style={{ color: "var(--t-good)" }} />
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      }
     >
-      <>
-        <div className="t-card p-3">
-          {/* Araç çubuğu */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            {editable ? (
-              <>
-                {TOOLS.map(([k, Ico, lbl]) => (
-                  <button key={k} className="t-tab" data-on={tool === k}
-                          onClick={() => { setTool(k); cornerRef.current = null; }}>
-                    <Ico className="w-3.5 h-3.5" /> {lbl}
+      <div className="grid gap-3" style={{ gridTemplateColumns: "230px 1fr", height: "calc(100vh - 190px)", minHeight: 520 }}>
+        {/* Sol: kale listesi + araçlar */}
+        <div className="t-card flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-2 space-y-3">
+            <button className="t-tab w-full !justify-start" data-on={genelMi} onClick={() => setSel(HEPSI)}>
+              <MapIcon className="w-3.5 h-3.5" /> Tüm kaleler
+            </button>
+            {(["Balenos", "Serendia"] as const).map((region) => (
+              <div key={region} className="space-y-1">
+                <div className="text-[10px] uppercase tracking-[0.08em] px-1" style={{ color: "var(--t-faint)" }}>{region}</div>
+                {FORTS.filter((f) => f.region === region).map((f) => (
+                  <button key={f.id} className="t-tab w-full !justify-start" data-on={f.id === sel} onClick={() => setSel(f.id)}>
+                    <span className="truncate flex-1 text-left">{f.name}</span>
+                    {planlilar.has(f.id) && <Check className="w-3 h-3 flex-shrink-0" style={{ color: "var(--t-good)" }} />}
                   </button>
                 ))}
+              </div>
+            ))}
+          </div>
 
-                <div className="flex items-center gap-1 ml-1">
+          <div className="p-2 space-y-2" style={{ borderTop: "1px solid var(--t-line)" }}>
+            <div className="flex flex-wrap gap-1">
+              <button className="t-tab" data-on={showSource} onClick={() => setShowSource((v) => !v)}>
+                {showSource ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />} Garmoth
+              </button>
+              <button className="t-tab" data-on={showLabels} onClick={() => setShowLabels((v) => !v)}>
+                <Tag className="w-3.5 h-3.5" /> Etiket
+              </button>
+            </div>
+
+            {editable ? (
+              <>
+                <div className="flex flex-wrap gap-1">
+                  {TOOLS.map(([k, Ico, lbl]) => (
+                    <button key={k} className="t-tab" data-on={tool === k}
+                            onClick={() => { setTool(k); cornerRef.current = null; }} title={lbl}>
+                      <Ico className="w-3.5 h-3.5" />
+                    </button>
+                  ))}
                   {COLORS.map((c) => (
-                    <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full"
-                            style={{ background: c, outline: color === c ? "2px solid #fff6" : "none",
-                                     outlineOffset: 2 }} />
+                    <button key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full self-center"
+                            style={{ background: c, outline: color === c ? "2px solid #fff6" : "none", outlineOffset: 2 }} />
                   ))}
                 </div>
+                {draft.length > 0 && (
+                  <div className="flex gap-1">
+                    <button className="t-tab flex-1" onClick={() => setDraft((d) => d.slice(0, -1))}>
+                      <Undo2 className="w-3.5 h-3.5" /> Geri
+                    </button>
+                    <button className="t-tab flex-1" data-on onClick={save} disabled={busy}>
+                      <Save className="w-3.5 h-3.5" /> {busy ? "…" : `Kaydet (${draft.length})`}
+                    </button>
+                  </div>
+                )}
+                {drawn.length > 0 && draft.length === 0 && (
+                  <button className="t-tab w-full" onClick={clearSaved} disabled={busy}>
+                    <Trash2 className="w-3.5 h-3.5" /> Çizimleri sil
+                  </button>
+                )}
               </>
+            ) : genelMi ? (
+              <span className="t-chip flex items-center gap-1.5"><MapIcon className="w-3 h-3" /> Çizim için bir kale seç</span>
             ) : source === "server" ? (
-              <span className="t-chip flex items-center gap-1.5">
-                <Lock className="w-3 h-3" /> Sadece görüntüleme
-              </span>
+              <span className="t-chip flex items-center gap-1.5"><Lock className="w-3 h-3" /> Sadece görüntüleme</span>
             ) : null}
 
-            <div className="ml-auto flex items-center gap-2">
-              <button className="t-tab" data-on={showSource}
-                      onClick={() => setShowSource((v) => !v)}>
-                {showSource ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                Garmoth
-              </button>
-              <button className="t-tab" data-on={showLabels}
-                      onClick={() => setShowLabels((v) => !v)}>
-                <Tag className="w-3.5 h-3.5" /> Etiketler
-              </button>
-              {editable && draft.length > 0 && (
-                <>
-                  <button className="t-tab" onClick={() => setDraft((d) => d.slice(0, -1))}>
-                    <Undo2 className="w-3.5 h-3.5" /> Geri
-                  </button>
-                  <button className="t-tab" data-on onClick={save} disabled={busy}>
-                    <Save className="w-3.5 h-3.5" />
-                    {busy ? "Kaydediliyor…" : `Kaydet (${draft.length})`}
-                  </button>
-                </>
-              )}
-              {editable && drawn.length > 0 && draft.length === 0 && (
-                <button className="t-tab" onClick={clearSaved} disabled={busy}>
-                  <Trash2 className="w-3.5 h-3.5" /> Çizimleri Sil
-                </button>
-              )}
+            <div className="text-[10.5px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
+              {!genelMi && spots > 0 && <div>{spots} kurulum noktası</div>}
+              {source === "server" ? (
+                <div className="flex items-center gap-1.5">
+                  <Cloud className="w-3 h-3" />
+                  {genelMi ? `${planlilar.size} kalede plan var`
+                    : meta[fort.id]
+                      ? `${meta[fort.id].by} · ${new Date(meta[fort.id].updatedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`
+                      : "plan yok"}
+                </div>
+              ) : source === "local" ? (
+                <div className="flex items-center gap-1.5"><HardDrive className="w-3 h-3" /> yalnızca bu tarayıcıda</div>
+              ) : null}
+              <div className="mt-1">
+                Harita ve noktalar{" "}
+                <a href="https://garmoth.com" target="_blank" rel="noreferrer" style={{ color: "var(--t-gold)" }}>garmoth.com</a>{" "}
+                izniyle.
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Harita — Leaflet kendi z-index'ini 400'e kadar veriyor,
-              kart konumlandırılmazsa üst menünün üstüne çıkıyor */}
-          <div className="relative z-0 rounded-lg overflow-hidden"
-               style={{ background: "#0a1418" }}>
-            <FortMap
-              shapes={fort.shapes}
-              drawn={drawn}
-              draft={draft}
-              showSource={showSource}
-              showLabels={showLabels}
-              tool={tool}
-              onPick={onPick}
-              fitKey={fort.id}
-              onFortClick={setGuide}
-              className="w-full h-[clamp(420px,64vh,760px)]"
-            />
+        {/* Sağ: harita */}
+        <div className="relative z-0 rounded-lg overflow-hidden min-h-0" style={{ background: "#0a1418" }}>
+          <FortMap
+            shapes={shapes}
+            drawn={drawn}
+            draft={draft}
+            showSource={showSource}
+            showLabels={showLabels}
+            tool={tool}
+            onPick={onPick}
+            fitKey={sel}
+            onFortClick={setGuide}
+            markers={MARKERS}
+            activeFort={genelMi ? null : fort.id}
+            planned={planlilar}
+            onMarkerClick={setSel}
+            className="w-full h-full"
+          />
 
-            {guide && SPOTS[guide] && (
-              <FortGuide id={guide} onClose={() => setGuide(null)}
-                         onOpen={() => { setSel(guide); setGuide(null); }} />
-            )}
-          </div>
-
-          {/* Efsane */}
+          {/* Efsane — harita üstünde şerit */}
           {legend.length > 0 && (
-            <div className="flex items-center gap-x-4 gap-y-2 flex-wrap mt-3 pt-3"
-                 style={{ borderTop: "1px solid var(--t-line)" }}>
+            <div className="absolute left-2 bottom-2 z-[500] flex items-center gap-x-3 gap-y-1 flex-wrap px-2.5 py-1.5 rounded-lg"
+                 style={{ background: "rgba(10,20,24,.82)", border: "1px solid var(--t-line)", maxWidth: "calc(100% - 16px)" }}>
               {legend.map((id) => (
-                <span key={id} className="flex items-center gap-1.5 text-[11px]"
-                      style={{ color: "var(--t-dim)" }}>
+                <span key={id} className="flex items-center gap-1 text-[10.5px]" style={{ color: "var(--t-dim)" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={iconUrl(id)} alt="" className="w-5 h-5" />
+                  <img src={iconUrl(id)} alt="" className="w-4 h-4" />
                   {iconLabel(id)}
                 </span>
               ))}
-              <span className="text-[11px] ml-auto flex items-center gap-3"
-                    style={{ color: "var(--t-faint)" }}>
-                {spots > 0 && <span>{spots} kurulum noktası</span>}
-                {source === "server" ? (
-                  <span className="flex items-center gap-1.5">
-                    <Cloud className="w-3.5 h-3.5" />
-                    {meta[fort.id]
-                      ? `${meta[fort.id].by} · ${new Date(meta[fort.id].updatedAt)
-                          .toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`
-                      : "plan yok"}
-                  </span>
-                ) : source === "local" ? (
-                  <span className="flex items-center gap-1.5">
-                    <HardDrive className="w-3.5 h-3.5" /> yalnızca bu tarayıcıda
-                  </span>
-                ) : null}
-              </span>
             </div>
           )}
-        </div>
 
-        <p className="text-[11px] pb-6 leading-relaxed" style={{ color: "var(--t-faint)" }}>
-          Harita karoları, kurulum noktaları ve ikonlar{" "}
-          <a href="https://garmoth.com" target="_blank" rel="noreferrer"
-             style={{ color: "var(--t-gold)" }}>garmoth.com</a>{" "}
-          izniyle kullanılıyor.{" "}
-          {source === "server"
-            ? "Planlar sunucuda — savaşa girecek herkes aynısını görüyor."
-            : source === "local"
-              ? "Oturum açık değil, çizimler yalnızca bu tarayıcıda kalıyor."
-              : null}
-        </p>
-      </>
+          {guide && SPOTS[guide] && (
+            <FortGuide id={guide} onClose={() => setGuide(null)}
+                       onOpen={() => { setSel(guide); setGuide(null); }} />
+          )}
+        </div>
+      </div>
     </TestShell>
   );
 }

@@ -264,6 +264,28 @@ const LABEL_TO_ID: Record<string, string> = {
   "CASTLE RUINS": "castle-ruins",
 };
 
+/** Haritada her zaman duran kale işareti */
+export type FortMarker = { id: string; name: string; region: "Balenos" | "Serendia"; x: number; y: number };
+
+/**
+ * Bölge haritalarındaki kale ikonlarından tüm kalelerin konumunu çıkarır.
+ * Genel haritada hepsi aynı anda görünsün diye: hangi kale nerede, hangisi
+ * kime komşu — tek bakışta.
+ */
+export function fortMarkers(forts: FortMap[]): FortMarker[] {
+  const out: FortMarker[] = [];
+  for (const f of forts) {
+    if (!f.id.endsWith("-genel")) continue;
+    for (const s of f.shapes) {
+      if (s.t !== "i" || s.i !== "nodewarfort") continue;
+      const id = fortIdAt(f.shapes, s.p[0], s.p[1]);
+      if (!id || out.some((m) => m.id === id)) continue;
+      out.push({ id, name: FORT_NAMES[id] ?? id, region: f.region, x: s.p[0], y: s.p[1] });
+    }
+  }
+  return out;
+}
+
 /**
  * Bölge haritasındaki kale ikonunun hangi kaleye ait olduğunu bulur.
  *
