@@ -268,3 +268,21 @@
 .fort-pin:hover b { color: var(--t-gold); border-color: rgba(232, 180, 81, 0.5); }
 .fort-pin.on img { filter: drop-shadow(0 0 6px var(--t-gold)); }
 .fort-pin.on b { color: #000; background: var(--t-gold); border-color: var(--t-gold); }
+
+/* Diğer bölgelerin node war düğümleri (cogm verisi) */
+.nw-pin-kutu { background: none; border: 0; }
+.nw-pin { position: relative; display: block; }
+.nw-pin i {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 16px; height: 16px; border-radius: 99px; display: grid; place-items: center;
+  font-style: normal; font-size: 9.5px; font-weight: 800; color: #000;
+  background: var(--nw); border: 1px solid rgba(0, 0, 0, 0.5); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.nw-pin.kale i { width: 20px; height: 20px; font-size: 12px; }
+.nw-pin b {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  font-size: 9.5px; font-weight: 600; white-space: nowrap; color: var(--nw);
+  text-shadow: 0 1px 3px #000, 0 0 2px #000; opacity: 0; transition: opacity 0.12s;
+}
+.nw-pin:hover b { opacity: 1; }
+.nw-pin.kale b { opacity: 1; top: 14px; }

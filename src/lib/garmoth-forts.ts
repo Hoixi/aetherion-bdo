@@ -264,6 +264,26 @@ const LABEL_TO_ID: Record<string, string> = {
   "CASTLE RUINS": "castle-ruins",
 };
 
+/**
+ * Node war düğümü (kale/mevzi) — cogm.app verisinden, oyunun dünya
+ * koordinatları garmoth uzayına çevrilmiş hâliyle (bkz. data/forts/nodes.json).
+ * Konum ±2 birim: garmoth'un kendi kale ikonları elle yerleştirilmiş, hizayı
+ * onlara göre kurduk.
+ */
+export type NodeWarNode = {
+  slug: string; name: string; region: string;
+  /** 1–5; 0 = bilinmiyor */
+  tier: number;
+  /** kale kuşatması düğümü (mevzi değil) */
+  castle: boolean;
+  x: number; y: number;
+};
+
+/** Kademe rengi — haritada ve listede aynı */
+export const TIER_COLORS: Record<number, string> = {
+  1: "#48bb78", 2: "#e8b451", 3: "#f0803c", 4: "#ef5f5f", 5: "#b98cff",
+};
+
 /** Haritada her zaman duran kale işareti */
 export type FortMarker = { id: string; name: string; region: "Balenos" | "Serendia"; x: number; y: number };
 

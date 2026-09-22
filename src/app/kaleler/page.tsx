@@ -13,8 +13,9 @@ import balenosRaw from "@/data/forts/balenos.json";
 import serendiaRaw from "@/data/forts/serendia.json";
 import {
   buildForts, fortMarkers, iconUrl, iconLabel, ICON_LABELS, guideImg, FORT_NAMES,
-  type Shape, type FortSpot,
+  TIER_COLORS, type Shape, type FortSpot, type NodeWarNode,
 } from "@/lib/garmoth-forts";
+import nodesRaw from "@/data/forts/nodes.json";
 import spotsTr from "@/data/forts/spots-tr.json";
 import type { DrawTool } from "@/components/fort-map";
 
@@ -58,6 +59,13 @@ const MARKERS = fortMarkers(FORTS);
 /** Genel bakış: her iki bölge haritası birden */
 const HEPSI = "hepsi";
 const GENEL_SHAPES = FORTS.filter((f) => f.id.endsWith("-genel")).flatMap((f) => f.shapes);
+/**
+ * Diğer bölgelerin node war düğümleri (cogm.app verisi). Balenos ve Serendia
+ * burada yok — onlar bizim kendi kurulum haritalarımızda. Varsayılan olarak
+ * T2/T3 ve kale kuşatmaları açık; T1 çok kalabalık, T4/T5 ada savaşları.
+ */
+const NODES = (nodesRaw as { nodes: NodeWarNode[] }).nodes;
+const TIERS = [1, 2, 3, 4, 5];
 
 const STORE = "aetherion_fort_draw_v1";
 const COLORS = ["#e8b451", "#48bb78", "#ef5f5f", "#6b93ff", "#b98cff", "#ffffff"];
@@ -78,6 +86,7 @@ type PlanMeta = { by: string; updatedAt: string };
 
 export default function KalelerPage() {
   const [sel, setSel] = useState(HEPSI);
+  const [tiers, setTiers] = useState<Set<number>>(new Set([2, 3]));
   const [tool, setTool] = useState<DrawTool>("pan");
   const [color, setColor] = useState(COLORS[0]);
   const [draft, setDraft] = useState<Shape[]>([]);
@@ -101,6 +110,7 @@ export default function KalelerPage() {
   /** Genel bakışta bütün planlar üst üste; tek kalede yalnızca onunki */
   const drawn = genelMi ? Object.values(saved).flat() : (saved[fort.id] ?? []);
   const planlilar = useMemo(() => new Set(Object.keys(saved).filter((k) => (saved[k] ?? []).length > 0)), [saved]);
+  const gorunenNodes = useMemo(() => NODES.filter((n) => tiers.has(n.tier) || (n.castle && tiers.size > 0)), [tiers]);
   const editable = (source === "local" || canEdit) && !genelMi;
 
   useEffect(() => {
@@ -277,6 +287,30 @@ export default function KalelerPage() {
             <button className="t-tab w-full !justify-start" data-on={genelMi} onClick={() => setSel(HEPSI)}>
               <MapIcon className="w-3.5 h-3.5" /> Tüm kaleler
             </button>
+            <div className="space-y-1">
+              <div className="text-[10px] uppercase tracking-[0.08em] px-1" style={{ color: "var(--t-faint)" }}>
+                Diğer bölgeler
+              </div>
+              <div className="flex flex-wrap gap-1 px-1">
+                {TIERS.map((t) => {
+                  const on = tiers.has(t);
+                  return (
+                    <button key={t} onClick={() => setTiers((p) => { const n = new Set(p); if (n.has(t)) n.delete(t); else n.add(t); return n; })}
+                            className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-md"
+                            title={`T${t} node war düğümleri`}
+                            style={on
+                              ? { background: (TIER_COLORS[t] ?? "#888") + "26", color: TIER_COLORS[t] ?? "#888", border: `1px solid ${(TIER_COLORS[t] ?? "#888")}66` }
+                              : { color: "var(--t-faint)", border: "1px solid var(--t-line)" }}>
+                      T{t}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-[10px] px-1" style={{ color: "var(--t-faint)" }}>
+                {gorunenNodes.length} düğüm · kale kuşatmaları ♜
+              </div>
+            </div>
+
             {(["Balenos", "Serendia"] as const).map((region) => (
               <div key={region} className="space-y-1">
                 <div className="text-[10px] uppercase tracking-[0.08em] px-1" style={{ color: "var(--t-faint)" }}>{region}</div>
@@ -371,6 +405,7 @@ export default function KalelerPage() {
             fitKey={sel}
             onFortClick={setGuide}
             markers={MARKERS}
+            nodes={gorunenNodes}
             activeFort={genelMi ? null : fort.id}
             planned={planlilar}
             onMarkerClick={setSel}

@@ -1,0 +1,1486 @@
+{
+"meta": {
+"kaynak": "cogm.app/api/bdo/map/ownership",
+"hafta": 507,
+"not": "Balenos ve Serendia dışarıda: onlar kendi kurulum haritalarımızda",
+"donusum": "garmoth = dunya/6400 + (282.5081, 182.8254); ±2 birim"
+},
+"nodes": [
+{
+"slug": "abandoned-land",
+"name": "Abandoned Land",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 239.096,
+"y": 178.354
+},
+{
+"slug": "abandoned-monastery",
+"name": "Abandoned Monastery",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 224.662,
+"y": 154.979
+},
+{
+"slug": "abandoned-quarry",
+"name": "Abandoned Quarry",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 257.663,
+"y": 153.778
+},
+{
+"slug": "anti-troll-fortification",
+"name": "Anti-Troll Fortification",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 242.082,
+"y": 184.212
+},
+{
+"slug": "beacon-entrance-post",
+"name": "Beacon Entrance Post",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 248.931,
+"y": 162.24
+},
+{
+"slug": "behr-downstream",
+"name": "Behr Downstream",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 239.98,
+"y": 151.341
+},
+{
+"slug": "behr-riverhead",
+"name": "Behr Riverhead",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 235.224,
+"y": 153.739
+},
+{
+"slug": "bree-tree-ruins",
+"name": "Bree Tree Ruins",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 248.012,
+"y": 191.028
+},
+{
+"slug": "calpheon-castle-site",
+"name": "Calpheon Castle Site",
+"region": "Calpheon",
+"tier": 1,
+"castle": true,
+"x": 231.427,
+"y": 171.789
+},
+{
+"slug": "catfishman-camp",
+"name": "Catfishman Camp",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 226.739,
+"y": 167.814
+},
+{
+"slug": "contaminated-farm",
+"name": "Contaminated Farm",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 244.377,
+"y": 179.193
+},
+{
+"slug": "crioville",
+"name": "Crioville",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 231.137,
+"y": 142.005
+},
+{
+"slug": "delphe-knights-castle",
+"name": "Delphe Knights Castle",
+"region": "Calpheon",
+"tier": 1,
+"castle": true,
+"x": 261.73,
+"y": 175.612
+},
+{
+"slug": "delphe-outpost",
+"name": "Delphe Outpost",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 263.261,
+"y": 183.479
+},
+{
+"slug": "epheria-sentry-post",
+"name": "Epheria Sentry Post",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 224.807,
+"y": 186.987
+},
+{
+"slug": "epheria-valley",
+"name": "Epheria Valley",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 228.614,
+"y": 183.089
+},
+{
+"slug": "hexe-stone-wall",
+"name": "Hexe Stone Wall",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 255.673,
+"y": 145.051
+},
+{
+"slug": "karanda-ridge",
+"name": "Karanda Ridge",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 263.269,
+"y": 188.002
+},
+{
+"slug": "keplan-hill",
+"name": "Keplan Hill",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 259.621,
+"y": 157.521
+},
+{
+"slug": "keplan-vicinity",
+"name": "Keplan Vicinity",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 263.598,
+"y": 160.714
+},
+{
+"slug": "khuruto-cave",
+"name": "Khuruto Cave",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 256.661,
+"y": 182.202
+},
+{
+"slug": "lake-kaia",
+"name": "Lake Kaia",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 229.071,
+"y": 165.8
+},
+{
+"slug": "longleaf-tree-forest",
+"name": "Longleaf Tree Forest",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 234.56,
+"y": 141.348
+},
+{
+"slug": "longleaf-tree-sentry-post",
+"name": "Longleaf Tree Sentry Post",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 228.214,
+"y": 142.877
+},
+{
+"slug": "marie-cave",
+"name": "Marie Cave",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 252.595,
+"y": 143.894
+},
+{
+"slug": "marni-s-lab",
+"name": "Marni's Lab",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 254.011,
+"y": 162.581
+},
+{
+"slug": "north-abandoned-quarry",
+"name": "North Abandoned Quarry",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 258.833,
+"y": 163.876
+},
+{
+"slug": "north-kaia-mountaintop",
+"name": "North Kaia Mountaintop",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 238.717,
+"y": 165.947
+},
+{
+"slug": "oze-pass",
+"name": "Oze Pass",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 260.692,
+"y": 169.949
+},
+{
+"slug": "oze-s-house",
+"name": "Oze's House",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 259.693,
+"y": 166.315
+},
+{
+"slug": "phoniel-s-cabin",
+"name": "Phoniel's Cabin",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 234.79,
+"y": 159.969
+},
+{
+"slug": "primal-giant-post",
+"name": "Primal Giant Post",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 261.668,
+"y": 146.856
+},
+{
+"slug": "rhua-tree-stub",
+"name": "Rhua Tree Stub",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 243.102,
+"y": 150.289
+},
+{
+"slug": "rhutum-outstation",
+"name": "Rhutum Outstation",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 228.849,
+"y": 158.868
+},
+{
+"slug": "saunil-camp",
+"name": "Saunil Camp",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 249.021,
+"y": 152.902
+},
+{
+"slug": "tobare-s-cabin",
+"name": "Tobare's Cabin",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 222.982,
+"y": 159.726
+},
+{
+"slug": "treant-forest",
+"name": "Treant Forest",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 218.88,
+"y": 155.615
+},
+{
+"slug": "trina-beacon-towers",
+"name": "Trina Beacon Towers",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 246.948,
+"y": 160.655
+},
+{
+"slug": "witch-s-chapel",
+"name": "Witch's Chapel",
+"region": "Calpheon",
+"tier": 1,
+"castle": false,
+"x": 251.43,
+"y": 139.196
+},
+{
+"slug": "ash-forest",
+"name": "Ash Forest",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 203.731,
+"y": 158.111
+},
+{
+"slug": "caduil-forest",
+"name": "Caduil Forest",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 234.459,
+"y": 123.748
+},
+{
+"slug": "gyfin-rhasia-temple",
+"name": "Gyfin Rhasia Temple",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 206.639,
+"y": 101.897
+},
+{
+"slug": "navarn-steppe",
+"name": "Navarn Steppe",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 218.085,
+"y": 114.934
+},
+{
+"slug": "polly-s-forest",
+"name": "Polly's Forest",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 195.22,
+"y": 117.052
+},
+{
+"slug": "tooth-fairy-forest",
+"name": "Tooth Fairy Forest",
+"region": "Kamasylvia",
+"tier": 1,
+"castle": false,
+"x": 190.94,
+"y": 133.546
+},
+{
+"slug": "abandoned-iron-mine",
+"name": "Abandoned Iron Mine",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 332.489,
+"y": 163.004
+},
+{
+"slug": "ahto-farm",
+"name": "Ahto Farm",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 314.534,
+"y": 179.585
+},
+{
+"slug": "alumn-rock-valley",
+"name": "Alumn Rock Valley",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 329.943,
+"y": 157.588
+},
+{
+"slug": "ancient-ruins-excavation-site",
+"name": "Ancient Ruins Excavation Site",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 308.186,
+"y": 184.271
+},
+{
+"slug": "asula-highlands",
+"name": "Asula Highlands",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 321.513,
+"y": 176.385
+},
+{
+"slug": "awakening-bell",
+"name": "Awakening Bell",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 328.311,
+"y": 178.94
+},
+{
+"slug": "canyon-of-corruption",
+"name": "Canyon of Corruption",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 310.254,
+"y": 189.537
+},
+{
+"slug": "hasrah-cliff",
+"name": "Hasrah Cliff",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 312.134,
+"y": 157.722
+},
+{
+"slug": "helm-s-post",
+"name": "Helm's Post",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 301.512,
+"y": 192.123
+},
+{
+"slug": "helms-post",
+"name": "Helms Post",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 301.512,
+"y": 192.123
+},
+{
+"slug": "kasula-farm",
+"name": "Kasula Farm",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 320.566,
+"y": 170.777
+},
+{
+"slug": "kusha",
+"name": "Kusha",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 318.346,
+"y": 194.225
+},
+{
+"slug": "manes-hideout",
+"name": "Manes Hideout",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 312.151,
+"y": 177.283
+},
+{
+"slug": "marni-s-2nd-lab",
+"name": "Marni's 2nd Lab",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 343.355,
+"y": 155.904
+},
+{
+"slug": "mediah-northern-gateway",
+"name": "Mediah Northern Gateway",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 298.265,
+"y": 200.781
+},
+{
+"slug": "mediah-northern-highlands",
+"name": "Mediah Northern Highlands",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 307.388,
+"y": 202.468
+},
+{
+"slug": "sausan-garrison",
+"name": "Sausan Garrison",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 317.582,
+"y": 202.672
+},
+{
+"slug": "stonebeak-shore",
+"name": "Stonebeak Shore",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 329.882,
+"y": 182.561
+},
+{
+"slug": "stonetail-horse-ranch",
+"name": "Stonetail Horse Ranch",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 317.181,
+"y": 182.993
+},
+{
+"slug": "stonetail-wasteland",
+"name": "Stonetail Wasteland",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 315.199,
+"y": 195.362
+},
+{
+"slug": "tungrad-forest",
+"name": "Tungrad Forest",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 308.963,
+"y": 168.18
+},
+{
+"slug": "wandering-rogue-den",
+"name": "Wandering Rogue Den",
+"region": "Mediah",
+"tier": 1,
+"castle": false,
+"x": 320.112,
+"y": 165.921
+},
+{
+"slug": "altas-farmland",
+"name": "Altas Farmland",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 438.464,
+"y": 234.871
+},
+{
+"slug": "altinova-gateway",
+"name": "Altinova Gateway",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 342.341,
+"y": 181.305
+},
+{
+"slug": "areha-palm-forest",
+"name": "Areha Palm Forest",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 475.132,
+"y": 214.054
+},
+{
+"slug": "barhan-gateway",
+"name": "Barhan Gateway",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 364.223,
+"y": 187.55
+},
+{
+"slug": "bashim-base",
+"name": "Bashim Base",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 357.352,
+"y": 170.057
+},
+{
+"slug": "cadry-ruins",
+"name": "Cadry Ruins",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 350.626,
+"y": 195.727
+},
+{
+"slug": "capotia",
+"name": "Capotia",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 368.617,
+"y": 188.741
+},
+{
+"slug": "crescent-mountains",
+"name": "Crescent Mountains",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 403.349,
+"y": 156.135
+},
+{
+"slug": "crescent-shrine",
+"name": "Crescent Shrine",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 396.712,
+"y": 151.386
+},
+{
+"slug": "desert-naga-temple",
+"name": "Desert Naga Temple",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 367.877,
+"y": 196.453
+},
+{
+"slug": "deserted-city-of-runn",
+"name": "Deserted City of Runn",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 356.819,
+"y": 210.328
+},
+{
+"slug": "erdal-farm",
+"name": "Erdal Farm",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 438.017,
+"y": 217.961
+},
+{
+"slug": "fohalam-farm",
+"name": "Fohalam Farm",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 436.561,
+"y": 210.399
+},
+{
+"slug": "gavinya-coastal-cliff",
+"name": "Gavinya Coastal Cliff",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 464.322,
+"y": 263.161
+},
+{
+"slug": "gavinya-great-crater",
+"name": "Gavinya Great Crater",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 453.405,
+"y": 259.157
+},
+{
+"slug": "gavinya-volcano-zone",
+"name": "Gavinya Volcano Zone",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 464.732,
+"y": 252.023
+},
+{
+"slug": "gorgo-rock-belt",
+"name": "Gorgo Rock Belt",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 344.002,
+"y": 189.01
+},
+{
+"slug": "ibellab-oasis",
+"name": "Ibellab Oasis",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 397.297,
+"y": 213.577
+},
+{
+"slug": "ivero-cliff",
+"name": "Ivero Cliff",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 427.595,
+"y": 256.008
+},
+{
+"slug": "ivory-wasteland",
+"name": "Ivory Wasteland",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 440.097,
+"y": 260.471
+},
+{
+"slug": "kmach-canyon",
+"name": "Kmach Canyon",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 402.292,
+"y": 238.444
+},
+{
+"slug": "pilgrim-s-haven",
+"name": "Pilgrim's Haven",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 388.657,
+"y": 199.164
+},
+{
+"slug": "pilgrim-s-sanctum-abstinence",
+"name": "Pilgrim's Sanctum: Abstinence",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 398.632,
+"y": 205.421
+},
+{
+"slug": "pilgrim-s-sanctum-fast",
+"name": "Pilgrim's Sanctum: Fast",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 430.596,
+"y": 207.925
+},
+{
+"slug": "pilgrim-s-sanctum-humility",
+"name": "Pilgrim's Sanctum: Humility",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 421.996,
+"y": 173.211
+},
+{
+"slug": "pilgrim-s-sanctum-obedience",
+"name": "Pilgrim's Sanctum: Obedience",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 409.816,
+"y": 226.267
+},
+{
+"slug": "pilgrim-s-sanctum-sincerity",
+"name": "Pilgrim's Sanctum: Sincerity",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 410.864,
+"y": 179.843
+},
+{
+"slug": "pujiya-canyon",
+"name": "Pujiya Canyon",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 349.318,
+"y": 178.653
+},
+{
+"slug": "rakshan-observatory",
+"name": "Rakshan Observatory",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 430.652,
+"y": 222.369
+},
+{
+"slug": "taphtar-plain",
+"name": "Taphtar Plain",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 358.545,
+"y": 187.322
+},
+{
+"slug": "valencia-plantation",
+"name": "Valencia Plantation",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 437.297,
+"y": 213.667
+},
+{
+"slug": "valencia-western-highlands",
+"name": "Valencia Western Highlands",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 376.753,
+"y": 180.835
+},
+{
+"slug": "veteran-s-canyon",
+"name": "Veteran's Canyon",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 348.489,
+"y": 190.227
+},
+{
+"slug": "waragon-nest",
+"name": "Waragon Nest",
+"region": "Valencia",
+"tier": 1,
+"castle": false,
+"x": 372.051,
+"y": 169.658
+},
+{
+"slug": "hexe-sanctuary",
+"name": "Hexe Sanctuary",
+"region": "Calpheon",
+"tier": 2,
+"castle": false,
+"x": 246.401,
+"y": 143.451
+},
+{
+"slug": "mansha-forest",
+"name": "Mansha Forest",
+"region": "Calpheon",
+"tier": 2,
+"castle": false,
+"x": 223.929,
+"y": 163.503
+},
+{
+"slug": "northern-wheat-plantation",
+"name": "Northern Wheat Plantation",
+"region": "Calpheon",
+"tier": 2,
+"castle": false,
+"x": 249.409,
+"y": 181.089
+},
+{
+"slug": "quint-hill",
+"name": "Quint Hill",
+"region": "Calpheon",
+"tier": 2,
+"castle": false,
+"x": 235.5,
+"y": 186.123
+},
+{
+"slug": "trina-fort",
+"name": "Trina Fort",
+"region": "Calpheon",
+"tier": 2,
+"castle": false,
+"x": 248.574,
+"y": 157.887
+},
+{
+"slug": "loopy-tree-forest",
+"name": "Loopy Tree Forest",
+"region": "Kamasylvia",
+"tier": 2,
+"castle": false,
+"x": 198.005,
+"y": 149.705
+},
+{
+"slug": "manshaum-forest",
+"name": "Manshaum Forest",
+"region": "Kamasylvia",
+"tier": 2,
+"castle": false,
+"x": 223.646,
+"y": 126.609
+},
+{
+"slug": "mirumok-ruins",
+"name": "Mirumok Ruins",
+"region": "Kamasylvia",
+"tier": 2,
+"castle": false,
+"x": 213.315,
+"y": 132.952
+},
+{
+"slug": "shady-tree-forest",
+"name": "Shady Tree Forest",
+"region": "Kamasylvia",
+"tier": 2,
+"castle": false,
+"x": 221.943,
+"y": 109.122
+},
+{
+"slug": "elric-shrine",
+"name": "Elric Shrine",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 309.221,
+"y": 194.613
+},
+{
+"slug": "highland-junction",
+"name": "Highland Junction",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 324.704,
+"y": 170.635
+},
+{
+"slug": "kamasylve-temple",
+"name": "Kamasylve Temple",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 305.637,
+"y": 177.517
+},
+{
+"slug": "omar-lava-cave",
+"name": "Omar Lava Cave",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 321.559,
+"y": 180.367
+},
+{
+"slug": "sarma-outpost",
+"name": "Sarma Outpost",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 320.946,
+"y": 196.147
+},
+{
+"slug": "soldier-s-cemetery",
+"name": "Soldier's Cemetery",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 305.127,
+"y": 172.829
+},
+{
+"slug": "splashing-point",
+"name": "Splashing Point",
+"region": "Mediah",
+"tier": 2,
+"castle": false,
+"x": 330.667,
+"y": 155.851
+},
+{
+"slug": "aakman",
+"name": "Aakman",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 409.639,
+"y": 165.585
+},
+{
+"slug": "ancado-coast",
+"name": "Ancado Coast",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 421.761,
+"y": 238.079
+},
+{
+"slug": "northern-sand-dune",
+"name": "Northern Sand Dune",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 480.019,
+"y": 227.481
+},
+{
+"slug": "rock-post",
+"name": "Rock Post",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 348.854,
+"y": 184.439
+},
+{
+"slug": "roud-sulfur-mine",
+"name": "Roud Sulfur Mine",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 455.283,
+"y": 251.621
+},
+{
+"slug": "roud-sulfur-works",
+"name": "Roud Sulfur Works",
+"region": "Valencia",
+"tier": 2,
+"castle": false,
+"x": 452.021,
+"y": 248.168
+},
+{
+"slug": "star-s-end",
+"name": "Star's End",
+"region": "Calpheon",
+"tier": 3,
+"castle": false,
+"x": 204.551,
+"y": 172.278
+},
+{
+"slug": "azure-battlefield",
+"name": "Azure Battlefield",
+"region": "Edania",
+"tier": 3,
+"castle": false,
+"x": 373.654,
+"y": 279.986
+},
+{
+"slug": "great-red-spot",
+"name": "Great Red Spot",
+"region": "Edania",
+"tier": 3,
+"castle": false,
+"x": 387.493,
+"y": 269.361
+},
+{
+"slug": "lemoria-beacon-towers",
+"name": "Lemoria Beacon Towers",
+"region": "Kamasylvia",
+"tier": 3,
+"castle": false,
+"x": 211.752,
+"y": 109.131
+},
+{
+"slug": "tooth-fairy-cabin",
+"name": "Tooth Fairy Cabin",
+"region": "Kamasylvia",
+"tier": 3,
+"castle": false,
+"x": 198.053,
+"y": 130.284
+},
+{
+"slug": "al-naha-island",
+"name": "Al-Naha Island",
+"region": "Mavi Savaş Alanı",
+"tier": 3,
+"castle": false,
+"x": 288.247,
+"y": 240.678
+},
+{
+"slug": "louruve-island",
+"name": "Louruve Island",
+"region": "Mavi Savaş Alanı",
+"tier": 3,
+"castle": false,
+"x": 249.207,
+"y": 219.462
+},
+{
+"slug": "marka-island",
+"name": "Marka Island",
+"region": "Mavi Savaş Alanı",
+"tier": 3,
+"castle": false,
+"x": 253.9,
+"y": 221.539
+},
+{
+"slug": "narvo-island",
+"name": "Narvo Island",
+"region": "Mavi Savaş Alanı",
+"tier": 3,
+"castle": false,
+"x": 253.733,
+"y": 229.034
+},
+{
+"slug": "paratama-island",
+"name": "Paratama Island",
+"region": "Mavi Savaş Alanı",
+"tier": 3,
+"castle": false,
+"x": 289.272,
+"y": 215.298
+},
+{
+"slug": "mediah-shore",
+"name": "Mediah Shore",
+"region": "Mediah",
+"tier": 3,
+"castle": false,
+"x": 321.234,
+"y": 188.868
+},
+{
+"slug": "city-of-the-dead",
+"name": "City of the Dead",
+"region": "Ulukita",
+"tier": 3,
+"castle": false,
+"x": 326.922,
+"y": 138.474
+},
+{
+"slug": "shakhtar-wilds",
+"name": "Shakhtar Wilds",
+"region": "Ulukita",
+"tier": 3,
+"castle": false,
+"x": 346.841,
+"y": 124.759
+},
+{
+"slug": "valencia-castle-site",
+"name": "Valencia Castle Site",
+"region": "Valencia",
+"tier": 3,
+"castle": true,
+"x": 455.841,
+"y": 218.656
+},
+{
+"slug": "marni-farm-ruins",
+"name": "Marni Farm Ruins",
+"region": "Calpheon",
+"tier": 4,
+"castle": false,
+"x": 255.98,
+"y": 170.29
+},
+{
+"slug": "crossroads-of-defiance",
+"name": "Crossroads of Defiance",
+"region": "Edania",
+"tier": 4,
+"castle": false,
+"x": 383.73,
+"y": 278.513
+},
+{
+"slug": "escar-mountains",
+"name": "Escar Mountains",
+"region": "Edania",
+"tier": 4,
+"castle": false,
+"x": 365.629,
+"y": 245.784
+},
+{
+"slug": "acher-guard-post",
+"name": "Acher Guard Post",
+"region": "Kamasylvia",
+"tier": 4,
+"castle": false,
+"x": 202.052,
+"y": 147.924
+},
+{
+"slug": "central-lemoria-camp",
+"name": "Central Lemoria Camp",
+"region": "Kamasylvia",
+"tier": 4,
+"castle": false,
+"x": 213.9,
+"y": 123.824
+},
+{
+"slug": "gr-ndiha",
+"name": "Grándiha",
+"region": "Kamasylvia",
+"tier": 4,
+"castle": false,
+"x": 195.048,
+"y": 108.309
+},
+{
+"slug": "southern-kamasylvia",
+"name": "Southern Kamasylvia",
+"region": "Kamasylvia",
+"tier": 4,
+"castle": false,
+"x": 205.547,
+"y": 104.802
+},
+{
+"slug": "white-tree-forest",
+"name": "White Tree Forest",
+"region": "Kamasylvia",
+"tier": 4,
+"castle": false,
+"x": 204.498,
+"y": 125.896
+},
+{
+"slug": "angie-island",
+"name": "Angie Island",
+"region": "Mavi Savaş Alanı",
+"tier": 4,
+"castle": false,
+"x": 261.982,
+"y": 220.016
+},
+{
+"slug": "duch-island",
+"name": "Duch Island",
+"region": "Mavi Savaş Alanı",
+"tier": 4,
+"castle": false,
+"x": 267.66,
+"y": 215.296
+},
+{
+"slug": "invernen-island",
+"name": "Invernen Island",
+"region": "Mavi Savaş Alanı",
+"tier": 4,
+"castle": false,
+"x": 263.25,
+"y": 230.291
+},
+{
+"slug": "luivano-island",
+"name": "Luivano Island",
+"region": "Mavi Savaş Alanı",
+"tier": 4,
+"castle": false,
+"x": 275.647,
+"y": 211.163
+},
+{
+"slug": "weita-island",
+"name": "Weita Island",
+"region": "Mavi Savaş Alanı",
+"tier": 4,
+"castle": false,
+"x": 288.488,
+"y": 223.013
+},
+{
+"slug": "karasi-canyon",
+"name": "Karasi Canyon",
+"region": "Ulukita",
+"tier": 4,
+"castle": false,
+"x": 352.518,
+"y": 133.646
+},
+{
+"slug": "tungrad-ruins",
+"name": "Tungrad Ruins",
+"region": "Ulukita",
+"tier": 4,
+"castle": false,
+"x": 352.118,
+"y": 142.709
+},
+{
+"slug": "basilisk-den",
+"name": "Basilisk Den",
+"region": "Valencia",
+"tier": 4,
+"castle": false,
+"x": 339.387,
+"y": 189.328
+},
+{
+"slug": "valencia-castle",
+"name": "Valencia Castle",
+"region": "Valencia",
+"tier": 4,
+"castle": true,
+"x": 462.232,
+"y": 228.773
+},
+{
+"slug": "great-white-spot",
+"name": "Great White Spot",
+"region": "Edania",
+"tier": 5,
+"castle": false,
+"x": 374.809,
+"y": 258.95
+},
+{
+"slug": "neftak-outpost",
+"name": "Neftak Outpost",
+"region": "Edania",
+"tier": 5,
+"castle": false,
+"x": 367.939,
+"y": 261.654
+},
+{
+"slug": "lake-flondor",
+"name": "Lake Flondor",
+"region": "Kamasylvia",
+"tier": 5,
+"castle": false,
+"x": 209.03,
+"y": 118.223
+},
+{
+"slug": "balvege-island",
+"name": "Balvege Island",
+"region": "Mavi Savaş Alanı",
+"tier": 5,
+"castle": false,
+"x": 267.921,
+"y": 224.419
+},
+{
+"slug": "baremi-island",
+"name": "Baremi Island",
+"region": "Mavi Savaş Alanı",
+"tier": 5,
+"castle": false,
+"x": 283.593,
+"y": 228.225
+},
+{
+"slug": "eveto-island",
+"name": "Eveto Island",
+"region": "Mavi Savaş Alanı",
+"tier": 5,
+"castle": false,
+"x": 269.165,
+"y": 217.303
+},
+{
+"slug": "mariveno-island",
+"name": "Mariveno Island",
+"region": "Mavi Savaş Alanı",
+"tier": 5,
+"castle": false,
+"x": 278.463,
+"y": 217.957
+},
+{
+"slug": "marlene-island",
+"name": "Marlene Island",
+"region": "Mavi Savaş Alanı",
+"tier": 5,
+"castle": false,
+"x": 272.543,
+"y": 224.359
+},
+{
+"slug": "atessahra",
+"name": "Atessahra",
+"region": "Ulukita",
+"tier": 5,
+"castle": false,
+"x": 334.847,
+"y": 148.169
+},
+{
+"slug": "neruda-plain",
+"name": "Neruda Plain",
+"region": "Ulukita",
+"tier": 5,
+"castle": false,
+"x": 327.363,
+"y": 147.658
+}
+]
+}

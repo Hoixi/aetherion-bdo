@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import {
   TILE_URL, TILE_SIZE, MIN_ZOOM, MAX_ZOOM, MAX_TILE_ZOOM, WORLD,
   toProj, toCoord, toProjRadius, iconUrl, trLabel, iconLabel, focusBounds, fortIdAt,
-  type Shape, type FortMarker,
+  type Shape, type FortMarker, type NodeWarNode, TIER_COLORS,
 } from "@/lib/garmoth-forts";
 
 /**
@@ -43,18 +43,21 @@ type Props = {
   planned?: Set<string>;
   /** İşarete tıklanınca (onFortClick yerine doğrudan seçim) */
   onMarkerClick?: (fortId: string) => void;
+  /** Diğer node war düğümleri (T2/T3… kaleler ve mevziler) */
+  nodes?: NodeWarNode[];
   className?: string;
 };
 
 export default function FortMap({
   shapes, drawn, draft, showSource, showLabels, tool, onPick, fitKey,
-  onFortClick, markers, activeFort, planned, onMarkerClick, className,
+  onFortClick, markers, activeFort, planned, onMarkerClick, nodes, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const srcRef = useRef<LayerGroup | null>(null);
   const ownRef = useRef<LayerGroup | null>(null);
   const markRef = useRef<LayerGroup | null>(null);
+  const nodeRef = useRef<LayerGroup | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
   // Harita async kuruluyor; çizim efektleri kurulum bitmeden çalışırsa
@@ -113,6 +116,7 @@ export default function FortMap({
 
       srcRef.current = L.layerGroup().addTo(map);
       ownRef.current = L.layerGroup().addTo(map);
+      nodeRef.current = L.layerGroup().addTo(map);
       markRef.current = L.layerGroup().addTo(map);
 
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
@@ -175,6 +179,24 @@ export default function FortMap({
         .on("click", (e) => { L.DomEvent.stopPropagation(e); markerRef.current?.(m.id); });
     }
   }, [markers, activeFort, planned, ready]);
+
+  // ── Diğer node war düğümleri (küçük rozetler)
+  useEffect(() => {
+    const L = LRef.current;
+    if (!L || !nodeRef.current) return;
+    nodeRef.current.clearLayers();
+    for (const n of nodes ?? []) {
+      const renk = TIER_COLORS[n.tier] ?? "#9a9aa2";
+      const html = `<span class="nw-pin${n.castle ? " kale" : ""}" style="--nw:${renk}">`
+        + `<i>${n.castle ? "♜" : n.tier || "?"}</i><b>${escapeHtml(n.name)}</b></span>`;
+      L.marker(toProj(n.x, n.y), {
+        icon: L.divIcon({ className: "nw-pin-kutu", html, iconSize: [10, 10], iconAnchor: [5, 5] }),
+        title: `${n.name} · T${n.tier}${n.castle ? " · kale kuşatması" : ""} · ${n.region}`,
+        keyboard: false,
+        interactive: true,
+      }).addTo(nodeRef.current);
+    }
+  }, [nodes, ready]);
 
   // ── Kale değişince oraya odaklan
   useEffect(() => {
