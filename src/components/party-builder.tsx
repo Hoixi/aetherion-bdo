@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   DndContext, DragOverlay, rectIntersection, pointerWithin, PointerSensor,
   useSensor, useSensors, useDroppable,
@@ -196,6 +196,12 @@ export function PartyBuilder({
 }: PartyBuilderProps) {
   const [parties, setParties] = useState<PartyData[]>(initialParties);
   const [seciliId, setSeciliId] = useState<number | null>(null);
+  /** Havuzdaki (partisiz) üyeler için yöneticinin seçtiği karakter — sunucuda katılım kaydında */
+  const [havuzSecim, setHavuzSecim] = useState<Record<number, { class: string; spec: string }>>({});
+  // Sürükleme işleyicisi bu ikisini güncel okusun diye ref üzerinden
+  const havuzSecimRef = useRef(havuzSecim);
+  havuzSecimRef.current = havuzSecim;
+  const karakterSecRef = useRef<((partyId: number | null, userId: number, secim: { class: string; spec: string } | null) => Promise<void>) | null>(null);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -322,6 +328,9 @@ export function PartyBuilder({
     if (source && source.id !== targetId) {
       await savePartyMembers(source.id, updated.find((p) => p.id === source.id)!.members);
     }
+    // Havuzdayken seçilen karakter partiye de taşınsın
+    const havuz = havuzSecimRef.current[userId];
+    if (!source && havuz) await karakterSecRef.current?.(targetId, userId, havuz);
   }, [parties, attendees, savePartyMembers]);
 
   async function addParty() {
@@ -370,22 +379,38 @@ export function PartyBuilder({
     setTimeout(() => setSaveStatus(null), 2500);
   }
 
-  /** Yönetici seçimi: partideki üyenin bu savaşa geleceği karakter (null = bildirdiğine dön) */
-  async function karakterSec(partyId: number, userId: number, secim: { class: string; spec: string } | null) {
-    const res = await fetch(`/api/wars/${warId}/parties/${partyId}/members/${userId}`, {
+  /**
+   * Yönetici seçimi: üyenin bu savaşa geleceği karakter (null = üyenin kendi
+   * bildirdiğine dön). Partideyse parti kaydına, havuzdaysa katılım kaydına
+   * yazılır — ikisinde de üyenin izin verdiği seçenekler dışına çıkılamaz.
+   */
+  async function karakterSec(partyId: number | null, userId: number, secim: { class: string; spec: string } | null) {
+    const yol = partyId !== null
+      ? `/api/wars/${warId}/parties/${partyId}/members/${userId}`
+      : `/api/wars/${warId}/characters`;
+    const res = await fetch(yol, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ asClass: secim?.class ?? null, asSpec: secim?.spec ?? null }),
+      body: JSON.stringify({ userId, asClass: secim?.class ?? null, asSpec: secim?.spec ?? null }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       setSaveStatus(d.error ?? "Karakter seçilemedi."); setTimeout(() => setSaveStatus(null), 3000);
       return;
     }
-    setParties(parties.map((p) => p.id === partyId
-      ? { ...p, members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: secim?.class ?? null, asSpec: secim?.spec ?? null } : m)) }
-      : p));
+    if (partyId !== null) {
+      setParties(parties.map((p) => p.id === partyId
+        ? { ...p, members: p.members.map((m) => (m.userId === userId ? { ...m, asClass: secim?.class ?? null, asSpec: secim?.spec ?? null } : m)) }
+        : p));
+    } else {
+      setHavuzSecim((h) => {
+        const n = { ...h };
+        if (secim) n[userId] = secim; else delete n[userId];
+        return n;
+      });
+    }
     setSaveStatus("Karakter kaydedildi"); setTimeout(() => setSaveStatus(null), 2000);
   }
+  karakterSecRef.current = karakterSec;
 
   async function renameParty(partyId: number, name: string) {
     await fetch(`/api/wars/${warId}/parties/${partyId}`, {
@@ -429,17 +454,20 @@ export function PartyBuilder({
     <UyeDetay user={seciliUser} perf={memberStats?.[seciliUser.id]} guven={guven?.[seciliUser.id] ?? null}
               history={attendanceHistory} karakter={karakterler?.[seciliUser.id]}
               partyId={seciliParti?.id ?? null}
-              secili={seciliUye?.asClass ? { class: seciliUye.asClass, spec: seciliUye.asSpec ?? "awakening" } : null}
+              secili={seciliUye?.asClass
+                ? { class: seciliUye.asClass, spec: seciliUye.asSpec ?? "awakening" }
+                : havuzSecim[seciliUser.id] ?? null}
               onKapat={() => setSeciliId(null)}
-              onKarakter={(k) => (seciliParti ? karakterSec(seciliParti.id, seciliUser.id, k) : Promise.resolve())} />
+              onKarakter={(k) => karakterSec(seciliParti?.id ?? null, seciliUser.id, k)} />
   ) : null;
 
   if (tam) {
     return (
       <DndContext sensors={sensors} collisionDetection={collide}
                   onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid gap-3" style={{ gridTemplateColumns: seciliUser ? "250px 1fr 320px" : "250px 1fr", height: "calc(100vh - 150px)", minHeight: 560 }}>
-          {/* Sol: havuz */}
+        <div className="grid gap-3" style={{ gridTemplateColumns: "300px 1fr", height: "calc(100vh - 150px)", minHeight: 560 }}>
+          {/* Sol: havuz — seçili üyenin detayı hemen altında */}
+          <div className="grid gap-3 min-h-0" style={{ gridTemplateRows: seciliUser ? "minmax(120px, 34%) 1fr" : "1fr" }}>
           <div className="flex flex-col min-h-0 rounded-xl border border-bdo-border bg-bdo-surface overflow-hidden">
             <div className="p-2.5 space-y-2" style={{ borderBottom: "1px solid var(--t-line)" }}>
               <div className="flex items-center justify-between">
@@ -467,14 +495,17 @@ export function PartyBuilder({
                               perf={memberStats?.[user.id]} attendanceHistory={attendanceHistory}
                               currentStatus={currentStatuses?.[user.id]} compact
                               guven={guven ? guven[user.id] ?? null : undefined}
+                              asClass={havuzSecim[user.id]?.class ?? null}
                               onSecim={onSecim} secili={seciliId === user.id} />
                 ))}
                 {unassigned.length === 0 && q.trim() !== "" && <span className="text-[11px] text-bdo-text-secondary">Aramaya uyan kimse yok.</span>}
               </DroppablePoolDikey>
             </SortableContext>
           </div>
+          {detayPaneli}
+          </div>
 
-          {/* Orta: partiler */}
+          {/* Sağ: partiler */}
           <div className="flex flex-col min-h-0 gap-3">
             <div className="flex items-center gap-x-4 gap-y-1 flex-wrap px-3 py-2 rounded-xl bg-bdo-surface border border-bdo-border text-[12px]">
               {ROLES.map((r) => { const n = summary.byRole.get(r.key) ?? 0; return n ? (
@@ -505,9 +536,6 @@ export function PartyBuilder({
               )}
             </div>
           </div>
-
-          {/* Sağ: detay */}
-          {detayPaneli}
         </div>
         <DragOverlay>
           {activeUser && <MemberChip id={`overlay-${activeUser.id}`} user={activeUser} perf={memberStats?.[activeUser.id]} isDragOverlay compact />}

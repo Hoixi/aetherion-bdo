@@ -27,7 +27,7 @@ export function UyeDetay({ user, perf, guven, history, karakter, partyId, secili
   guven?: GuvenOzet | null;
   history?: WarAttendanceSummary[];
   karakter?: KarakterBilgi;
-  /** üye şu an bu partide (null = havuzda) */
+  /** üye şu an bu partide (null = havuzda; seçim yine yapılabilir) */
   partyId: number | null;
   /** partide seçili karakter (override) */
   secili?: { class: string; spec: string } | null;
@@ -91,13 +91,13 @@ export function UyeDetay({ user, perf, guven, history, karakter, partyId, secili
         {/* Karakter seçimi */}
         <section>
           <div className="text-[10px] uppercase tracking-[0.08em] mb-1.5" style={{ color: "var(--t-faint)" }}>Bu savaşa hangi karakterle</div>
-          {partyId === null && <p className="text-[11px] mb-1.5" style={{ color: "var(--t-faint)" }}>Partiye alınca buradan karakter seçebilirsin.</p>}
+          {partyId === null && <p className="text-[11px] mb-1.5" style={{ color: "var(--t-faint)" }}>Henüz partide değil — seçim katılım kaydına yazılır, partiye alınca da geçerli.</p>}
           <div className="space-y-1">
             {secenekler.map((s) => {
               const on = secili ? secili.class === s.class && secili.spec === s.spec : varsayilan && varsayilan.class === s.class && varsayilan.spec === s.spec;
               const icon = getClassIconUrl(s.class);
               const kilit = !s.izin;
-              const disabled = busy || partyId === null || kilit;
+              const disabled = busy || kilit;
               return (
                 <button key={`${s.class}-${s.spec}`} disabled={disabled}
                         onClick={() => sec(varsayilan && varsayilan.class === s.class && varsayilan.spec === s.spec ? null : { class: s.class, spec: s.spec })}
