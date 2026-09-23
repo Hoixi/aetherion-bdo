@@ -204,6 +204,20 @@ export async function islemeRapor(warId: number, base64: string, mimeType: strin
   const nameMap = new Map(allUsers.map((u) => [u.familyName.toLowerCase().trim(), u.id]));
   const classMap = new Map(allUsers.map((u) => [u.id, { cls: u.class, spec: u.spec }]));
 
+  /*
+   * Rapordaki class: o savaşa hangi karakterle gelindiyse o.
+   * Öncelik parti kaydındaki seçim (yönetici "Corsair'la gel" dediyse),
+   * sonra üyenin katılırken bildirdiği, en son profildeki ana karakter.
+   * Profil sonradan değişse de savaş kaydı bozulmasın diye satıra yazılıyor.
+   */
+  const [partyRows, katilimlar] = await Promise.all([
+    prisma.partyMember.findMany({ where: { party: { warId } }, select: { userId: true, asClass: true, asSpec: true } }),
+    prisma.warParticipant.findMany({ where: { warId }, select: { userId: true, asClass: true, asSpec: true } }),
+  ]);
+  const savasClass = new Map<number, { cls: string; spec: string }>();
+  for (const k of katilimlar) if (k.asClass) savasClass.set(k.userId, { cls: k.asClass, spec: k.asSpec ?? "awakening" });
+  for (const m of partyRows) if (m.asClass) savasClass.set(m.userId, { cls: m.asClass, spec: m.asSpec ?? "awakening" });
+
   const geminiRows = await analyzeWithGemini(base64, mimeType, siteNames);
   const rows = mergeRows(geminiRows);
 
@@ -215,7 +229,7 @@ export async function islemeRapor(warId: number, base64: string, mimeType: strin
   for (const row of rows) {
     const userId = nameMap.get(row.familyName.toLowerCase().trim()) ?? null;
     // Rapor anındaki class'ı sabitle — üye sonradan değiştirse de savaş kaydı bozulmaz
-    const snap = userId ? classMap.get(userId) : undefined;
+    const snap = userId ? (savasClass.get(userId) ?? classMap.get(userId)) : undefined;
     const record = await prisma.warPerformance.upsert({
       where: { warId_inGameName: { warId, inGameName: row.familyName } },
       update: {
@@ -330,6 +344,23 @@ export async function raporuGetir(warId: number) {
     war?.parties.flatMap((party) => party.members.map((member) => member.userId)) ?? []
   );
 
+  /*
+   * O savaşa farklı karakterle gelinmişse (üye bildirdi ya da parti kuran
+   * seçti) rapor da onu göstersin. Eski raporlar profildeki ana karakterle
+   * kaydedilmişti; okurken düzeltiyoruz ki geçmiş de doğru görünsün.
+   */
+  const [partyRows, katilimlar] = await Promise.all([
+    prisma.partyMember.findMany({ where: { party: { warId } }, select: { userId: true, asClass: true, asSpec: true } }),
+    prisma.warParticipant.findMany({ where: { warId }, select: { userId: true, asClass: true, asSpec: true } }),
+  ]);
+  const savasClass = new Map<number, { cls: string; spec: string }>();
+  for (const k of katilimlar) if (k.asClass) savasClass.set(k.userId, { cls: k.asClass, spec: k.asSpec ?? "awakening" });
+  for (const m of partyRows) if (m.asClass) savasClass.set(m.userId, { cls: m.asClass, spec: m.asSpec ?? "awakening" });
+  const duzeltilmis = performances.map((p) => {
+    const s = p.userId ? savasClass.get(p.userId) : undefined;
+    return s ? { ...p, class: s.cls, spec: s.spec } : p;
+  });
+
   const perfNames = new Set(performances.map((p) => p.inGameName.toLowerCase().trim()));
   const absent = war?.participants
     .map((p) => p.user)
@@ -337,5 +368,5 @@ export async function raporuGetir(warId: number) {
       (u) => selectedPartyUserIds.has(u.id) && !perfNames.has(u.familyName.toLowerCase().trim())
     ) ?? [];
 
-  return { performances, absent };
+  return { performances: duzeltilmis, absent };
 }
