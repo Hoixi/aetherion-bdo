@@ -185,6 +185,24 @@ export default function DunyaHaritasi({
         .on("click", () => nodeCb.current?.(n))
         .addTo(katman);
 
+      // Mevzinin kalesi ayrı bir yerde duruyor (node merkezi değil)
+      if (n.kaleX != null && n.kaleZ != null) {
+        const [klat, klng] = dunyaToProj(n.kaleX, n.kaleZ);
+        L.marker([klat, klng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<img src="${IKON.kale}" alt="" style="display:block;width:24px;height:24px;
+                   filter:drop-shadow(0 1px 3px #000) drop-shadow(0 0 5px rgba(0,0,0,.8))">`,
+            iconSize: [24, 24], iconAnchor: [12, 12],
+          }),
+          zIndexOffset: secili ? 1800 : 900,
+        })
+          .bindTooltip(`${n.ad} kalesi · mevzi merkezine ${n.kaleUzak ?? "?"} m`,
+                       { direction: "top", opacity: 0.95 })
+          .on("click", () => nodeCb.current?.(n))
+          .addTo(katman);
+      }
+
       if (etiketli(n)) {
         L.marker([lat, lng], {
           interactive: false,

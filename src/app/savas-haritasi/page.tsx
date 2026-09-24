@@ -185,7 +185,7 @@ export default function SavasHaritasiPage() {
                     </button>
                     <button onClick={() => setKaleler((v) => !v)} className="t-tab" data-on={kaleler}
                             title="Kuşatma savaşının yapıldığı kale sahaları">
-                      <Castle className="w-3.5 h-3.5" /> Kaleler ({KALE_SAYI})
+                      <Castle className="w-3.5 h-3.5" /> Kuşatma ({KALE_SAYI})
                     </button>
                     <span className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
                       {liste.length}
@@ -211,7 +211,7 @@ export default function SavasHaritasiPage() {
                              deger={secili.kale ? "Kuşatma" : secili.tier ? `T${secili.tier}` : "—"}
                              renk={secili.kale ? "#c86fd8" : TIER_RENK[secili.tier]} />
                       <Bilgi etiket="Bölge" deger={secili.bolge || "—"} />
-                      <Bilgi etiket="Alan" deger={secili.r ? `${Math.round(secili.r / 100)} m` : "—"} />
+                      <Bilgi etiket="Kale" deger={secili.kaleUzak != null ? `${secili.kaleUzak} m` : "—"} />
                       <Bilgi etiket="Durum" deger={secili.aktif ? "Savaş açık" : "Kapalı"}
                              renk={secili.aktif ? "var(--t-good)" : undefined} />
                     </div>

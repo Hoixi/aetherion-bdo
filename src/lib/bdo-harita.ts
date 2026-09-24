@@ -86,6 +86,11 @@ export type HaritaNode = {
   tur: "savas" | "sehir";
   /** Oyunda şu an node war açık olan mevzi */
   aktif?: boolean;
+  /** Mevzinin kalesinin konumu — node merkezi değil, kalenin kurulduğu yer */
+  kaleX?: number;
+  kaleZ?: number;
+  /** Kale ile node merkezi arası, metre */
+  kaleUzak?: number;
 };
 
 /**
