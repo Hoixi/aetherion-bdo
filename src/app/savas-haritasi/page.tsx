@@ -51,6 +51,7 @@ export default function SavasHaritasiPage() {
   const [panel, setPanel] = useState(true);
   /** Oyunda savaş açık olan mevziler — listeyi buna daraltmak için */
   const [sadeceAktif, setSadeceAktif] = useState(true);
+  const [karoHata, setKaroHata] = useState(false);
   const dosya = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 4000); return () => clearTimeout(t); }, [msg]);
@@ -64,6 +65,12 @@ export default function SavasHaritasiPage() {
       : taban;
     return v.slice(0, 150);
   }, [ara, sadeceAktif]);
+
+  /** Haritaya giden düğümler — süzgeç açıkken yalnızca savaşı açık olanlar */
+  const haritaNodlari = useMemo(
+    () => (sadeceAktif ? NODLAR.filter((n) => n.tur === "sehir" || n.aktif) : NODLAR),
+    [sadeceAktif],
+  );
 
   const gorunen = useMemo(
     () => olaylar.filter((o) => suzgec === "hepsi" || (suzgec === "kill") === o.bizimKill),
@@ -106,7 +113,7 @@ export default function SavasHaritasiPage() {
       {/* Menü çubuğu 68px; harita geri kalan her şeyi kaplıyor */}
       <div className="relative" style={{ height: "calc(100vh - 68px)" }}>
         <Harita
-          nodlar={NODLAR}
+          nodlar={haritaNodlari}
           olaylar={gorunen}
           seciliKey={secili?.key ?? null}
           onNode={nodeSec}
@@ -115,8 +122,16 @@ export default function SavasHaritasiPage() {
           isi={isi}
           odak={odak}
           odakKey={odakKey}
+          onKaroHata={() => setKaroHata(true)}
           className="absolute inset-0"
         />
+
+        {karoHata && (
+          <div className="absolute top-3 right-14 z-[500] px-3 py-2 rounded-[var(--t-r-sm)] text-[11.5px]"
+               style={{ background: "rgba(16,16,19,.94)", border: "1px solid rgba(239,95,95,.35)", color: "#ef8080" }}>
+            Harita karoları yüklenmiyor — karo sunucusu kapalı olabilir.
+          </div>
+        )}
 
         {panel ? (
           <div className="absolute top-3 left-3 bottom-3 z-[500] flex flex-col w-[320px] rounded-[var(--t-r)] overflow-hidden"

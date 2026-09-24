@@ -88,6 +88,22 @@ export type HaritaNode = {
   aktif?: boolean;
 };
 
+/**
+ * Harita ikonları — nodewar.gg'nin kendi görselleri.
+ *
+ * Site yöneticisinden 24 Eylül 2026'da izin alındı; dosyalar kopyalanıp
+ * yeniden yayınlanmıyor, doğrudan kaynağından çağrılıyor. Kaynak
+ * değişirse ikon kaybolur, harita çalışmaya devam eder.
+ */
+export const IKON = {
+  mevzi: "https://nodewar.gg/svg/map/node.svg",
+  kale: "https://nodewar.gg/svg/map/castle.svg",
+  sehir: "https://nodewar.gg/svg/map/city.svg",
+  kasaba: "https://nodewar.gg/svg/map/town.svg",
+  guller: "https://nodewar.gg/svg/map/wor.svg",
+  deniz: "https://nodewar.gg/svg/map/naval.svg",
+} as const;
+
 /** Kale haritasındaki kademe renkleriyle aynı */
 export const TIER_RENK: Record<number, string> = {
   1: "#e8b451", 2: "#9a9aa2", 3: "#b87333", 4: "#6aa9e0", 5: "#c86fd8",

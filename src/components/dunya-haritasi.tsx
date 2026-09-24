@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
-  KARO_PX, KARO_URL, MIN_ZOOM, MAX_ZOOM, MAX_KARO_ZOOM, TIER_RENK, karoSatiri,
+  KARO_PX, KARO_URL, MIN_ZOOM, MAX_ZOOM, MAX_KARO_ZOOM, TIER_RENK, IKON, karoSatiri,
   dunyaToProj, projToDunya, projYaricap, sinirlar, type HaritaNode,
 } from "@/lib/bdo-harita";
 import type { SavasOlayi } from "@/lib/savas-olaylari";
@@ -34,6 +34,8 @@ type Props = {
   /** Değişince harita buraya gider — oyun koordinatı ve yakınlık */
   odak?: { x: number; z: number; zoom: number } | null;
   odakKey?: string;
+  /** Karolar yüklenemiyorsa (sunucu kapalı, yanlış adres) bir kez haber verir */
+  onKaroHata?: () => void;
   className?: string;
 };
 
@@ -41,7 +43,8 @@ const KILL = "#5fd39a";
 const DEATH = "#ef5f5f";
 
 export default function DunyaHaritasi({
-  nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false, odak, odakKey, className,
+  nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false,
+  odak, odakKey, onKaroHata, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -52,6 +55,7 @@ export default function DunyaHaritasi({
   const [ready, setReady] = useState(0);
   const [zoom, setZoom] = useState(3);
   const nodeCb = useRef(onNode); nodeCb.current = onNode;
+  const hataCb = useRef(onKaroHata); hataCb.current = onKaroHata;
   const olayCb = useRef(onOlay); olayCb.current = onOlay;
 
   useEffect(() => {
@@ -92,6 +96,7 @@ export default function DunyaHaritasi({
       };
       sinirAyarla();
 
+      let yuklendi = false, hata = 0;
       // Piramit satırları yukarı sayıyor; Leaflet'in istediği satır çevriliyor
       const Karolar = L.TileLayer.extend({
         getTileUrl(this: { _url: string; _getZoomForUrl: () => number },
@@ -106,7 +111,12 @@ export default function DunyaHaritasi({
         // Deniz karoları yok; boş bırakmak kırık resim gösteriyordu
         errorTileUrl:
           "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-      }).addTo(map);
+      })
+        // Izgara dışında kalan deniz karoları da 404 veriyor; sunucunun
+        // kapalı olduğunu ancak hiç karo yüklenmediğinde söyleyebiliriz
+        .on("tileload", () => { yuklendi = true; })
+        .on("tileerror", () => { if (!yuklendi && ++hata >= 6) hataCb.current?.(); })
+        .addTo(map);
       L.control.zoom({ position: "topright" }).addTo(map);
 
       nodeRef.current = L.layerGroup().addTo(map);
@@ -151,19 +161,28 @@ export default function DunyaHaritasi({
       }
 
       // Aktif mevziler dışarıdan bir halkayla ayrılıyor
-      if (n.aktif) {
+      if (n.aktif || secili) {
         L.circleMarker([lat, lng], {
-          radius: secili ? 13 : 10, color: renk, weight: 1.5,
+          radius: secili ? 18 : 15, color: renk, weight: 1.5,
           fillColor: renk, fillOpacity: 0.14, interactive: false,
         }).addTo(katman);
       }
 
-      L.circleMarker([lat, lng], {
-        radius: secili ? 8 : n.aktif ? 6 : sehir ? 5 : n.kale ? 6 : 4,
-        color: secili ? "#fff" : renk,
-        weight: secili || n.aktif ? 2 : 1.5,
-        fillColor: renk,
-        fillOpacity: sehir ? 0.5 : 0.85,
+      const boy = sehir ? 20 : n.aktif ? 26 : 18;
+      const ikon = sehir ? IKON.sehir : n.kale ? IKON.kale : IKON.mevzi;
+      L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: "",
+          // Ölçü CSS ile veriliyor: kaynak SVG'lerin kendi boyu ~100px ve
+          // width/height öznitelikleri tek başına onu kısmıyor
+          html: `<img src="${ikon}" alt="" style="
+                 display:block;width:${boy}px;height:${boy}px;
+                 filter:drop-shadow(0 1px 3px #000) drop-shadow(0 0 5px rgba(0,0,0,.8))${secili ? " brightness(1.4)" : ""};
+                 opacity:${sehir && !secili ? 0.85 : 1}">`,
+          iconSize: [boy, boy], iconAnchor: [boy / 2, boy / 2],
+        }),
+        // Seçili ve aktif olanlar diğerlerinin üstünde kalsın
+        zIndexOffset: secili ? 2000 : n.aktif ? 1000 : 0,
       })
         .bindTooltip(sehir ? n.ad
                      : `${n.ad} · T${n.tier}${n.kale ? " · kale kuşatması" : ""}${n.aktif ? " · savaş açık" : ""}`,
@@ -179,7 +198,7 @@ export default function DunyaHaritasi({
             html: `<div style="white-space:nowrap;font-size:${sehir || n.aktif ? 11 : 10}px;
                    font-weight:${n.aktif ? 700 : 600};
                    color:${secili ? "#fff" : renk};text-shadow:0 1px 3px #000,0 0 6px #000;
-                   transform:translate(${n.aktif ? 13 : 9}px,-7px);
+                   transform:translate(${n.aktif ? 17 : 12}px,-7px);
                    opacity:${sehir || n.aktif ? 1 : 0.85}">${n.ad}</div>`,
             iconSize: [0, 0],
           }),
