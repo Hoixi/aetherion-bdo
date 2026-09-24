@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Gem, Sparkles, FlaskConical, UtensilsCrossed, Eraser } from "lucide-react";
 import { TestShell, Empty, loadJson } from "@/components/app-shell";
 import { Slot, Picker, type Equippable, type StatRow } from "@/components/loadout";
+import { KristalTahtasi, HALKA_YUVA, SAFAK_YUVA } from "@/components/kristal-tahtasi";
 import { StatPaneli } from "@/components/stat-paneli";
 import { BuildKaydet, type KayitliBuild } from "@/components/build-kaydet";
 import { statTr } from "@/lib/bdo-stats";
@@ -21,7 +22,7 @@ import { statTr } from "@/lib/bdo-stats";
  * Kayıt kodu tek dize: `k:<kristaller>|s:<şafak>|e:<eserler>|t:<taşlar>|i:<iksirler>|y:<yemekler>`
  */
 
-const BOLUM = { kristal: 14, safak: 6, eser: 2, tas: 4, iksir: 3, yemek: 2 } as const;
+const BOLUM = { kristal: HALKA_YUVA, safak: SAFAK_YUVA, eser: 2, tas: 4, iksir: 3, yemek: 2 } as const;
 type Bolum = keyof typeof BOLUM;
 const ONEK: Record<Bolum, string> = { kristal: "k", safak: "s", eser: "e", tas: "t", iksir: "i", yemek: "y" };
 
@@ -175,8 +176,22 @@ function Icerik() {
               </button>
             </div>
 
-            {bolum("kristal", "Kristaller", Gem)}
-            {bolum("safak", "Şafak Kristalleri", Gem)}
+            <div className="rounded-xl p-3" style={{ background: "var(--t-surface)", border: "1px solid var(--t-line)" }}>
+              <div className="flex items-center gap-2 mb-2.5">
+                <Gem className="w-3.5 h-3.5" style={{ color: "var(--t-gold)" }} />
+                <h3 className="text-[12.5px] font-semibold">Kristaller</h3>
+                <span className="t-num text-[11px] ml-auto" style={{ color: "var(--t-faint)" }}>
+                  {secim.kristal.filter(Boolean).length + secim.safak.filter(Boolean).length}/{BOLUM.kristal + BOLUM.safak}
+                </span>
+              </div>
+              <KristalTahtasi
+                halka={secili("kristal")}
+                safak={secili("safak")}
+                safakCesit={(havuz.get("safak") ?? []).length}
+                onSec={(tur, i) => setPicking({ b: tur === "halka" ? "kristal" : "safak", i })}
+                onSil={(tur, i) => koy(tur === "halka" ? "kristal" : "safak", i, null)}
+              />
+            </div>
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
               {bolum("eser", "Eserler", Sparkles, 58)}
               {bolum("tas", "Işık Taşları", Sparkles, 58)}

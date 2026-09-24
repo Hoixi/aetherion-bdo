@@ -5,37 +5,29 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AlertTriangle, Eraser } from "lucide-react";
 import { TestShell, Empty, loadJson } from "@/components/app-shell";
-import { Slot, Picker, type Equippable } from "@/components/loadout";
+import { Picker, type Equippable } from "@/components/loadout";
+import { KristalTahtasi, HALKA_YUVA, SAFAK_YUVA } from "@/components/kristal-tahtasi";
 import { StatPaneli } from "@/components/stat-paneli";
 import { BuildKaydet, type KayitliBuild } from "@/components/build-kaydet";
 
 /**
  * Kristal kurulumu.
  *
- * Düzen oyundaki kristal penceresini izliyor: her ekipman parçasının iki
- * yuvası var (ana silah, uyanış, alt silah, kask, zırh, eldiven, ayakkabı =
- * 14), altta ayrı bir sırada altı Şafak kristali. Sağ sütun toplam etkiyi
- * oyundaki gibi başlıklara ayırıp gösteriyor.
+ * Düzen oyundaki kristal panosu: köşeler ve orta kenarlar dış halka, içeride
+ * üç sıra, ortada tek yuva (bkz. components/kristal-tahtasi.tsx); altta ayrı
+ * sırada altı Şafak kristali. Sağ sütun toplam etkiyi oyundaki gibi
+ * başlıklara ayırıp gösteriyor.
  *
  * Kurulumun kendisi adres çubuğundaki kod; ada verilip kaydedilebiliyor,
  * herkese açık yapılırsa klandaki herkes listeden açabiliyor.
  */
 
-const PARCALAR = [
-  { ad: "Ana Silah", kisa: "AS" },
-  { ad: "Uyanış Silahı", kisa: "UY" },
-  { ad: "Alt Silah", kisa: "ALT" },
-  { ad: "Kask", kisa: "KSK" },
-  { ad: "Zırh", kisa: "ZRH" },
-  { ad: "Eldiven", kisa: "ELD" },
-  { ad: "Ayakkabı", kisa: "AYK" },
-] as const;
-const SLOTS = PARCALAR.length * 2; // 14
-const SAFAK = 6;
+const SLOTS = HALKA_YUVA;
+const SAFAK = SAFAK_YUVA;
 
 const safakMi = (c: Equippable) => /şafak/i.test(c.name);
 
-/** Kod: 14 kristal "-" ile, sonra "~" ve 6 şafak. Eski (tek parçalı) kodlar da okunur. */
+/** Kod: halka yuvaları "-" ile, sonra "~" ve şafak yuvaları. Eski kodlar da okunur. */
 function coz(code: string | null): { ana: (number | null)[]; safak: (number | null)[] } {
   const bos = (n: number) => Array<number | null>(n).fill(null);
   if (!code) return { ana: bos(SLOTS), safak: bos(SAFAK) };
@@ -117,7 +109,7 @@ function Icerik() {
 
   return (
     <TestShell title="Kristal Kurulumu"
-               subtitle="Her parçanın iki yuvası, altta Şafak kristalleri · kaydet, istersen klanla paylaş">
+               subtitle="Oyundaki kristal panosu · altta Şafak kristalleri · kaydet, istersen klanla paylaş">
       <div className="space-y-3">
         <BuildKaydet kind="kristal" code={kod} ad={ad} onAd={setAd} onYukle={yukle} benId={session?.user?.id} />
 
@@ -133,38 +125,15 @@ function Icerik() {
               </button>
             </div>
 
-            <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))" }}>
-              {PARCALAR.map((p, gi) => (
-                <div key={p.ad} className="rounded-lg p-2.5"
-                     style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
-                  <div className="text-[10.5px] uppercase tracking-[0.08em] mb-2" style={{ color: "var(--t-faint)" }}>{p.ad}</div>
-                  <div className="flex gap-2">
-                    {[0, 1].map((k) => {
-                      const i = gi * 2 + k;
-                      return (
-                        <Slot key={i} item={secili[i]} size={52}
-                              onPick={() => setPicking({ tur: "ana", i })}
-                              onClear={() => yaz(slots.map((v, j) => (j === i ? null : v)), safak)} />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Şafak kristalleri */}
-            <div className="mt-3 rounded-lg p-2.5" style={{ background: "var(--t-raised)", border: "1px solid rgba(239,95,95,.28)" }}>
-              <div className="text-[10.5px] uppercase tracking-[0.08em] mb-2" style={{ color: "var(--t-faint)" }}>
-                Şafak Kristalleri <span style={{ color: "var(--t-faint)" }}>· {safakKristalleri.length} çeşit</span>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {seciliSafak.map((c, i) => (
-                  <Slot key={i} item={c} size={52}
-                        onPick={() => setPicking({ tur: "safak", i })}
-                        onClear={() => yaz(slots, safak.map((v, j) => (j === i ? null : v)))} />
-                ))}
-              </div>
-            </div>
+            <KristalTahtasi
+              halka={secili}
+              safak={seciliSafak}
+              safakCesit={safakKristalleri.length}
+              onSec={(tur, i) => setPicking({ tur: tur === "halka" ? "ana" : "safak", i })}
+              onSil={(tur, i) => (tur === "halka"
+                ? yaz(slots.map((v, j) => (j === i ? null : v)), safak)
+                : yaz(slots, safak.map((v, j) => (j === i ? null : v))))}
+            />
 
             {asim.length > 0 && (
               <div className="flex items-start gap-2.5 mt-3 px-3 py-2 rounded-lg"

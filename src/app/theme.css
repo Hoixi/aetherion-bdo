@@ -286,3 +286,17 @@
 }
 .nw-pin:hover b { opacity: 1; }
 .nw-pin.kale b { opacity: 1; top: 14px; }
+
+/* Kristal tahtası — halka düzenindeki yuvalar */
+.kristal-yuva { position: relative; display: inline-flex; }
+.kristal-yuva.buyuk::before,
+.kristal-yuva.merkez::before {
+  content: ""; position: absolute; inset: -7px; border-radius: 14px;
+  border: 1px solid rgba(232, 180, 81, 0.35);
+  background: radial-gradient(circle at 50% 0%, rgba(232, 180, 81, 0.12), transparent 70%);
+  pointer-events: none;
+}
+.kristal-yuva.merkez::before {
+  inset: -9px; border-color: rgba(239, 95, 95, 0.45);
+  background: radial-gradient(circle, rgba(239, 95, 95, 0.14), transparent 70%);
+}
