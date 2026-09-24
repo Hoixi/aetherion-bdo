@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
   const performances = await prisma.warPerformance.findMany({
     where,
     orderBy: { damageDealt: "desc" },
+    // Ham paket kaydı sayfalara gitmiyor; yüzlerce satırda boşuna yük
+    omit: { reportData: true },
     include: {
       user: {
         select: {

@@ -6,11 +6,11 @@ import { useSession } from "next-auth/react";
 import {
   Swords, Skull, Flame, Shield, Lock, Heart, HandHeart, Castle, Crosshair,
   Bomb, Ruler, Zap, AlertTriangle, ArrowUpDown, LayoutGrid, LayoutList,
-  Trophy, Send, Image as ImageIcon, ChevronRight,
+  Trophy, Send, Image as ImageIcon, ChevronRight, Timer, Hourglass,
 } from "lucide-react";
 import { getClassByID, getPortraitUrl, getClassIconUrl, getClassBannerUrl } from "@/lib/classes";
 import {
-  TestShell, Card, Bar, GuildTag, Empty, fmt, loadJson, type Guild,
+  TestShell, Card, Bar, GuildTag, Empty, fmtTam, fmtSure, loadJson, type Guild,
 } from "@/components/app-shell";
 
 /**
@@ -19,6 +19,12 @@ import {
  * İki mod var: tek savaş ya da bütün savaşların ortalaması. Ortalamada
  * seri ve top mesafesi ortalanmıyor — o ikisi "en iyi ne yaptı" sorusunun
  * cevabı, ortalaması bir şey anlatmıyor.
+ *
+ * Sayılar kısaltılmıyor: uygulama savaş raporunu oyundan birebir
+ * çektiğinden değerler kuruşuna kadar doğru, "827K" bunu geri saklıyordu.
+ * Ekran görüntüsünden okunan eski kayıtlar zaten yuvarlak geliyor, aynı
+ * biçimde basılınca ikisi yan yana karşılaştırılabiliyor; hangisinin
+ * oyundan geldiğini satırdaki "RAPOR" rozeti söylüyor.
  */
 
 type War = { id: number; title: string; date: string };
@@ -34,6 +40,9 @@ type Performance = {
   hpHeal: number; allyHpHeal: number; castleDamage: number;
   cannonHits: number; cannonDestroys: number; cannonMaxRange: number;
   trapExplosions: number;
+  survivalSeconds: number | null; deathSeconds: number | null;
+  /** Dolu ise satır oyun içi rapordan birebir alınmış */
+  reportUpdatedAt: string | null;
   user: { id: number; familyName: string; avatarUrl: string; class: string; guild?: (Guild & { id: number }) | null } | null;
   war: { id: number; title: string; date: string };
 };
@@ -50,6 +59,8 @@ type Row = {
   hpHeal: number; allyHpHeal: number; castleDamage: number;
   cannonHits: number; cannonDestroys: number; cannonMaxRange: number;
   trapExplosions: number;
+  survivalSeconds: number | null; deathSeconds: number | null;
+  raporlu: boolean;
   warCount: number;
   warId?: number;
   warTitle?: string;
@@ -75,7 +86,7 @@ const SORTS: { key: SortKey; label: string }[] = [
  */
 const PENCERELER = [5, 10, 20] as const;
 
-/** Kısaltılarak gösterilecek metrikler — geri kalanı ondalıklı sayı */
+/** Binlik ayraçlı tam sayı gösterilecek metrikler — geri kalanı ondalıklı */
 const BIG: SortKey[] = ["damageDealt", "hpHeal", "castleDamage"];
 
 const MEDAL = ["#e8b451", "#c8ccd4", "#b87333"];
@@ -141,6 +152,8 @@ export default function HasarRaporuPage() {
         hpHeal: p.hpHeal, allyHpHeal: p.allyHpHeal, castleDamage: p.castleDamage,
         cannonHits: p.cannonHits, cannonDestroys: p.cannonDestroys,
         cannonMaxRange: p.cannonMaxRange, trapExplosions: p.trapExplosions,
+        survivalSeconds: p.survivalSeconds, deathSeconds: p.deathSeconds,
+        raporlu: p.reportUpdatedAt != null,
         warCount: 1, warId: p.war.id, warTitle: p.war.title,
       }));
     }
@@ -158,6 +171,11 @@ export default function HasarRaporuPage() {
       const first = list[0];
       const avg = (f: (p: Performance) => number) => list.reduce((s, p) => s + f(p), 0) / n;
       const max = (f: (p: Performance) => number) => Math.max(...list.map(f));
+      /** Süreler her savaşta yok; olanların ortalaması alınıyor */
+      const avgVar = (f: (p: Performance) => number | null) => {
+        const v = list.map(f).filter((x): x is number => x != null);
+        return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+      };
       return {
         key: k,
         name: first.user?.familyName || first.inGameName,
@@ -171,6 +189,8 @@ export default function HasarRaporuPage() {
         allyHpHeal: avg((p) => p.allyHpHeal), castleDamage: avg((p) => p.castleDamage),
         cannonHits: avg((p) => p.cannonHits), cannonDestroys: avg((p) => p.cannonDestroys),
         cannonMaxRange: max((p) => p.cannonMaxRange), trapExplosions: avg((p) => p.trapExplosions),
+        survivalSeconds: avgVar((p) => p.survivalSeconds), deathSeconds: avgVar((p) => p.deathSeconds),
+        raporlu: list.some((p) => p.reportUpdatedAt != null),
         warCount: n,
       };
     });
@@ -355,7 +375,7 @@ export default function HasarRaporuPage() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { l: "Ort. Hasar", v: fmt(g.avgDamage), c: "var(--t-gold)" },
+                  { l: "Ort. Hasar", v: fmtTam(g.avgDamage), c: "var(--t-gold)" },
                   { l: "Ort. Kill", v: Math.round(g.avgKills * 10) / 10, c: "var(--t-text)" },
                   { l: "Ort. Ölüm", v: Math.round(g.avgDeaths * 10) / 10, c: "var(--t-dim)" },
                 ].map((x) => (
@@ -456,7 +476,10 @@ function PerfCard({ r, rank, sortKey, sortLabel, top, dense, aggregate }: {
   const banner = cls ? getClassBannerUrl(cls.classType) : "";
   const pct = top > 0 ? Math.round((r[sortKey] / top) * 100) : 0;
   const medal = MEDAL[rank - 1];
-  const value = BIG.includes(sortKey) ? fmt(r[sortKey]) : Math.round(r[sortKey] * 10) / 10;
+  const value = BIG.includes(sortKey) ? fmtTam(r[sortKey]) : Math.round(r[sortKey] * 10) / 10;
+  // Top alanları yakalanan raporda henüz çözülmedi: hepsi sıfır geliyor,
+  // "0" basmak yanlış bilgi olur — sadece gerçekten veri varken göster
+  const topVar = r.cannonHits > 0 || r.cannonDestroys > 0 || r.cannonMaxRange > 0;
 
   return (
     <Card hi={rank <= 3} className="relative overflow-hidden">
@@ -519,6 +542,14 @@ function PerfCard({ r, rank, sortKey, sortLabel, top, dense, aggregate }: {
                   {r.spec === "succession" ? "SUC" : "AWK"}
                 </span>
               )}
+              {r.raporlu && (
+                <span title="Sayılar oyun içi savaş raporundan birebir alındı"
+                      className="text-[9px] font-bold uppercase rounded px-1 py-px leading-none"
+                      style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                               border: "1px solid rgba(232,180,81,.3)" }}>
+                  Rapor
+                </span>
+              )}
             </div>
 
             <p className="text-[10px] mt-0.5" style={{ color: "var(--t-faint)" }}>
@@ -545,20 +576,30 @@ function PerfCard({ r, rank, sortKey, sortLabel, top, dense, aggregate }: {
         <div className="grid grid-cols-2 gap-x-3 gap-y-1">
           <Stat icon={Swords} label="Kill" value={Math.round(r.kills * 10) / 10} />
           <Stat icon={Skull} label="Ölüm" value={Math.round(r.deaths * 10) / 10} tone="var(--t-dim)" />
-          <Stat icon={Flame} label="Ver. Hasar" value={fmt(r.damageDealt)} tone="var(--t-gold)" />
-          <Stat icon={Shield} label="Al. Hasar" value={fmt(r.damageTaken)} tone="#ef8080" />
+          <Stat icon={Flame} label="Ver. Hasar" value={fmtTam(r.damageDealt)} tone="var(--t-gold)" />
+          <Stat icon={Shield} label="Al. Hasar" value={fmtTam(r.damageTaken)} tone="#ef8080" />
           <Stat icon={Lock} label="CC" value={Math.round(r.ccCount * 10) / 10} />
-          <Stat icon={Castle} label="Kale" value={fmt(r.castleDamage)} tone="#f0994c" />
+          <Stat icon={Castle} label="Kale" value={fmtTam(r.castleDamage)} tone="#f0994c" />
         </div>
 
         {!dense && (
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2.5 pt-2.5"
                style={{ borderTop: "1px solid var(--t-line)" }}>
-            <Stat icon={Heart} label="HP Yenile" value={fmt(r.hpHeal)} tone="#5fd39a" />
-            <Stat icon={HandHeart} label="Mütt. HP" value={fmt(r.allyHpHeal)} tone="#5fd39a" />
-            <Stat icon={Crosshair} label="Top İsabet" value={Math.round(r.cannonHits * 10) / 10} />
-            <Stat icon={Bomb} label="Top Yok" value={Math.round(r.cannonDestroys * 10) / 10} />
-            <Stat icon={Ruler} label="Top Mesafe" value={Math.round(r.cannonMaxRange)} />
+            <Stat icon={Heart} label="HP Yenile" value={fmtTam(r.hpHeal)} tone="#5fd39a" />
+            <Stat icon={HandHeart} label="Mütt. HP" value={fmtTam(r.allyHpHeal)} tone="#5fd39a" />
+            {r.survivalSeconds != null && (
+              <Stat icon={Timer} label="Hayatta" value={fmtSure(r.survivalSeconds)} />
+            )}
+            {r.deathSeconds != null && (
+              <Stat icon={Hourglass} label="Ölü" value={fmtSure(r.deathSeconds)} tone="var(--t-dim)" />
+            )}
+            {topVar && (
+              <>
+                <Stat icon={Crosshair} label="Top İsabet" value={Math.round(r.cannonHits * 10) / 10} />
+                <Stat icon={Bomb} label="Top Yok" value={Math.round(r.cannonDestroys * 10) / 10} />
+                <Stat icon={Ruler} label="Top Mesafe" value={Math.round(r.cannonMaxRange)} />
+              </>
+            )}
             <Stat icon={Zap} label="Tuzak" value={Math.round(r.trapExplosions * 10) / 10} />
             <Stat icon={Flame} label="Seri" value={Math.round(r.killStreak)} />
           </div>

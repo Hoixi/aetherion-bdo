@@ -358,6 +358,23 @@ export function GuildTag({ g }: { g: Guild }) {
   );
 }
 
+/**
+ * Tam sayı — oyun içi raporun kendi yazımı, binlik ayraçlı.
+ *
+ * Yakalanan savaş raporu sayıları birebir getiriyor (826,876); kısaltma
+ * bunu "827K"ya indirip bilgiyi çöpe atıyor. Ayraç oyundaki gibi virgül
+ * olsun ki iki ekran yan yana karşılaştırılabilsin.
+ */
+export function fmtTam(n: number): string {
+  return Math.round(n).toLocaleString("en-US");
+}
+
+/** Saniye → "12:34"; rapor süre alanları için */
+export function fmtSure(sn: number): string {
+  const s = Math.max(0, Math.round(sn));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 /** Büyük sayıları kısaltır — tablolarda hizayı bozmasın */
 export function fmt(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";

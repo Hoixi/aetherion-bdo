@@ -16,7 +16,7 @@ import { getTypeName, BDO_CLASSES } from "@/lib/classes";
 import { classifyAttendance, ATTENDANCE_META, attendanceKnown } from "@/lib/attendance";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import {
-  TestShell, Card, Head, Empty, GuildTag, fmt, type Guild,
+  TestShell, Card, Head, Empty, GuildTag, fmtTam, fmtSure, type Guild,
 } from "@/components/app-shell";
 
 /**
@@ -62,6 +62,9 @@ type WarPerf = {
   hpHeal: number; allyHpHeal: number; castleDamage: number;
   cannonHits: number; cannonDestroys: number; cannonMaxRange: number;
   trapExplosions: number;
+  survivalSeconds: number | null; deathSeconds: number | null;
+  /** Dolu ise satır oyun içi rapordan birebir alınmış */
+  reportUpdatedAt: string | null;
   user: { familyName: string; avatarUrl: string; class: string } | null;
 };
 
@@ -82,6 +85,12 @@ const PERF_COLS = [
   { key: "castleDamage", label: "Kale", tone: "#f0994c", big: true },
   { key: "cannonHits", label: "Top", tone: "var(--t-dim)" },
   { key: "trapExplosions", label: "Tuzak", tone: "var(--t-dim)" },
+] as const;
+
+/** Süre sütunları: ekran görüntüsünden okunan eski raporlarda yok */
+const SURE_COLS = [
+  { key: "survivalSeconds", label: "Hayatta", tone: "var(--t-dim)" },
+  { key: "deathSeconds", label: "Ölü", tone: "var(--t-dim)" },
 ] as const;
 
 type Tab = "katilim" | "partiler" | "rapor";
@@ -694,10 +703,17 @@ function Rapor({ perfs, absent }: {
     return <Empty>Bu savaşın hasar raporu henüz yüklenmedi.</Empty>;
   }
 
+  // Top alanları oyun içi rapordan henüz çözülmedi; hepsi sıfırsa sütun
+  // yer kaplamasın. Süreler de yalnızca gelen raporlarda var.
+  const kolonlar = PERF_COLS.filter((c) => c.key !== "cannonHits" || perfs.some((p) => p.cannonHits > 0));
+  const sureKolon = SURE_COLS.filter((c) => perfs.some((p) => p[c.key] != null));
+  const raporlu = perfs.filter((p) => p.reportUpdatedAt).length;
+
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
-        <Head icon={Swords} title="Hasar Raporu" meta={`${perfs.length} OYUNCU`} />
+        <Head icon={Swords} title="Hasar Raporu"
+              meta={raporlu ? `${perfs.length} OYUNCU · ${raporlu} RAPOR` : `${perfs.length} OYUNCU`} />
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead>
@@ -706,7 +722,7 @@ function Rapor({ perfs, absent }: {
                     style={{ color: "var(--t-faint)" }}>
                   Aile Adı
                 </th>
-                {PERF_COLS.map((c) => (
+                {[...kolonlar, ...sureKolon].map((c) => (
                   <th key={c.key}
                       className="text-right py-2.5 px-3 text-[10px] uppercase tracking-[0.06em] font-medium whitespace-nowrap"
                       style={{ color: "var(--t-faint)" }}>
@@ -722,14 +738,30 @@ function Rapor({ perfs, absent }: {
                     <div className="flex items-center gap-2">
                       <Ava src={p.user?.avatarUrl} size={20} />
                       <span className="font-medium whitespace-nowrap">{p.inGameName}</span>
+                      {p.reportUpdatedAt && (
+                        <span title="Sayılar oyun içi savaş raporundan birebir alındı"
+                              className="text-[9px] font-bold uppercase rounded px-1 py-px leading-none flex-shrink-0"
+                              style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                                       border: "1px solid rgba(232,180,81,.3)" }}>
+                          Rapor
+                        </span>
+                      )}
                     </div>
                   </td>
-                  {PERF_COLS.map((c) => {
+                  {kolonlar.map((c) => {
                     const val = p[c.key as keyof WarPerf] as number;
                     return (
                       <td key={c.key} className="py-2 px-3 text-right t-num"
                           style={{ color: c.tone, fontWeight: "bold" in c && c.bold ? 600 : 400 }}>
-                        {"big" in c && c.big ? fmt(val) : val}
+                        {"big" in c && c.big ? fmtTam(val) : val}
+                      </td>
+                    );
+                  })}
+                  {sureKolon.map((c) => {
+                    const val = p[c.key];
+                    return (
+                      <td key={c.key} className="py-2 px-3 text-right t-num" style={{ color: c.tone }}>
+                        {val == null ? "—" : fmtSure(val)}
                       </td>
                     );
                   })}
