@@ -156,6 +156,7 @@ model User {
   voiceRooms           VoiceRoom[]
   chatMessages         ChatMessage[]
   characters           UserCharacter[]
+  builds               Build[]
 
   @@map("users")
 }
@@ -386,6 +387,30 @@ model UserCharacter {
 
   @@unique([userId, class, spec])
   @@map("user_characters")
+}
+
+/**
+ * Kayıtlı kurulum: kristal ya da eser/ışık taşı dizilimi.
+ *
+ * `code` sayfanın adres çubuğunda kullandığı kısa kod (bkz. components/
+ * loadout.tsx encodeSet) — kurulumun kendisi o. Herkese açık olanları
+ * bütün üyeler görüyor, kapalı olanı yalnızca sahibi.
+ */
+model Build {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  /** "kristal" | "eser" */
+  kind      String
+  name      String   @db.VarChar(60)
+  code      String   @db.Text
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([kind, isPublic])
+  @@map("builds")
 }
 
 model Announcement {

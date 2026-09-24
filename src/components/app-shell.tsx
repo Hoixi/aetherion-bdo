@@ -49,6 +49,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[]; yonetici?: boo
   ] },
   { key: "Build", icon: Hammer, items: [
     { label: "Karakterim", href: "/profil", icon: Shield },
+    { label: "Build", href: "/build", icon: Gem },
     { label: "Eşya Veritabanı", href: "/esyalar", icon: Package },
     { label: "Kristal Kurulumu", href: "/kristaller", icon: Gem },
     { label: "Eser & Işık Taşı", href: "/eserler", icon: SparklesIcon },

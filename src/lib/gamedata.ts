@@ -419,6 +419,32 @@ export async function listCrystals(): Promise<EquipItem[]> {
   return rows.map(toEquip);
 }
 
+/**
+ * Tüketilenler — iksirler ve yemekler.
+ *
+ * Build ekranında "ne içiyorsun / ne yiyorsun" için; 558 kayıt içinden
+ * savaşta kullanılan başlıklar (saldırı/savunma/fonksiyonel iksir, yemek,
+ * eşsiz yemek). Pot ve kuşatma eşyaları dışarıda: build'in konusu değil.
+ */
+export async function listConsumables(): Promise<{ iksirler: EquipItem[]; yemekler: EquipItem[] }> {
+  const rows = await db.$queryRaw<Array<{
+    id: string; name: string; grade: number; icon: string | null;
+    sub: string | null; data: Record<string, unknown>;
+  }>>`
+    select m.id, m.name, m.grade, m.icon, m.market_sub_category as sub, e.data
+    from gamedata.mv_item m
+    join gamedata.entity e on e.entity_id = m.id and e.dataset = 'items'
+    where m.market_category = 'Tüketilenler'
+      and m.market_sub_category in ('Saldırı İksiri', 'Savunma İksiri', 'Fonksiyonel İksir', 'Yemek', 'Eşsiz Yemek')
+    order by m.market_sub_category, m.grade desc, m.name
+  `;
+  const all = rows.map(toEquip);
+  return {
+    iksirler: all.filter((i) => (i.subCategory ?? "").includes("İksir")),
+    yemekler: all.filter((i) => (i.subCategory ?? "").includes("Yemek")),
+  };
+}
+
 /** Eserler (50) ve isik taslari (93) - ikisi de ayni kategoride duruyor. */
 export async function listArtifacts(): Promise<{ artifacts: EquipItem[]; lightstones: EquipItem[] }> {
   const rows = await db.$queryRaw<Array<{

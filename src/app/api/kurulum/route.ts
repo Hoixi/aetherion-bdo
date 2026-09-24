@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import {
   listCrystals, listArtifacts, listLightstoneCombos, lightstoneAliases,
-  listSkillClasses, listSkills, listAddonEffects,
+  listSkillClasses, listSkills, listAddonEffects, listConsumables,
 } from "@/lib/gamedata";
 
 /**
@@ -30,6 +30,9 @@ export async function GET(req: Request) {
         listArtifacts(), listLightstoneCombos(), lightstoneAliases(),
       ]);
       return NextResponse.json({ artifacts, lightstones, combos, aliases });
+    }
+    if (what === "tuketilen") {
+      return NextResponse.json(await listConsumables());
     }
     if (what === "beceri") {
       const [classes, skills, addons] = await Promise.all([

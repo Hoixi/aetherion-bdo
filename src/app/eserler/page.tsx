@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Sparkles, Link2, Check, CircleDot } from "lucide-react";
 import { TestShell, Card, Empty, loadJson } from "@/components/app-shell";
 import { Slot, Picker, StatTotals, sumStats, encodeSet, decodeSet, type Equippable, type StatRow }
   from "@/components/loadout";
 import { gradeOf } from "@/lib/bdo-text";
 import { statTr, formatTotal } from "@/lib/bdo-stats";
+import { BuildKaydet, type KayitliBuild } from "@/components/build-kaydet";
 
 /**
  * Eser ve ışık taşı kurulumu.
@@ -23,8 +25,14 @@ const STONE_SLOTS = 4;
 interface Combo { id: string; name: string; required: string[]; stats: StatRow[] }
 
 export default function EserlerPage() {
+  return <Suspense fallback={<TestShell title="Eser & Işık Taşı"><Empty>Yükleniyor…</Empty></TestShell>}><Icerik /></Suspense>;
+}
+
+function Icerik() {
   const router = useRouter();
   const params = useSearchParams();
+  const { data: session } = useSession();
+  const [ad, setAd] = useState("");
 
   const [artifacts, setArtifacts] = useState<Equippable[]>([]);
   const [lightstones, setLightstones] = useState<Equippable[]>([]);
@@ -100,6 +108,23 @@ export default function EserlerPage() {
 
   const comboStats = useMemo(() => sumStats(allSources), [allSources]);
 
+  /** Kayıt kodu: "eserler~taşlar" — tek dize, kayıtta da adres çubuğunda da aynı */
+  const kod = useMemo(() => {
+    const p = (x: (number | null)[]) => x.map((v) => (v == null ? "" : String(v))).join("-").replace(/-+$/, "");
+    return `${p(eser)}~${p(tas)}`.replace(/^~$/, "");
+  }, [eser, tas]);
+
+  function yukleKayit(b: KayitliBuild) {
+    const [e = "", t = ""] = b.code.split("~");
+    const say = (raw: string, n: number) => {
+      const out: (number | null)[] = Array(n).fill(null);
+      raw.split("-").slice(0, n).forEach((x, i) => { const v = Number(x); out[i] = x !== "" && Number.isFinite(v) ? v : null; });
+      return out;
+    };
+    setAd(b.name);
+    sync(say(e, ARTIFACT_SLOTS), say(t, STONE_SLOTS));
+  }
+
   const share = () => {
     navigator.clipboard?.writeText(window.location.href).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 1800);
@@ -129,6 +154,8 @@ export default function EserlerPage() {
     <TestShell title="Eser & Işık Taşı"
                subtitle="Işık taşlarını yerleştir, açılan kombinasyonu ve etkilerini gör">
       <div className="grid gap-4">
+        <BuildKaydet kind="eser" code={kod.replace(/[-~]/g, "") ? kod : ""} ad={ad} onAd={setAd}
+                     onYukle={yukleKayit} benId={session?.user?.id} />
         <Card hi className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-4 h-4" style={{ color: "var(--t-gold)" }} />
