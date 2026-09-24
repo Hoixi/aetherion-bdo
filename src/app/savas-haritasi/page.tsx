@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
 import {
   Search, Swords, Upload, MapPin, Castle, Users, Skull, X, ChevronLeft, Crosshair, Flame,
+  Move, RotateCcw, Check,
 } from "lucide-react";
 import { TestShell } from "@/components/app-shell";
 import { olaylariCoz, olayOzeti, type SavasOlayi } from "@/lib/savas-olaylari";
@@ -38,9 +40,11 @@ const AKTIF_SAYI = SAVAS_NODLARI.filter((n) => n.aktif).length;
 const KALE_SAYI = SAVAS_NODLARI.filter((n) => n.kale).length;
 
 export default function SavasHaritasiPage() {
+  const { data: session } = useSession();
+  const yonetici = !!session?.user?.canManageWars;
   const [sekme, setSekme] = useState<"mevzi" | "savas">("mevzi");
   const [ara, setAra] = useState("");
-  const [secili, setSecili] = useState<HaritaNode | null>(null);
+  const [seciliHam, setSecili] = useState<HaritaNode | null>(null);
   const [olaylar, setOlaylar] = useState<SavasOlayi[]>([]);
   const [seciliOlay, setSeciliOlay] = useState<number | null>(null);
   const [ham, setHam] = useState("");
@@ -55,9 +59,50 @@ export default function SavasHaritasiPage() {
   const [karoHata, setKaroHata] = useState(false);
   /** Kuşatma kalesi sahaları — savaş mevzilerinden bağımsız katman */
   const [kaleler, setKaleler] = useState(true);
+  /** Elle düzeltilmiş kale konumları: nodeKey → [x, z] */
+  const [elleKale, setElleKale] = useState<Record<number, [number, number]>>({});
+  /** Konumu taşınan mevzi — haritaya tıklayınca kaydediliyor */
+  const [tasinan, setTasinan] = useState<HaritaNode | null>(null);
   const dosya = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 4000); return () => clearTimeout(t); }, [msg]);
+
+  useEffect(() => {
+    fetch("/api/harita/kaleler").then((r) => (r.ok ? r.json() : { kaleler: [] }))
+      .then((d: { kaleler: Array<{ nodeKey: number; x: number; z: number }> }) => {
+        const m: Record<number, [number, number]> = {};
+        for (const k of d.kaleler ?? []) m[k.nodeKey] = [k.x, k.z];
+        setElleKale(m);
+      })
+      .catch(() => {});
+  }, []);
+
+  /** Elle kayıt varsa türetilmiş konumun yerine geçer */
+  const kaleKonumlu = useMemo(
+    () => NODLAR.map((n) => {
+      const e = elleKale[n.key];
+      return e ? { ...n, kaleX: e[0], kaleZ: e[1], kaleUzak: Math.round(Math.hypot(e[0] - n.x, e[1] - n.z) / 100) } : n;
+    }),
+    [elleKale],
+  );
+
+  /** Panelde elle ayarlanmış konum görünsün diye güncel kayıttan okunuyor */
+  const secili = seciliHam ? kaleKonumlu.find((n) => n.key === seciliHam.key) ?? seciliHam : null;
+
+  async function kaleKaydet(n: HaritaNode, x: number, z: number) {
+    setElleKale((p) => ({ ...p, [n.key]: [x, z] }));
+    setTasinan(null);
+    const r = await fetch("/api/harita/kaleler", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nodeKey: n.key, x, z }),
+    });
+    setMsg(r.ok ? `${n.ad} kalesi taşındı.` : "Kaydedilemedi.");
+  }
+  async function kaleSifirla(n: HaritaNode) {
+    setElleKale((p) => { const k = { ...p }; delete k[n.key]; return k; });
+    const r = await fetch(`/api/harita/kaleler?nodeKey=${n.key}`, { method: "DELETE" });
+    setMsg(r.ok ? `${n.ad} kalesi varsayılana döndü.` : "Sıfırlanamadı.");
+  }
 
   const liste = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase("tr");
@@ -73,11 +118,11 @@ export default function SavasHaritasiPage() {
 
   /** Haritaya giden düğümler — süzgeç açıkken yalnızca savaşı açık olanlar */
   const haritaNodlari = useMemo(
-    () => NODLAR.filter((n) =>
+    () => kaleKonumlu.filter((n) =>
       n.tur === "sehir" ? true
         : n.kale ? kaleler
           : !sadeceAktif || !!n.aktif),
-    [sadeceAktif, kaleler],
+    [sadeceAktif, kaleler, kaleKonumlu],
   );
 
   const gorunen = useMemo(
@@ -131,8 +176,18 @@ export default function SavasHaritasiPage() {
           odak={odak}
           odakKey={odakKey}
           onKaroHata={() => setKaroHata(true)}
+          onNokta={tasinan ? (x, z) => void kaleKaydet(tasinan, x, z) : null}
           className="absolute inset-0"
         />
+
+        {tasinan && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] px-3 py-2 rounded-[var(--t-r-sm)] text-[12px] flex items-center gap-2"
+               style={{ background: "rgba(16,16,19,.96)", border: "1px solid rgba(232,180,81,.45)" }}>
+            <Crosshair className="w-3.5 h-3.5" style={{ color: "var(--t-gold)" }} />
+            <span><b>{tasinan.ad}</b> kalesinin doğru yerine tıkla</span>
+            <button onClick={() => setTasinan(null)} className="t-tab">Vazgeç</button>
+          </div>
+        )}
 
         {karoHata && (
           <div className="absolute top-3 right-14 z-[500] px-3 py-2 rounded-[var(--t-r-sm)] text-[11.5px]"
@@ -217,7 +272,23 @@ export default function SavasHaritasiPage() {
                     </div>
                     <p className="t-num text-[10.5px]" style={{ color: "var(--t-faint)" }}>
                       oyun konumu {secili.x}, {secili.z}
+                      {elleKale[secili.key] && <span style={{ color: "var(--t-good)" }}> · kale elle ayarlı</span>}
                     </p>
+                    {yonetici && secili.tur === "savas" && (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setTasinan(tasinan?.key === secili.key ? null : secili)}
+                                className="t-tab" data-on={tasinan?.key === secili.key}>
+                          {tasinan?.key === secili.key
+                            ? <><Check className="w-3.5 h-3.5" /> Haritaya tıkla</>
+                            : <><Move className="w-3.5 h-3.5" /> Kaleyi taşı</>}
+                        </button>
+                        {elleKale[secili.key] && (
+                          <button onClick={() => void kaleSifirla(secili)} className="t-tab">
+                            <RotateCcw className="w-3.5 h-3.5" /> Varsayılan
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

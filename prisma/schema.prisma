@@ -147,6 +147,7 @@ model User {
   mapPoints            MapPoint[]     @relation("MapPointCreator")
   mapPointsDone        MapPointDone[]
   fortPlans            FortPlan[]     @relation("FortPlanEditor")
+  nodeForts            NodeFort[]     @relation("NodeFortEditor")
   appPairCodes         AppPairCode[]
   appTokens            AppToken[]
   castleBuffReports    CastleBuff[]   @relation("CastleBuffReporter")
@@ -181,6 +182,27 @@ model FortPlan {
   editor User @relation("FortPlanEditor", fields: [updatedBy], references: [id])
 
   @@map("fort_plans")
+}
+
+/**
+ * Mevzi kalesinin konumu — elle düzeltme.
+ *
+ * Varsayılan konumlar garmoth kurulum haritalarından türetildi ve oyundaki
+ * yerinden biraz kayabiliyor. Yöneticiler haritadan doğru noktayı işaretleyip
+ * kaydediyor; kayıt yoksa türetilmiş konum kullanılıyor.
+ */
+model NodeFort {
+  /// Oyun içi düğüm anahtarı (nodlar.json `key`)
+  nodeKey   Int      @id
+  /// Ham oyun koordinatı
+  x         Float
+  z         Float
+  updatedBy Int
+  updatedAt DateTime @updatedAt
+
+  editor User @relation("NodeFortEditor", fields: [updatedBy], references: [id])
+
+  @@map("node_forts")
 }
 
 // ── GeoGuessr mini-game ─────────────────────────────────────────────────────

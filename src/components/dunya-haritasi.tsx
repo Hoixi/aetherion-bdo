@@ -36,6 +36,8 @@ type Props = {
   odakKey?: string;
   /** Karolar yüklenemiyorsa (sunucu kapalı, yanlış adres) bir kez haber verir */
   onKaroHata?: () => void;
+  /** Dolu ise haritaya tıklama oyun koordinatı döndürür (kale konumu taşıma) */
+  onNokta?: ((x: number, z: number) => void) | null;
   className?: string;
 };
 
@@ -44,7 +46,7 @@ const DEATH = "#ef5f5f";
 
 export default function DunyaHaritasi({
   nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false,
-  odak, odakKey, onKaroHata, className,
+  odak, odakKey, onKaroHata, onNokta, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -56,6 +58,7 @@ export default function DunyaHaritasi({
   const [zoom, setZoom] = useState(3);
   const nodeCb = useRef(onNode); nodeCb.current = onNode;
   const hataCb = useRef(onKaroHata); hataCb.current = onKaroHata;
+  const noktaCb = useRef(onNokta); noktaCb.current = onNokta;
   const olayCb = useRef(onOlay); olayCb.current = onOlay;
 
   useEffect(() => {
@@ -118,6 +121,11 @@ export default function DunyaHaritasi({
         .on("tileerror", () => { if (!yuklendi && ++hata >= 6) hataCb.current?.(); })
         .addTo(map);
       L.control.zoom({ position: "topright" }).addTo(map);
+
+      map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
+        const [x, z] = projToDunya(e.latlng.lat, e.latlng.lng);
+        noktaCb.current?.(Math.round(x), Math.round(z));
+      });
 
       nodeRef.current = L.layerGroup().addTo(map);
       olayRef.current = L.layerGroup().addTo(map);
@@ -261,7 +269,10 @@ export default function DunyaHaritasi({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [odakKey, ready]);
 
-  return <div ref={boxRef} className={className} style={{ background: "#11202a" }} />;
+  return (
+    <div ref={boxRef} className={className}
+         style={{ background: "#11202a", cursor: onNokta ? "crosshair" : undefined }} />
+  );
 }
 
 /** Fare konumundan oyun koordinatı — geliştirirken kalibrasyon kontrolü için */
