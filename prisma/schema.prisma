@@ -157,6 +157,7 @@ model User {
   chatMessages         ChatMessage[]
   characters           UserCharacter[]
   builds               Build[]
+  combatLogs           CombatLog[]
 
   @@map("users")
 }
@@ -283,6 +284,7 @@ model War {
   discordMessages     String   @default("[]") @db.Text
   /** Discord "Zamanlanmış Etkinlik" kimliği — savaş açılınca oluşturulur, tarih/başlık değişince güncellenir */
   discordEventId      String?
+  combatLogs          CombatLog[]
   reminder10hSent     Boolean  @default(false)
   reminder4hSent      Boolean  @default(false)
   reminder10hMsgId    String?
@@ -411,6 +413,51 @@ model Build {
 
   @@index([kind, isPublic])
   @@map("builds")
+}
+
+/**
+ * Savaş günlüğü — oyunun savaş kaydından çıkan öldürme olayları.
+ *
+ * Kaynak ya masaüstü uygulamasının canlı kaydı ya da elle yüklenen bir
+ * ikusa `.log` dosyası. Bir savaşa bağlanabilir (warId) ama zorunlu değil:
+ * sitede olmayan bir fight de yüklenebiliyor.
+ */
+model CombatLog {
+  id         Int      @id @default(autoincrement())
+  warId      Int?
+  title      String   @db.VarChar(120)
+  /** "logger" (canlı kayıt) | "import" (.log dosyası) */
+  source     String   @default("import")
+  startedAt  DateTime?
+  endedAt    DateTime?
+  uploadedBy Int
+  createdAt  DateTime @default(now())
+
+  war      War?       @relation(fields: [warId], references: [id], onDelete: SetNull)
+  uploader User       @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  kills    CombatKill[]
+
+  @@index([warId])
+  @@map("combat_logs")
+}
+
+/** Tek bir öldürme olayı; isimler oyundaki aile adları */
+model CombatKill {
+  id          Int      @id @default(autoincrement())
+  logId       Int
+  at          DateTime
+  killerName  String   @db.VarChar(40)
+  victimName  String   @db.VarChar(40)
+  /** olayın geçtiği klan etiketi (kaynakta tek klan alanı var) */
+  guildName   String?  @db.VarChar(60)
+  /** bizden mi (öldüren bizim üye) — yükleme sırasında eşleştirilir */
+  killerUserId Int?
+  victimUserId Int?
+
+  log CombatLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+  @@map("combat_kills")
 }
 
 model Announcement {
