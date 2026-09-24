@@ -145,13 +145,14 @@ export default function DunyaHaritasi({
 
     // Yakınlaştıkça daha çok etiket; aktif mevziler her zaman okunur
     const etiketli = (n: HaritaNode) =>
-      n.tur === "sehir" || n.aktif || zoom >= 5 || (zoom >= 3.5 && n.tier <= 2);
+      n.tur === "sehir" || n.aktif || n.kale || zoom >= 5 || (zoom >= 3.5 && n.tier <= 2);
 
     for (const n of nodlar) {
       const [lat, lng] = dunyaToProj(n.x, n.z);
       const secili = seciliKey === n.key;
       const sehir = n.tur === "sehir";
-      const renk = sehir ? "#8fd0e8" : TIER_RENK[n.tier] ?? "#e8b451";
+      // Kuşatma sahaları kademe renklerinden ayrı dursun
+      const renk = sehir ? "#8fd0e8" : n.kale ? "#c86fd8" : TIER_RENK[n.tier] ?? "#e8b451";
 
       if (secili && n.r > 0) {
         L.circle([lat, lng], {
@@ -161,7 +162,7 @@ export default function DunyaHaritasi({
       }
 
       // Aktif mevziler dışarıdan bir halkayla ayrılıyor
-      const boy = sehir ? 20 : n.aktif ? 26 : 18;
+      const boy = n.kale ? 30 : sehir ? 20 : n.aktif ? 26 : 18;
       const ikon = sehir ? IKON.sehir : n.kale ? IKON.kale : IKON.mevzi;
       L.marker([lat, lng], {
         icon: L.divIcon({
@@ -175,10 +176,11 @@ export default function DunyaHaritasi({
           iconSize: [boy, boy], iconAnchor: [boy / 2, boy / 2],
         }),
         // Seçili ve aktif olanlar diğerlerinin üstünde kalsın
-        zIndexOffset: secili ? 2000 : n.aktif ? 1000 : 0,
+        zIndexOffset: secili ? 2000 : n.kale ? 1500 : n.aktif ? 1000 : 0,
       })
         .bindTooltip(sehir ? n.ad
-                     : `${n.ad} · T${n.tier}${n.kale ? " · kale kuşatması" : ""}${n.aktif ? " · savaş açık" : ""}`,
+                     : n.kale ? `${n.ad} · kuşatma savaşı${n.aktif ? " · node war da açık" : ""}`
+                       : `${n.ad} · T${n.tier}${n.aktif ? " · savaş açık" : ""}`,
                      { direction: "top", opacity: 0.95 })
         .on("click", () => nodeCb.current?.(n))
         .addTo(katman);
@@ -189,9 +191,9 @@ export default function DunyaHaritasi({
           icon: L.divIcon({
             className: "",
             html: `<div style="white-space:nowrap;font-size:${sehir || n.aktif ? 11 : 10}px;
-                   font-weight:${n.aktif ? 700 : 600};
+                   font-weight:${n.aktif || n.kale ? 700 : 600};
                    color:${secili ? "#fff" : renk};text-shadow:0 1px 3px #000,0 0 6px #000;
-                   transform:translate(${n.aktif ? 17 : 12}px,-7px);
+                   transform:translate(${n.kale ? 19 : n.aktif ? 17 : 12}px,-7px);
                    opacity:${sehir || n.aktif ? 1 : 0.85}">${n.ad}</div>`,
             iconSize: [0, 0],
           }),

@@ -35,6 +35,7 @@ const Harita = dynamic(() => import("@/components/dunya-haritasi"), {
 const NODLAR = (haritaVeri as { nodlar: HaritaNode[] }).nodlar;
 const SAVAS_NODLARI = NODLAR.filter((n) => n.tur === "savas");
 const AKTIF_SAYI = SAVAS_NODLARI.filter((n) => n.aktif).length;
+const KALE_SAYI = SAVAS_NODLARI.filter((n) => n.kale).length;
 
 export default function SavasHaritasiPage() {
   const [sekme, setSekme] = useState<"mevzi" | "savas">("mevzi");
@@ -52,6 +53,8 @@ export default function SavasHaritasiPage() {
   /** Oyunda savaş açık olan mevziler — listeyi buna daraltmak için */
   const [sadeceAktif, setSadeceAktif] = useState(true);
   const [karoHata, setKaroHata] = useState(false);
+  /** Kuşatma kalesi sahaları — savaş mevzilerinden bağımsız katman */
+  const [kaleler, setKaleler] = useState(true);
   const dosya = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 4000); return () => clearTimeout(t); }, [msg]);
@@ -59,17 +62,22 @@ export default function SavasHaritasiPage() {
   const liste = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase("tr");
     // Arama yazılınca daraltma kalkıyor: aranan mevzi aktif olmayabilir
-    const taban = sadeceAktif && !q ? SAVAS_NODLARI.filter((n) => n.aktif) : SAVAS_NODLARI;
+    const taban = sadeceAktif && !q
+      ? SAVAS_NODLARI.filter((n) => n.aktif || (kaleler && n.kale))
+      : SAVAS_NODLARI;
     const v = q
       ? taban.filter((n) => n.ad.toLocaleLowerCase("tr").includes(q) || n.adEn.toLowerCase().includes(q))
       : taban;
     return v.slice(0, 150);
-  }, [ara, sadeceAktif]);
+  }, [ara, sadeceAktif, kaleler]);
 
   /** Haritaya giden düğümler — süzgeç açıkken yalnızca savaşı açık olanlar */
   const haritaNodlari = useMemo(
-    () => (sadeceAktif ? NODLAR.filter((n) => n.tur === "sehir" || n.aktif) : NODLAR),
-    [sadeceAktif],
+    () => NODLAR.filter((n) =>
+      n.tur === "sehir" ? true
+        : n.kale ? kaleler
+          : !sadeceAktif || !!n.aktif),
+    [sadeceAktif, kaleler],
   );
 
   const gorunen = useMemo(
@@ -175,8 +183,12 @@ export default function SavasHaritasiPage() {
                     <button onClick={() => setSadeceAktif((v) => !v)} className="t-tab" data-on={sadeceAktif}>
                       <Flame className="w-3.5 h-3.5" /> Savaş açık ({AKTIF_SAYI})
                     </button>
+                    <button onClick={() => setKaleler((v) => !v)} className="t-tab" data-on={kaleler}
+                            title="Kuşatma savaşının yapıldığı kale sahaları">
+                      <Castle className="w-3.5 h-3.5" /> Kaleler ({KALE_SAYI})
+                    </button>
                     <span className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
-                      {liste.length} mevzi
+                      {liste.length}
                     </span>
                   </div>
                 </div>
@@ -195,7 +207,9 @@ export default function SavasHaritasiPage() {
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
-                      <Bilgi etiket="Kademe" deger={secili.tier ? `T${secili.tier}` : "—"} renk={TIER_RENK[secili.tier]} />
+                      <Bilgi etiket={secili.kale ? "Savaş" : "Kademe"}
+                             deger={secili.kale ? "Kuşatma" : secili.tier ? `T${secili.tier}` : "—"}
+                             renk={secili.kale ? "#c86fd8" : TIER_RENK[secili.tier]} />
                       <Bilgi etiket="Bölge" deger={secili.bolge || "—"} />
                       <Bilgi etiket="Alan" deger={secili.r ? `${Math.round(secili.r / 100)} m` : "—"} />
                       <Bilgi etiket="Durum" deger={secili.aktif ? "Savaş açık" : "Kapalı"}
@@ -213,12 +227,12 @@ export default function SavasHaritasiPage() {
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left"
                             style={{ background: secili?.key === n.key ? "var(--t-raised)" : "transparent" }}>
                       <i className="w-2 h-2 rounded-full flex-shrink-0"
-                         style={{ background: TIER_RENK[n.tier] ?? "#888" }} />
+                         style={{ background: n.kale ? "#c86fd8" : TIER_RENK[n.tier] ?? "#888" }} />
                       <span className="text-[12.5px] truncate flex-1"
                             style={n.aktif ? { fontWeight: 600 } : undefined}>{n.ad}</span>
                       <span className="t-num text-[10.5px] flex-shrink-0"
-                            style={{ color: n.aktif ? "var(--t-gold)" : "var(--t-faint)" }}>
-                        T{n.tier}{n.kale ? " ♜" : ""}
+                            style={{ color: n.kale ? "#c86fd8" : n.aktif ? "var(--t-gold)" : "var(--t-faint)" }}>
+                        {n.kale ? "♜" : `T${n.tier}`}
                       </span>
                     </button>
                   ))}
