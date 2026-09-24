@@ -19,8 +19,13 @@ import type { SavasOlayi } from "@/lib/savas-olaylari";
  * şişirmiyor ve yakınlaştırınca da aynı kalıyor.
  */
 
+/** Haritadaki sabit referans: kale, mevzi ya da kurulum etiketi */
+export type Isaret = { ad: string; x: number; y: number; tur: "kale" | "node" | "yazi" };
+
 type Props = {
   olaylar: SavasOlayi[];
+  /** Olayların yanına çizilen bilinen noktalar — kaymayı gözle ölçmek için */
+  isaretler?: Isaret[];
   /** Seçili olay — vurgulanır ve haritanın merkezine alınır */
   seciliAt?: number | null;
   onSec?: (at: number) => void;
@@ -33,7 +38,7 @@ type Props = {
 const KILL = "#5fd39a";
 const DEATH = "#ef5f5f";
 
-export default function OlayHaritasi({ olaylar, seciliAt, onSec, fitKey, kutu, className }: Props) {
+export default function OlayHaritasi({ olaylar, isaretler = [], seciliAt, onSec, fitKey, kutu, className }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const katmanRef = useRef<LayerGroup | null>(null);
@@ -89,6 +94,27 @@ export default function OlayHaritasi({ olaylar, seciliAt, onSec, fitKey, kutu, c
     if (!L || !map || !katman) return;
     katman.clearLayers();
 
+    // Referanslar altta: olay noktaları onların üstüne binsin
+    for (const i of isaretler) {
+      const [lat, lng] = toProj(i.x, i.y);
+      const kale = i.tur === "kale";
+      L.circleMarker([lat, lng], {
+        radius: kale ? 6 : 3,
+        color: "#e8b451", weight: kale ? 2 : 1,
+        fillColor: "#e8b451", fillOpacity: kale ? 0.35 : 0.18,
+        interactive: false,
+      }).addTo(katman);
+      L.marker([lat, lng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: "",
+          html: `<div style="white-space:nowrap;font-size:10px;font-weight:600;color:#e8b451;
+                 text-shadow:0 1px 3px #000,0 0 6px #000;transform:translate(10px,-7px)">${i.ad}</div>`,
+          iconSize: [0, 0],
+        }),
+      }).addTo(katman);
+    }
+
     for (const o of olaylar) {
       const [lat, lng] = toProj(o.x, o.y);
       const secili = seciliAt != null && o.at === seciliAt;
@@ -108,7 +134,7 @@ export default function OlayHaritasi({ olaylar, seciliAt, onSec, fitKey, kutu, c
         .on("click", () => secRef.current?.(o.at))
         .addTo(katman);
     }
-  }, [olaylar, seciliAt, ready]);
+  }, [olaylar, isaretler, seciliAt, ready]);
 
   // ── Kutuya otur
   useEffect(() => {

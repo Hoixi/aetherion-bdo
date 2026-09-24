@@ -1,10 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Swords, Upload, Users, MapPin, Skull, Eraser } from "lucide-react";
+import { Swords, Upload, Users, MapPin, Skull, Eraser, Move, RotateCcw } from "lucide-react";
 import { TestShell, Card, Head, Empty } from "@/components/app-shell";
 import { olaylariCoz, olayOzeti, olayKutusu, type SavasOlayi } from "@/lib/savas-olaylari";
+import { buildForts, fortMarkers, trLabel, type Shape, type NodeWarNode } from "@/lib/garmoth-forts";
+import type { Isaret } from "@/components/olay-haritasi";
+import balenosRaw from "@/data/forts/balenos.json";
+import serendiaRaw from "@/data/forts/serendia.json";
+import nodesRaw from "@/data/forts/nodes.json";
 
 /**
  * Savaş haritası — kim nerede öldürdü, kim nerede öldü.
@@ -15,7 +20,27 @@ import { olaylariCoz, olayOzeti, olayKutusu, type SavasOlayi } from "@/lib/savas
  *
  * Noktalar kale planlarıyla aynı haritada duruyor: oyun koordinatı
  * garmoth uzayına çevriliyor (bkz. `savas-olaylari.ts`).
+ *
+ * Dönüşüm on iki kaleden çıkarıldı ve ±2 birim payı var; bir savaşın
+ * kavgası bir birimlik alana sığdığı için bu pay gözle görülüyor. Bu
+ * yüzden hem bilinen noktalar (kale, mevzi, kurulum etiketleri) haritaya
+ * basılıyor hem de elle kaydırma var: doğru yere oturtulan değer
+ * tarayıcıda saklanıyor, yeterince savaş biriktiğinde sabite işlenecek.
  */
+
+type RawMap = { h: string; s: Shape[] };
+const FORTS = buildForts(balenosRaw as unknown as RawMap[], serendiaRaw as unknown as RawMap[]);
+
+/** Haritaya basılacak bilinen noktalar: kaleler, mevziler, kurulum etiketleri */
+const REFERANSLAR: Isaret[] = [
+  ...fortMarkers(FORTS).map((m) => ({ ad: m.name, x: m.x, y: m.y, tur: "kale" as const })),
+  ...(nodesRaw.nodes as NodeWarNode[]).map((n) => ({ ad: n.name, x: n.x, y: n.y, tur: "node" as const })),
+  ...FORTS.flatMap((f) =>
+    f.shapes.filter((sh): sh is Extract<Shape, { t: "t" }> => sh.t === "t")
+      .map((sh) => ({ ad: trLabel(sh.x), x: sh.p[0], y: sh.p[1], tur: "yazi" as const }))),
+];
+
+const KAYMA_ANAHTAR = "savas-haritasi-kayma";
 
 const Harita = dynamic(() => import("@/components/olay-haritasi"), {
   ssr: false,
@@ -31,7 +56,24 @@ export default function SavasHaritasiPage() {
   const [suzgec, setSuzgec] = useState<Suzgec>("hepsi");
   const [oyuncu, setOyuncu] = useState("");
   const [secili, setSecili] = useState<number | null>(null);
+  const [kayma, setKayma] = useState({ dx: 0, dy: 0 });
   const dosya = useRef<HTMLInputElement>(null);
+
+  // Kaydırma kişiye özel bir düzeltme: tarayıcıda kalıyor, sunucuya gitmiyor
+  useEffect(() => {
+    try {
+      const ham = window.localStorage.getItem(KAYMA_ANAHTAR);
+      if (ham) {
+        const k = JSON.parse(ham);
+        if (Number.isFinite(k?.dx) && Number.isFinite(k?.dy)) setKayma({ dx: k.dx, dy: k.dy });
+      }
+    } catch { /* gizli sekmede kapalı olabilir */ }
+  }, []);
+  function kaydir(dx: number, dy: number) {
+    const k = { dx: Math.round((kayma.dx + dx) * 1000) / 1000, dy: Math.round((kayma.dy + dy) * 1000) / 1000 };
+    setKayma(k);
+    try { window.localStorage.setItem(KAYMA_ANAHTAR, JSON.stringify(k)); } catch { /* yoksa da çalışsın */ }
+  }
 
   function coz(metin: string) {
     const { olaylar: o, atilan } = olaylariCoz(metin);
@@ -50,8 +92,22 @@ export default function SavasHaritasiPage() {
         o.bizimKarakter.toLocaleLowerCase("tr").includes(q) || o.rakipKarakter.toLocaleLowerCase("tr").includes(q)));
   }, [olaylar, suzgec, oyuncu]);
 
+  /** Haritaya giden kopya — kaydırma yalnızca gösterimde, ham veri bozulmuyor */
+  const haritada = useMemo(
+    () => suzulmus.map((o) => ({ ...o, x: o.x + kayma.dx, y: o.y + kayma.dy })),
+    [suzulmus, kayma],
+  );
   const ozet = useMemo(() => olayOzeti(suzulmus), [suzulmus]);
-  const kutu = useMemo(() => olayKutusu(suzulmus), [suzulmus]);
+  const kutu = useMemo(() => olayKutusu(haritada), [haritada]);
+  /** Yakındaki bilinen noktalar — uzaktakiler haritayı kalabalık ediyor */
+  const isaretler = useMemo(() => {
+    if (!kutu) return [];
+    const mx = (kutu.x0 + kutu.x1) / 2, my = (kutu.y0 + kutu.y1) / 2;
+    return REFERANSLAR
+      .map((i) => ({ i, d: Math.hypot(i.x - mx, i.y - my) }))
+      .filter((r) => r.d < 6).sort((a, b) => a.d - b.d).slice(0, 24)
+      .map((r) => r.i);
+  }, [kutu]);
   const fitKey = useMemo(
     () => `${suzulmus.length}:${suzulmus[0]?.at ?? 0}:${suzulmus[suzulmus.length - 1]?.at ?? 0}`,
     [suzulmus],
@@ -129,8 +185,34 @@ export default function SavasHaritasiPage() {
               <Card className="overflow-hidden">
                 <Head icon={MapPin} title="Olay yerleri"
                       meta={`${ozet.kill} kill · ${ozet.death} ölüm`} />
-                <Harita olaylar={suzulmus} seciliAt={secili} onSec={setSecili}
+                <Harita olaylar={haritada} isaretler={isaretler} seciliAt={secili} onSec={setSecili}
                         fitKey={fitKey} kutu={kutu} className="h-[520px]" />
+                <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap"
+                     style={{ borderTop: "1px solid var(--t-line)" }}>
+                  <Move className="w-3.5 h-3.5" strokeWidth={1.9} style={{ color: "var(--t-gold)" }} />
+                  <span className="text-[11px]" style={{ color: "var(--t-faint)" }}>
+                    Kayma düzeltmesi
+                  </span>
+                  <div className="flex items-center gap-0.5 p-0.5 rounded-[var(--t-r-sm)]"
+                       style={{ background: "var(--t-raised)", border: "1px solid var(--t-line)" }}>
+                    {([["←", -0.05, 0], ["→", 0.05, 0], ["↑", 0, 0.05], ["↓", 0, -0.05]] as const).map(([l, dx, dy]) => (
+                      <button key={l} onClick={() => kaydir(dx, dy)}
+                              className="px-2 py-1 rounded-md text-[12px] font-semibold"
+                              style={{ color: "var(--t-dim)" }}>{l}</button>
+                    ))}
+                  </div>
+                  <span className="t-num text-[11.5px]" style={{ color: "var(--t-text)" }}>
+                    {kayma.dx >= 0 ? "+" : ""}{kayma.dx.toFixed(2)} , {kayma.dy >= 0 ? "+" : ""}{kayma.dy.toFixed(2)}
+                  </span>
+                  {(kayma.dx !== 0 || kayma.dy !== 0) && (
+                    <button onClick={() => kaydir(-kayma.dx, -kayma.dy)} className="t-tab">
+                      <RotateCcw className="w-3.5 h-3.5" /> Sıfırla
+                    </button>
+                  )}
+                  <span className="text-[10.5px] ml-auto" style={{ color: "var(--t-faint)" }}>
+                    Sarı noktalar kale ve kurulum yerleri — dönüşümün ±2 birim payı var
+                  </span>
+                </div>
                 <div className="flex items-center gap-4 px-4 py-2.5 text-[11px]"
                      style={{ borderTop: "1px solid var(--t-line)", color: "var(--t-faint)" }}>
                   <span className="flex items-center gap-1.5">
