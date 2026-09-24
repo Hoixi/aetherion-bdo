@@ -578,6 +578,12 @@ model WarPerformance {
    * geriye dönük doldurulamıyor, bu yüzden nullable.
    */
   survivalSeconds Int?
+  deathSeconds    Int?
+  /** Exact BDO report row + unknown counters. No unrelated network traffic. */
+  reportData      Json?
+  reportGuildId   Int?
+  reportUploadedBy Int?
+  reportUpdatedAt DateTime?
   createdAt      DateTime @default(now())
 
   war  War   @relation(fields: [warId], references: [id], onDelete: Cascade)

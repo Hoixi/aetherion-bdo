@@ -357,7 +357,8 @@ export async function raporuGetir(warId: number) {
   for (const k of katilimlar) if (k.asClass) savasClass.set(k.userId, { cls: k.asClass, spec: k.asSpec ?? "awakening" });
   for (const m of partyRows) if (m.asClass) savasClass.set(m.userId, { cls: m.asClass, spec: m.asSpec ?? "awakening" });
   const duzeltilmis = performances.map((p) => {
-    const s = p.userId ? savasClass.get(p.userId) : undefined;
+    // A captured report records the actual played class/spec, not the planned one.
+    const s = !p.reportData && p.userId ? savasClass.get(p.userId) : undefined;
     return s ? { ...p, class: s.cls, spec: s.spec } : p;
   });
 
