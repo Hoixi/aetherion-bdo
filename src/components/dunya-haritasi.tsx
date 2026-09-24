@@ -161,13 +161,6 @@ export default function DunyaHaritasi({
       }
 
       // Aktif mevziler dışarıdan bir halkayla ayrılıyor
-      if (n.aktif || secili) {
-        L.circleMarker([lat, lng], {
-          radius: secili ? 18 : 15, color: renk, weight: 1.5,
-          fillColor: renk, fillOpacity: 0.14, interactive: false,
-        }).addTo(katman);
-      }
-
       const boy = sehir ? 20 : n.aktif ? 26 : 18;
       const ikon = sehir ? IKON.sehir : n.kale ? IKON.kale : IKON.mevzi;
       L.marker([lat, lng], {
