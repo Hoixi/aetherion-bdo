@@ -45,6 +45,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[]; yonetici?: boo
     { label: "Savaş Analizi", href: "/analiz", icon: BarChart3 },
     { label: "Hasar Raporu", href: "/hasar-raporu", icon: Flame },
     { label: "Savaş Günlüğü", href: "/savas-gunlugu", icon: ScrollText },
+    { label: "Savaş Haritası", href: "/savas-haritasi", icon: MapIcon },
     { label: "Tier List", href: "/tier-list", icon: ListOrdered },
     { label: "Grind", href: "/grind", icon: Activity },
   ] },
