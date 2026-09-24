@@ -40,3 +40,4 @@ app.js
 # Oyun ikonlari (66 MB, 21.660 dosya) repoda tutuluyor: dagitim kendi
 # sunucumuza yapiliyor ve site ikonlari kendi public/ yolundan servis ediyor.
 # Yeniden uretmek icin:  PAZ/  ->  node scripts/tools/copy-icons.mjs
+public/karo

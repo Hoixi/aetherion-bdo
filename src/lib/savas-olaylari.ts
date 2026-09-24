@@ -27,6 +27,11 @@ const BOLEN = 6400;
 const PIVOT_X = 282.5081;
 const PIVOT_Y = 182.8254;
 
+/** Approximate fit to reference nodes; not a verified death-location calibration. */
+export function dunyaToGarmoth(x: number, z: number): [number, number] {
+  return [x / BOLEN + PIVOT_X, z / BOLEN + PIVOT_Y];
+}
+
 export interface SavasOlayi {
   /** Paketin bu bilgisayara ulaştığı an */
   at: number;
@@ -100,8 +105,8 @@ export function olaylariCoz(metin: string): { olaylar: SavasOlayi[]; atilan: num
       rakipKarakter: ad(satir, 134), rakipAile,
       rakipKlan: ad(satir, 72),
       bizimKill: satir.flags?.at196 === KILL_BAYRAGI,
-      x: koordinat[0] / BOLEN + PIVOT_X,
-      y: koordinat[2] / BOLEN + PIVOT_Y,
+      x: dunyaToGarmoth(koordinat[0], koordinat[2])[0],
+      y: dunyaToGarmoth(koordinat[0], koordinat[2])[1],
       dunya: [koordinat[0], koordinat[1], koordinat[2]],
     });
   }
