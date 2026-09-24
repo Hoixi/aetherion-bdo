@@ -7,6 +7,7 @@ import {
   TILE_URL, TILE_SIZE, MIN_ZOOM, MAX_ZOOM, MAX_TILE_ZOOM, WORLD, toProj,
 } from "@/lib/garmoth-forts";
 import type { SavasOlayi } from "@/lib/savas-olaylari";
+import {addCombatHeat} from "@/lib/combat-heat-layer";
 
 /**
  * Olay haritası — kill/ölüm noktaları garmoth karolarının üstünde.
@@ -23,6 +24,7 @@ import type { SavasOlayi } from "@/lib/savas-olaylari";
 export type Isaret = { ad: string; x: number; y: number; tur: "kale" | "node" | "yazi" };
 
 type Props = {
+  heat?: boolean;
   olaylar: SavasOlayi[];
   /** Olayların yanına çizilen bilinen noktalar — kaymayı gözle ölçmek için */
   isaretler?: Isaret[];
@@ -38,7 +40,7 @@ type Props = {
 const KILL = "#5fd39a";
 const DEATH = "#ef5f5f";
 
-export default function OlayHaritasi({ olaylar, isaretler = [], seciliAt, onSec, fitKey, kutu, className }: Props) {
+export default function OlayHaritasi({ olaylar, isaretler = [], seciliAt, onSec, fitKey, kutu, className, heat=false }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const katmanRef = useRef<LayerGroup | null>(null);
@@ -135,6 +137,11 @@ export default function OlayHaritasi({ olaylar, isaretler = [], seciliAt, onSec,
         .addTo(katman);
     }
   }, [olaylar, isaretler, seciliAt, ready]);
+
+  useEffect(()=>{
+    if(!heat||!mapRef.current||!ready)return;
+    return addCombatHeat(mapRef.current,olaylar.map(o=>toProj(o.x,o.y)));
+  },[heat,olaylar,ready]);
 
   // ── Kutuya otur
   useEffect(() => {

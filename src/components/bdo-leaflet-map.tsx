@@ -94,8 +94,11 @@ export function BdoLeafletMap({
   // ── Init map (once) ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    let cancelled = false;
 
     import("leaflet").then((L) => {
+      // StrictMode can clean up while the dynamic import is still pending.
+      if (cancelled || !containerRef.current || mapRef.current) return;
       const worldBounds = L.latLngBounds(
         [SW_LAT, SW_LNG],
         [NE_LAT, NE_LNG],
@@ -129,6 +132,7 @@ export function BdoLeafletMap({
       }).addTo(map);
 
       const syncViewport = () => {
+        if (cancelled) return;
         const el = containerRef.current;
         if (!el) return;
 
@@ -164,23 +168,26 @@ export function BdoLeafletMap({
       // layout the browser may not have finished painting, so we invalidate
       // the size at several points to guarantee correct tile rendering.
       requestAnimationFrame(() => {
+        if (cancelled) return;
         map.invalidateSize({ animate: false });
         syncViewport();
         // Second rAF — runs after the browser has committed the first paint
         requestAnimationFrame(() => {
+          if (cancelled) return;
           map.invalidateSize({ animate: false });
           syncViewport();
         });
       });
-      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 150);
-      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 500);
-      setTimeout(() => { map.invalidateSize({ animate: false }); syncViewport(); }, 1000);
+      setTimeout(() => { if (!cancelled) { map.invalidateSize({ animate: false }); syncViewport(); } }, 150);
+      setTimeout(() => { if (!cancelled) { map.invalidateSize({ animate: false }); syncViewport(); } }, 500);
+      setTimeout(() => { if (!cancelled) { map.invalidateSize({ animate: false }); syncViewport(); } }, 1000);
 
       // Re-invalidate on any container resize (window resize, panel open/close, etc.)
       // Watch the OUTER wrapper (className div) — that's what flex resizes.
       // The inner absolute div tracks it silently, but ResizeObserver on it may
       // not fire if only the outer div changed without a reflow of the inner.
       resizeRef.current = new ResizeObserver(() => {
+        if (cancelled) return;
         map.invalidateSize({ animate: false });
         syncViewport();
       });
@@ -194,6 +201,7 @@ export function BdoLeafletMap({
     });
 
     return () => {
+      cancelled = true;
       resizeRef.current?.disconnect();
       resizeRef.current = null;
       mapRef.current?.remove();

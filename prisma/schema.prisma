@@ -428,6 +428,14 @@ model CombatLog {
   title      String   @db.VarChar(120)
   /** "logger" (canlı kayıt) | "import" (.log dosyası) */
   source     String   @default("import")
+  /** Local beta archive identity; retries never create another recording. */
+  recordingKey String? @unique
+  recordedGuildId Int?
+  allianceName String? @db.VarChar(60)
+  parserVersion String? @db.VarChar(60)
+  /** Unverified candidate events, kept separate from official performance totals. */
+  rawData Json?
+  directionVerified Boolean @default(false)
   startedAt  DateTime?
   endedAt    DateTime?
   uploadedBy Int
@@ -453,6 +461,12 @@ model CombatKill {
   /** bizden mi (öldüren bizim üye) — yükleme sırasında eşleştirilir */
   killerUserId Int?
   victimUserId Int?
+  killerGuildName String? @db.VarChar(60)
+  victimGuildName String? @db.VarChar(60)
+  gameX Float?
+  gameY Float?
+  gameZ Float?
+  positionVerified Boolean @default(false)
 
   log CombatLog @relation(fields: [logId], references: [id], onDelete: Cascade)
 
