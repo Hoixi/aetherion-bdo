@@ -84,6 +84,8 @@ export type HaritaNode = {
   kale: boolean;
   bolge: string;
   tur: "savas" | "sehir";
+  /** Oyunda şu an node war açık olan mevzi */
+  aktif?: boolean;
 };
 
 /** Kale haritasındaki kademe renkleriyle aynı */

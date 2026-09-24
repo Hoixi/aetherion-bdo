@@ -145,7 +145,7 @@ function SesButonu({ pathname, compact = false }: { pathname: string; compact?: 
 }
 
 export function TestShell({
-  title, subtitle, tabs, aside, bare = false, noNav = false, children,
+  title, subtitle, tabs, aside, bare = false, tam = false, noNav = false, children,
 }: {
   title?: string;
   subtitle?: ReactNode;
@@ -158,6 +158,11 @@ export function TestShell({
    * `title` yine verilebilir — çizilmez ama sekme adına geçer.
    */
   bare?: boolean;
+  /**
+   * Kenar boşluğu ve genişlik sınırı olmadan: harita gibi ekranı kaplayan
+   * sayfalar için. Üstteki menü çubuğu yerinde kalır.
+   */
+  tam?: boolean;
   /**
    * Giriş yapmamış ziyaretçiye açık sayfalar için: üye menüsü çizilmez,
    * yerine yalnızca logo ve karşılama ekranına dönüş kalır. Başvuru
@@ -305,7 +310,7 @@ export function TestShell({
       </header>
       )}
 
-      <main className={`relative mx-auto max-w-[1500px] px-5 ${bare ? "py-4" : "py-7 space-y-5"}`}>
+      <main className={tam ? "relative" : `relative mx-auto max-w-[1500px] px-5 ${bare ? "py-4" : "py-7 space-y-5"}`}>
         {tabs}
         {!bare && (
           <div className="flex items-end justify-between gap-4 flex-wrap">

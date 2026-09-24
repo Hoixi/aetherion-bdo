@@ -17,9 +17,9 @@ import { addCombatHeat } from "@/lib/combat-heat-layer";
  * seçili düğümün alan dairesi. Düğüm ve olay konumları ham oyun
  * koordinatı; dönüşüm `bdo-harita.ts` içinde tek bölme.
  *
- * Etiketler yakınlığa göre açılıyor: uzaktan sadece şehirler ve kaleler
- * okunuyor, yaklaşınca mevzi adları da geliyor — yoksa 175 etiket üst
- * üste binip haritayı okunmaz yapıyor.
+ * Etiketler yakınlığa göre açılıyor: uzaktan şehirler ve o hafta savaş
+ * açık olan mevziler okunuyor, yaklaşınca diğer adlar da geliyor — yoksa
+ * 176 etiket üst üste binip haritayı okunmaz yapıyor.
  */
 
 type Props = {
@@ -70,9 +70,27 @@ export default function DunyaHaritasi({
         crs, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM,
         zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 140,
         attributionControl: false, zoomControl: false,
+        // Dünyanın dışına sürüklenemesin
+        maxBounds: sinirlar(), maxBoundsViscosity: 1,
       });
-      map.setMaxBounds(sinirlar());
       map.fitBounds(sinirlar());
+
+      /**
+       * Alt yakınlık sınırı pencereye göre: dünya ekrandan küçük kalırsa
+       * harita köşede yüzen bir kareye dönüşüyordu. Pencere boyu değişince
+       * yeniden hesaplanıyor.
+       */
+      const sinirAyarla = () => {
+        const el = boxRef.current;
+        if (!el || !el.clientWidth || !el.clientHeight) return;
+        const [[y0, x0], [y1, x1]] = sinirlar();
+        const gerekli = Math.log2(Math.max(el.clientWidth / (x1 - x0), el.clientHeight / (y1 - y0)));
+        const min = Math.min(MAX_KARO_ZOOM, Math.max(MIN_ZOOM, Math.ceil(gerekli * 4) / 4));
+        map.setMinZoom(min);
+        if (map.getZoom() < min) map.setZoom(min, { animate: false });
+        map.panInsideBounds(L.latLngBounds(sinirlar()), { animate: false });
+      };
+      sinirAyarla();
 
       // Piramit satırları yukarı sayıyor; Leaflet'in istediği satır çevriliyor
       const Karolar = L.TileLayer.extend({
@@ -97,7 +115,7 @@ export default function DunyaHaritasi({
       setZoom(map.getZoom());
 
       mapRef.current = map;
-      roRef.current = new ResizeObserver(() => map.invalidateSize());
+      roRef.current = new ResizeObserver(() => { map.invalidateSize(); sinirAyarla(); });
       roRef.current.observe(boxRef.current);
       setReady((n) => n + 1);
     })();
@@ -115,9 +133,9 @@ export default function DunyaHaritasi({
     if (!L || !katman) return;
     katman.clearLayers();
 
-    // Yakınlaştıkça daha çok etiket
+    // Yakınlaştıkça daha çok etiket; aktif mevziler her zaman okunur
     const etiketli = (n: HaritaNode) =>
-      n.tur === "sehir" || zoom >= 5 || (zoom >= 3.5 && n.tier <= 2);
+      n.tur === "sehir" || n.aktif || zoom >= 5 || (zoom >= 3.5 && n.tier <= 2);
 
     for (const n of nodlar) {
       const [lat, lng] = dunyaToProj(n.x, n.z);
@@ -132,14 +150,23 @@ export default function DunyaHaritasi({
         }).addTo(katman);
       }
 
+      // Aktif mevziler dışarıdan bir halkayla ayrılıyor
+      if (n.aktif) {
+        L.circleMarker([lat, lng], {
+          radius: secili ? 13 : 10, color: renk, weight: 1.5,
+          fillColor: renk, fillOpacity: 0.14, interactive: false,
+        }).addTo(katman);
+      }
+
       L.circleMarker([lat, lng], {
-        radius: secili ? 8 : sehir ? 5 : n.kale ? 6 : 4,
+        radius: secili ? 8 : n.aktif ? 6 : sehir ? 5 : n.kale ? 6 : 4,
         color: secili ? "#fff" : renk,
-        weight: secili ? 2 : 1.5,
+        weight: secili || n.aktif ? 2 : 1.5,
         fillColor: renk,
         fillOpacity: sehir ? 0.5 : 0.85,
       })
-        .bindTooltip(sehir ? n.ad : `${n.ad} · T${n.tier}${n.kale ? " · kale kuşatması" : ""}`,
+        .bindTooltip(sehir ? n.ad
+                     : `${n.ad} · T${n.tier}${n.kale ? " · kale kuşatması" : ""}${n.aktif ? " · savaş açık" : ""}`,
                      { direction: "top", opacity: 0.95 })
         .on("click", () => nodeCb.current?.(n))
         .addTo(katman);
@@ -149,9 +176,11 @@ export default function DunyaHaritasi({
           interactive: false,
           icon: L.divIcon({
             className: "",
-            html: `<div style="white-space:nowrap;font-size:${sehir ? 11 : 10}px;font-weight:600;
+            html: `<div style="white-space:nowrap;font-size:${sehir || n.aktif ? 11 : 10}px;
+                   font-weight:${n.aktif ? 700 : 600};
                    color:${secili ? "#fff" : renk};text-shadow:0 1px 3px #000,0 0 6px #000;
-                   transform:translate(9px,-7px);opacity:${sehir ? 1 : 0.85}">${n.ad}</div>`,
+                   transform:translate(${n.aktif ? 13 : 9}px,-7px);
+                   opacity:${sehir || n.aktif ? 1 : 0.85}">${n.ad}</div>`,
             iconSize: [0, 0],
           }),
         }).addTo(katman);

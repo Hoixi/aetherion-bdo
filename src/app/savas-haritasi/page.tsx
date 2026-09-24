@@ -34,6 +34,7 @@ const Harita = dynamic(() => import("@/components/dunya-haritasi"), {
 
 const NODLAR = (haritaVeri as { nodlar: HaritaNode[] }).nodlar;
 const SAVAS_NODLARI = NODLAR.filter((n) => n.tur === "savas");
+const AKTIF_SAYI = SAVAS_NODLARI.filter((n) => n.aktif).length;
 
 export default function SavasHaritasiPage() {
   const [sekme, setSekme] = useState<"mevzi" | "savas">("mevzi");
@@ -48,17 +49,21 @@ export default function SavasHaritasiPage() {
   const [odak, setOdak] = useState<{ x: number; z: number; zoom: number } | null>(null);
   const [odakKey, setOdakKey] = useState("");
   const [panel, setPanel] = useState(true);
+  /** Oyunda savaş açık olan mevziler — listeyi buna daraltmak için */
+  const [sadeceAktif, setSadeceAktif] = useState(true);
   const dosya = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 4000); return () => clearTimeout(t); }, [msg]);
 
   const liste = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase("tr");
+    // Arama yazılınca daraltma kalkıyor: aranan mevzi aktif olmayabilir
+    const taban = sadeceAktif && !q ? SAVAS_NODLARI.filter((n) => n.aktif) : SAVAS_NODLARI;
     const v = q
-      ? SAVAS_NODLARI.filter((n) => n.ad.toLocaleLowerCase("tr").includes(q) || n.adEn.toLowerCase().includes(q))
-      : SAVAS_NODLARI;
+      ? taban.filter((n) => n.ad.toLocaleLowerCase("tr").includes(q) || n.adEn.toLowerCase().includes(q))
+      : taban;
     return v.slice(0, 150);
-  }, [ara]);
+  }, [ara, sadeceAktif]);
 
   const gorunen = useMemo(
     () => olaylar.filter((o) => suzgec === "hepsi" || (suzgec === "kill") === o.bizimKill),
@@ -97,8 +102,9 @@ export default function SavasHaritasiPage() {
   }
 
   return (
-    <TestShell bare title="Savaş Haritası">
-      <div className="relative" style={{ height: "calc(100vh - 104px)", minHeight: 520 }}>
+    <TestShell bare tam title="Savaş Haritası">
+      {/* Menü çubuğu 68px; harita geri kalan her şeyi kaplıyor */}
+      <div className="relative" style={{ height: "calc(100vh - 68px)" }}>
         <Harita
           nodlar={NODLAR}
           olaylar={gorunen}
@@ -109,7 +115,7 @@ export default function SavasHaritasiPage() {
           isi={isi}
           odak={odak}
           odakKey={odakKey}
-          className="absolute inset-0 rounded-[var(--t-r)] overflow-hidden"
+          className="absolute inset-0"
         />
 
         {panel ? (
@@ -150,6 +156,14 @@ export default function SavasHaritasiPage() {
                       </button>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button onClick={() => setSadeceAktif((v) => !v)} className="t-tab" data-on={sadeceAktif}>
+                      <Flame className="w-3.5 h-3.5" /> Savaş açık ({AKTIF_SAYI})
+                    </button>
+                    <span className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
+                      {liste.length} mevzi
+                    </span>
+                  </div>
                 </div>
 
                 {secili && (
@@ -169,7 +183,8 @@ export default function SavasHaritasiPage() {
                       <Bilgi etiket="Kademe" deger={secili.tier ? `T${secili.tier}` : "—"} renk={TIER_RENK[secili.tier]} />
                       <Bilgi etiket="Bölge" deger={secili.bolge || "—"} />
                       <Bilgi etiket="Alan" deger={secili.r ? `${Math.round(secili.r / 100)} m` : "—"} />
-                      <Bilgi etiket="Tür" deger={secili.kale ? "Kale kuşatması" : "Mevzi"} />
+                      <Bilgi etiket="Durum" deger={secili.aktif ? "Savaş açık" : "Kapalı"}
+                             renk={secili.aktif ? "var(--t-good)" : undefined} />
                     </div>
                     <p className="t-num text-[10.5px]" style={{ color: "var(--t-faint)" }}>
                       oyun konumu {secili.x}, {secili.z}
@@ -184,8 +199,10 @@ export default function SavasHaritasiPage() {
                             style={{ background: secili?.key === n.key ? "var(--t-raised)" : "transparent" }}>
                       <i className="w-2 h-2 rounded-full flex-shrink-0"
                          style={{ background: TIER_RENK[n.tier] ?? "#888" }} />
-                      <span className="text-[12.5px] truncate flex-1">{n.ad}</span>
-                      <span className="t-num text-[10.5px] flex-shrink-0" style={{ color: "var(--t-faint)" }}>
+                      <span className="text-[12.5px] truncate flex-1"
+                            style={n.aktif ? { fontWeight: 600 } : undefined}>{n.ad}</span>
+                      <span className="t-num text-[10.5px] flex-shrink-0"
+                            style={{ color: n.aktif ? "var(--t-gold)" : "var(--t-faint)" }}>
                         T{n.tier}{n.kale ? " ♜" : ""}
                       </span>
                     </button>
