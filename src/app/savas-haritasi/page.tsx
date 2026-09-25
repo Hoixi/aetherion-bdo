@@ -5,10 +5,11 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   Search, Swords, Upload, MapPin, Castle, Users, Skull, X, ChevronLeft, Crosshair, Flame,
-  Move, RotateCcw, Check,
+  Move, RotateCcw, Check, Radio,
 } from "lucide-react";
 import { TestShell } from "@/components/app-shell";
 import { olaylariCoz, olayOzeti, type SavasOlayi } from "@/lib/savas-olaylari";
+import { KayitSecici } from "@/components/kayit-secici";
 import { TIER_RENK, enYakinNode, type HaritaNode } from "@/lib/bdo-harita";
 import haritaVeri from "@/data/harita/nodlar.json";
 
@@ -48,6 +49,8 @@ export default function SavasHaritasiPage() {
   const [olaylar, setOlaylar] = useState<SavasOlayi[]>([]);
   const [seciliOlay, setSeciliOlay] = useState<number | null>(null);
   const [ham, setHam] = useState("");
+  /** Yüklenen kaydın kimden geldiği — panelde kaynağı göstermek için */
+  const [kaynak, setKaynak] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [suzgec, setSuzgec] = useState<"hepsi" | "kill" | "death">("hepsi");
   const [isi, setIsi] = useState(false);
@@ -147,8 +150,9 @@ export default function SavasHaritasiPage() {
     setOdakKey(`node-${n.key}-${Date.now()}`);
   }
 
-  function coz(metin: string) {
+  function coz(metin: string, etiket?: string) {
     const { olaylar: o, atilan } = olaylariCoz(metin);
+    setKaynak(etiket ?? null);
     setOlaylar(o);
     setSeciliOlay(null);
     if (o.length === 0) { setMsg("Okunabilir olay çıkmadı."); return; }
@@ -317,6 +321,8 @@ export default function SavasHaritasiPage() {
             {sekme === "savas" && (
               <div className="flex flex-col min-h-0 flex-1">
                 {olaylar.length === 0 ? (
+                  <>
+                  <KayitSecici onYukle={(satirlar, etiket) => coz(JSON.stringify(satirlar), etiket)} />
                   <div className="p-3 space-y-2">
                     <p className="text-[11.5px]" style={{ color: "var(--t-dim)" }}>
                       Kayıt incelemesinin çıktısını yapıştır; kill ve ölümler haritaya düşsün.
@@ -339,11 +345,20 @@ export default function SavasHaritasiPage() {
                         <Upload className="w-3.5 h-3.5" /> Dosya
                       </button>
                     </div>
-                    <p className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>Veri tarayıcıdan çıkmıyor.</p>
+                    <p className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
+                      Elle yapıştırılan veri tarayıcıdan çıkmıyor.
+                    </p>
                   </div>
+                  </>
                 ) : (
                   <div className="flex flex-col min-h-0 flex-1">
                     <div className="p-2 space-y-2" style={{ borderBottom: "1px solid var(--t-line)" }}>
+                      {kaynak && (
+                        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--t-faint)" }}>
+                          <Radio className="w-3 h-3" style={{ color: "var(--t-gold)" }} />
+                          <span className="truncate">{kaynak}</span>
+                        </div>
+                      )}
                       {savasYeri && (
                         <div className="flex items-center gap-1.5 text-[11.5px]">
                           <Crosshair className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--t-gold)" }} />
@@ -370,7 +385,7 @@ export default function SavasHaritasiPage() {
                                 title="Olay yoğunluğu — ekran ölçeğinde, alan hâkimiyeti değil">
                           <Flame className="w-3.5 h-3.5" /> Isı
                         </button>
-                        <button onClick={() => { setOlaylar([]); setHam(""); setSeciliOlay(null); setIsi(false); }}
+                        <button onClick={() => { setOlaylar([]); setHam(""); setSeciliOlay(null); setIsi(false); setKaynak(null); }}
                                 className="t-tab">Temizle</button>
                       </div>
                     </div>

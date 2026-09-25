@@ -159,6 +159,7 @@ model User {
   characters           UserCharacter[]
   builds               Build[]
   combatLogs           CombatLog[]
+  combatSessions       CombatSession[]
 
   @@map("users")
 }
@@ -285,6 +286,56 @@ enum ParticipantStatus {
   DECLINED
 }
 
+// Append-only feed storage, separate from official performance reports and legacy CombatLog.
+model CombatSession {
+  id              String   @id
+  clientSessionId String
+  warId           Int
+  uploadedBy      Int
+  recordedGuildId Int?
+  allianceName    String
+  parserVersion   String
+  startedAt       DateTime
+  endedAt         DateTime?
+  phase           String   @default("listening")
+  lastSeq         Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  war             War      @relation(fields: [warId], references: [id], onDelete: Restrict)
+  uploader        User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  events          CombatEvent[]
+  @@unique([uploadedBy, clientSessionId])
+  @@index([warId, createdAt, id])
+  @@map("combat_sessions")
+}
+
+model CombatEvent {
+  sessionId         String
+  seq               Int
+  receivedAt        DateTime
+  rawBase64         String @db.Text
+  rawHash           String
+  ourFamily         String
+  opponentFamily    String
+  ourCharacter      String
+  opponentCharacter String
+  opponentGuild     String
+  ourKill           Boolean
+  killerFamily      String
+  victimFamily      String
+  gameX             Float
+  gameY             Float
+  gameZ             Float
+  positionVerified  Boolean @default(false)
+  directionFlagHex  String
+  tailHex           String
+  session           CombatSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  @@id([sessionId, seq])
+  @@index([rawHash])
+  @@index([sessionId, receivedAt])
+  @@map("combat_events")
+}
+
 model War {
   id               Int        @id @default(autoincrement())
   title            String
@@ -307,6 +358,7 @@ model War {
   /** Discord "Zamanlanmış Etkinlik" kimliği — savaş açılınca oluşturulur, tarih/başlık değişince güncellenir */
   discordEventId      String?
   combatLogs          CombatLog[]
+  combatSessions      CombatSession[]
   reminder10hSent     Boolean  @default(false)
   reminder4hSent      Boolean  @default(false)
   reminder10hMsgId    String?

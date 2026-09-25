@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:combat-sessions": "node scripts/test-combat-sessions.cjs",
     "dev": "next dev",
     "postinstall": "prisma generate",
     "build": "next build",
