@@ -19,6 +19,12 @@ import type { SavasOlayi } from "@/lib/savas-olaylari";
  */
 
 const TUR_ARASI_MS = 1200;
+/**
+ * Tek istekte sorulan aile sayısı. Uç uzun listeyi reddediyordu ve 78
+ * aileli bir savaşta istek daha başlamadan 400 dönüyordu; liste artık
+ * kümelere bölünüyor, kaç kişilik savaş olursa olsun çalışsın.
+ */
+const KUME = 50;
 /** Sonsuz döngüye karşı: kalan azalmıyorsa bırak */
 const ILERLEME_YOK_SINIRI = 3;
 
@@ -68,63 +74,75 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
     setToplam(aileler.length);
     setDurum("calisiyor");
 
-    let oncekiKalan = Infinity, duran = 0;
-    for (;;) {
+    const kumeler: string[][] = [];
+    for (let i = 0; i < aileler.length; i += KUME) kumeler.push(aileler.slice(i, i + KUME));
+
+    for (let k = 0; k < kumeler.length; k++) {
+      const kume = kumeler[k];
       if (durdurulan.current || nesil.current !== benim) break;
-      let d: {
-        aileler?: Record<string, { karakterler: Array<{ ad: string; sinif: number }> }>;
-        kalan?: number; denenen?: number; bulunan?: number; bos?: number; hataSayisi?: number;
-        hatalar?: Array<{ aile: string; mesaj: string }>;
-      };
-      try {
-        const r = await fetch("/api/bdo-profil", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ aileler, zorla }),
+      /** Sonraki kümelerdeki aileler de "kalan" sayılıyor */
+      const sonrakiler = aileler.length - (k + 1) * KUME;
+      let oncekiKalan = Infinity, duran = 0;
+
+      for (;;) {
+        if (durdurulan.current || nesil.current !== benim) break;
+        let d: {
+          aileler?: Record<string, { karakterler: Array<{ ad: string; sinif: number }> }>;
+          kalan?: number; denenen?: number; bulunan?: number; bos?: number; hataSayisi?: number;
+          hatalar?: Array<{ aile: string; mesaj: string }>;
+        };
+        try {
+          const r = await fetch("/api/bdo-profil", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ aileler: kume, zorla }),
+          });
+          d = await r.json();
+          if (!r.ok) throw new Error((d as unknown as { error?: string })?.error ?? `HTTP ${r.status}`);
+        } catch (e) {
+          if (nesil.current === benim) {
+            setDurum("hata");
+            setTani((o) => ({ ...o, mesajlar: [(e as Error)?.message ?? "istek başarısız", ...o.mesajlar].slice(0, 3) }));
+          }
+          if (nesil.current === benim) calisiyor.current = false;
+          return;
+        }
+        if (nesil.current !== benim) return;   // bayrak yeni turun, dokunma
+
+        setSiniflar((onceki) => {
+          const harita = { ...onceki };
+          for (const kayit of Object.values(d.aileler ?? {})) {
+            for (const kr of kayit.karakterler) harita[kr.ad.toLocaleLowerCase("tr")] = kr.sinif;
+          }
+          return harita;
         });
-        d = await r.json();
-        if (!r.ok) throw new Error((d as unknown as { error?: string })?.error ?? `HTTP ${r.status}`);
-      } catch (e) {
-        if (nesil.current === benim) {
-          setDurum("hata");
-          setTani((o) => ({ ...o, mesajlar: [(e as Error)?.message ?? "istek başarısız", ...o.mesajlar].slice(0, 3) }));
-        }
-        break;
+        setKadro((onceki) => {
+          const harita = { ...onceki };
+          for (const [aile, kayit] of Object.entries(d.aileler ?? {})) {
+            harita[aile.toLocaleLowerCase("tr")] = kayit.karakterler;
+          }
+          return harita;
+        });
+
+        setTani((o) => ({
+          denenen: o.denenen + (d.denenen ?? 0),
+          bulunan: o.bulunan + (d.bulunan ?? 0),
+          bos: o.bos + (d.bos ?? 0),
+          ulasilamayan: o.ulasilamayan + Math.max(0, d.hataSayisi ?? 0),
+          mesajlar: Array.from(new Set([...(d.hatalar ?? []).map((h) => `${h.aile}: ${h.mesaj}`), ...o.mesajlar])).slice(0, 3),
+        }));
+
+        const yeniKalan = d.kalan ?? 0;
+        setKalan(Math.max(0, sonrakiler) + yeniKalan);
+        if (yeniKalan === 0) break;
+        // Kalan azalmıyorsa (hep aynı aileler okunamıyorsa) ısrar etme
+        duran = yeniKalan >= oncekiKalan ? duran + 1 : 0;
+        oncekiKalan = yeniKalan;
+        if (duran >= ILERLEME_YOK_SINIRI) break;
+
+        await new Promise((r) => setTimeout(r, TUR_ARASI_MS));
       }
-      if (nesil.current !== benim) break;
-
-      setSiniflar((onceki) => {
-        const harita = { ...onceki };
-        for (const kayit of Object.values(d.aileler ?? {})) {
-          for (const k of kayit.karakterler) harita[k.ad.toLocaleLowerCase("tr")] = k.sinif;
-        }
-        return harita;
-      });
-      setKadro((onceki) => {
-        const harita = { ...onceki };
-        for (const [aile, kayit] of Object.entries(d.aileler ?? {})) {
-          harita[aile.toLocaleLowerCase("tr")] = kayit.karakterler;
-        }
-        return harita;
-      });
-
-      setTani((o) => ({
-        denenen: o.denenen + (d.denenen ?? 0),
-        bulunan: o.bulunan + (d.bulunan ?? 0),
-        bos: o.bos + (d.bos ?? 0),
-        ulasilamayan: o.ulasilamayan + Math.max(0, d.hataSayisi ?? 0),
-        mesajlar: Array.from(new Set([...(d.hatalar ?? []).map((h) => `${h.aile}: ${h.mesaj}`), ...o.mesajlar])).slice(0, 3),
-      }));
-
-      const yeniKalan = d.kalan ?? 0;
-      setKalan(yeniKalan);
-      if (yeniKalan === 0) { setDurum("bitti"); break; }
-      // Kalan azalmıyorsa (hep aynı aileler okunamıyorsa) ısrar etme
-      duran = yeniKalan >= oncekiKalan ? duran + 1 : 0;
-      oncekiKalan = yeniKalan;
-      if (duran >= ILERLEME_YOK_SINIRI) { setDurum("bitti"); break; }
-
-      await new Promise((r) => setTimeout(r, TUR_ARASI_MS));
     }
+    if (nesil.current === benim && !durdurulan.current) { setKalan(0); setDurum("bitti"); }
     if (nesil.current === benim) calisiyor.current = false;
   }, [aileler]);
 

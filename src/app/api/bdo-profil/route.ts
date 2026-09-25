@@ -29,6 +29,8 @@ const TAZELIK_GUN = 21;
  * kalmasın.
  */
 const BOS_TAZELIK_GUN = 2;
+/** Tek istekte sorulabilecek en fazla aile — sadece sorgu, okuma değil */
+const SORGU_SINIRI = 300;
 /** Tek istekte en fazla kaç yeni aile okunur */
 const YENI_SINIR = 6;
 const ARA_MS = 350;
@@ -43,8 +45,11 @@ export async function POST(req: NextRequest) {
   const aileler = govde?.aileler;
   /** Boş kayıtları da yeniden oku — arayüzdeki "Karakterleri bul" düğmesi */
   const zorla = govde?.zorla === true;
-  if (!Array.isArray(aileler) || aileler.length === 0 || aileler.length > 60) {
-    return NextResponse.json({ error: "Aile listesi gerekli (en fazla 60)." }, { status: 400 });
+  // 70-80 kişilik savaşta liste tek seferde bundan uzun olabiliyor; istek
+  // başına yine yalnızca birkaç yeni aile okunuyor, gerisi önbellekten.
+  if (!Array.isArray(aileler) || aileler.length === 0 || aileler.length > SORGU_SINIRI) {
+    return NextResponse.json(
+      { error: `Aile listesi gerekli (en fazla ${SORGU_SINIRI}).` }, { status: 400 });
   }
   const istenen = Array.from(new Set(
     aileler.filter((a): a is string => typeof a === "string" && !!a.trim() && a.length <= 30)
