@@ -12,6 +12,7 @@ import { olaylariCoz, olayOzeti, type SavasOlayi } from "@/lib/savas-olaylari";
 import { KayitSecici } from "@/components/kayit-secici";
 import { SavasAnalizi } from "@/components/savas-analizi";
 import { useRakipSiniflari } from "@/lib/rakip-siniflari";
+import { OynatmaCubugu } from "@/components/oynatma-cubugu";
 import { TIER_RENK, enYakinNode, type HaritaNode } from "@/lib/bdo-harita";
 import haritaVeri from "@/data/harita/nodlar.json";
 
@@ -55,6 +56,10 @@ export default function SavasHaritasiPage() {
   const [kaynak, setKaynak] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [suzgec, setSuzgec] = useState<"hepsi" | "kill" | "death">("hepsi");
+  /** Oynatma: `an` null ise kapalı ve bütün olaylar görünüyor */
+  const [an, setAn] = useState<number | null>(null);
+  const [oynuyor, setOynuyor] = useState(false);
+  const [hiz, setHiz] = useState(10);
   const [isi, setIsi] = useState(false);
   const [odak, setOdak] = useState<{ x: number; z: number; zoom: number } | null>(null);
   const [odakKey, setOdakKey] = useState("");
@@ -130,10 +135,55 @@ export default function SavasHaritasiPage() {
     [sadeceAktif, kaleler, kaleKonumlu],
   );
 
+  /** Kaydın zaman aralığı — oynatma çubuğunun sınırları */
+  const araliklar = useMemo(() => {
+    if (olaylar.length === 0) return null;
+    const t = olaylar.map((o) => o.at);
+    return { ilk: Math.min(...t), son: Math.max(...t) };
+  }, [olaylar]);
+
   const gorunen = useMemo(
-    () => olaylar.filter((o) => suzgec === "hepsi" || (suzgec === "kill") === o.bizimKill),
-    [olaylar, suzgec],
+    () => olaylar.filter((o) =>
+      (suzgec === "hepsi" || (suzgec === "kill") === o.bizimKill) &&
+      (an == null || o.at <= an)),
+    [olaylar, suzgec, an],
   );
+
+  /**
+   * Oynatma döngüsü: her karede geçen süre kadar ilerliyor. Sekme arkadayken
+   * tarayıcı kareleri seyrekleştiriyor, bu da olduğu gibi kabul ediliyor —
+   * saat gerçek zamana değil, geçen kareye bağlı.
+   */
+  useEffect(() => {
+    if (!oynuyor || !araliklar) return;
+    let kare = 0, onceki = performance.now();
+    const adim = (simdi: number) => {
+      const fark = simdi - onceki;
+      onceki = simdi;
+      setAn((t) => {
+        const yeni = (t ?? araliklar.ilk) + fark * hiz;
+        if (yeni >= araliklar.son) { setOynuyor(false); return araliklar.son; }
+        return yeni;
+      });
+      kare = requestAnimationFrame(adim);
+    };
+    kare = requestAnimationFrame(adim);
+    return () => cancelAnimationFrame(kare);
+  }, [oynuyor, hiz, araliklar]);
+
+  /** Boşluk tuşu oynat/duraklat — yazı alanındayken değil */
+  useEffect(() => {
+    if (!araliklar) return;
+    const tus = (e: KeyboardEvent) => {
+      const hedef = e.target as HTMLElement | null;
+      if (e.code !== "Space" || (hedef && /^(INPUT|TEXTAREA|SELECT)$/.test(hedef.tagName))) return;
+      e.preventDefault();
+      setOynuyor((v) => !v);
+      setAn((t) => (t == null || t >= araliklar.son ? araliklar.ilk : t));
+    };
+    window.addEventListener("keydown", tus);
+    return () => window.removeEventListener("keydown", tus);
+  }, [araliklar]);
   const ozet = useMemo(() => olayOzeti(gorunen), [gorunen]);
   // Rakip sınıfları arka planda okunuyor; analiz kapalıyken de sürüyor
   const sinif = useRakipSiniflari(olaylar);
@@ -180,6 +230,7 @@ export default function SavasHaritasiPage() {
           onNode={nodeSec}
           onOlay={(at) => { setSeciliOlay(at === seciliOlay ? null : at); setSekme("savas"); }}
           seciliOlay={seciliOlay}
+          vurguAt={oynuyor || an != null ? an : null}
           isi={isi}
           odak={odak}
           odakKey={odakKey}
@@ -197,9 +248,26 @@ export default function SavasHaritasiPage() {
           </div>
         )}
 
+        {araliklar && olaylar.length > 0 && sekme !== "analiz" && (
+          <OynatmaCubugu ilk={araliklar.ilk} son={araliklar.son} an={an} calisiyor={oynuyor} hiz={hiz}
+                         onAn={(t) => setAn(t)}
+                         onOynat={() => {
+                           setOynuyor((v) => !v);
+                           setAn((t) => (t == null || t >= araliklar.son ? araliklar.ilk : t));
+                         }}
+                         onHiz={setHiz}
+                         onBasaAl={() => { setAn(null); setOynuyor(false); }} />
+        )}
+
         {sekme === "analiz" && olaylar.length > 0 && (
-          <SavasAnalizi olaylar={gorunen} siniflar={sinif.siniflar} sinifDurum={sinif.durum}
-                        okunan={sinif.okunan} toplam={sinif.toplam} kaynak={kaynak}
+          <SavasAnalizi olaylar={gorunen} siniflar={sinif.siniflar} kadro={sinif.kadro}
+                        sinifDurum={sinif.durum} okunan={sinif.okunan} toplam={sinif.toplam}
+                        kalan={sinif.kalan}
+                        // Oynatma bir ana kadar süzüyor: analiz de o kesiti okuyor, başlıkta yazsın
+                        kaynak={an != null
+                          ? `${kaynak ?? "kayıt"} · ${new Date(an).toLocaleTimeString("tr-TR")}'e kadar`
+                          : kaynak}
+                        onSinifAra={() => void sinif.baslat()}
                         onKapat={() => setSekme("savas")} />
         )}
 
@@ -414,7 +482,7 @@ export default function SavasHaritasiPage() {
                                 title="Olay yoğunluğu — ekran ölçeğinde, alan hâkimiyeti değil">
                           <Flame className="w-3.5 h-3.5" /> Isı
                         </button>
-                        <button onClick={() => { setOlaylar([]); setHam(""); setSeciliOlay(null); setIsi(false); setKaynak(null); }}
+                        <button onClick={() => { setOlaylar([]); setHam(""); setSeciliOlay(null); setIsi(false); setKaynak(null); setAn(null); setOynuyor(false); }}
                                 className="t-tab">Temizle</button>
                       </div>
                     </div>

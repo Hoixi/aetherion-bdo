@@ -121,3 +121,191 @@ export function olayYayilimi(olaylar: SavasOlayi[]) {
     enUzakMetre: Math.round(Math.max(...uzakliklar)),
   };
 }
+
+/* ------------------------------------------------------------------ *
+ *  Grafikler için türetilmiş seriler
+ * ------------------------------------------------------------------ */
+
+export interface ZamanKovasi {
+  /** Kovanın başlangıcı (ms) */
+  t: number;
+  kill: number;
+  death: number;
+  /** Kova sonuna kadarki kümülatif fark (kill − death) */
+  fark: number;
+}
+
+/**
+ * Olayları eşit aralıklı kovalara böler — boş dakikalar da var, çünkü
+ * savaşın sustuğu yer de bilgi. Kova genişliği kayıt uzunluğuna göre
+ * seçiliyor: 30 kovadan fazla çubuk dar ekranda okunmuyor.
+ */
+export function zamanKovalari(olaylar: SavasOlayi[], hedefKova = 30): { kovalar: ZamanKovasi[]; kovaSn: number } {
+  if (olaylar.length === 0) return { kovalar: [], kovaSn: 60 };
+  const t = olaylar.map((o) => o.at);
+  const ilk = Math.min(...t), son = Math.max(...t);
+  const adaylar = [15, 30, 60, 120, 300, 600];
+  const gerek = Math.max(1, (son - ilk) / 1000 / hedefKova);
+  const kovaSn = adaylar.find((s) => s >= gerek) ?? 900;
+  const genis = kovaSn * 1000;
+  const bas = Math.floor(ilk / genis) * genis;
+  const sayi = Math.max(1, Math.floor((son - bas) / genis) + 1);
+  const kovalar: ZamanKovasi[] = Array.from({ length: sayi }, (_, i) => ({
+    t: bas + i * genis, kill: 0, death: 0, fark: 0,
+  }));
+  for (const o of olaylar) {
+    const k = kovalar[Math.min(sayi - 1, Math.floor((o.at - bas) / genis))];
+    if (o.bizimKill) k.kill++; else k.death++;
+  }
+  let toplam = 0;
+  for (const k of kovalar) { toplam += k.kill - k.death; k.fark = toplam; }
+  return { kovalar, kovaSn };
+}
+
+export interface SinifSatiri {
+  sinif: number;
+  /** Bu sınıftan aldığımız kill */
+  kill: number;
+  /** Bu sınıfa verdiğimiz ölüm */
+  olum: number;
+  toplam: number;
+  /** Kayıtta bu sınıftan kaç ayrı aile göründü */
+  kisi: number;
+}
+
+/** karakter adı → sınıf eşlemesi, küçük harf anahtarla */
+export type SinifHaritasi = Record<string, number>;
+
+/** Rakip olayların sınıfa göre dağılımı */
+export function sinifDagilimi(olaylar: SavasOlayi[], siniflar: SinifHaritasi) {
+  const m = new Map<number, { kill: number; olum: number; aile: Set<string> }>();
+  let bilinmeyen = 0;
+  for (const o of olaylar) {
+    const s = siniflar[o.rakipKarakter.toLocaleLowerCase("tr")];
+    if (s == null) { bilinmeyen++; continue; }
+    const v = m.get(s) ?? { kill: 0, olum: 0, aile: new Set<string>() };
+    if (o.bizimKill) v.kill++; else v.olum++;
+    v.aile.add(o.rakipAile);
+    m.set(s, v);
+  }
+  const satirlar: SinifSatiri[] = Array.from(m.entries())
+    .map(([sinif, v]) => ({ sinif, kill: v.kill, olum: v.olum, toplam: v.kill + v.olum, kisi: v.aile.size }))
+    .sort((a, b) => b.olum - a.olum || b.toplam - a.toplam);
+  return { satirlar, bilinmeyen, bilinen: olaylar.length - bilinmeyen };
+}
+
+/**
+ * Klan × sınıf: hangi klanın kadrosunda hangi sınıftan kaç kişi göründü.
+ *
+ * Hücre olayı değil *kişiyi* sayıyor — bir klanda iki cadı varsa hücre 2,
+ * o cadılar bizi kırk kere öldürmüş olsa bile. Kadro kompozisyonu sorusunun
+ * cevabı bu; kaç kere öldürdükleri ayrı kartta.
+ */
+export function klanSinifMatrisi(olaylar: SavasOlayi[], siniflar: SinifHaritasi, enFazlaKlan = 8) {
+  /** klan → sınıf → aileler */
+  const klan = new Map<string, Map<number, Set<string>>>();
+  const klanToplam = new Map<string, Set<string>>();
+  const sinifToplam = new Map<number, number>();
+  for (const o of olaylar) {
+    const s = siniflar[o.rakipKarakter.toLocaleLowerCase("tr")];
+    if (s == null || !o.rakipAile) continue;
+    const ad = o.rakipKlan || "—";
+    const h = klan.get(ad) ?? new Map<number, Set<string>>();
+    const set = h.get(s) ?? new Set<string>();
+    set.add(o.rakipAile);
+    h.set(s, set); klan.set(ad, h);
+    const hepsi = klanToplam.get(ad) ?? new Set<string>();
+    hepsi.add(o.rakipAile);
+    klanToplam.set(ad, hepsi);
+  }
+  for (const h of Array.from(klan.values())) {
+    for (const [s, set] of Array.from(h.entries())) sinifToplam.set(s, (sinifToplam.get(s) ?? 0) + set.size);
+  }
+  const satirlar = Array.from(klan.entries())
+    .map(([ad, h]) => ({
+      ad,
+      kisi: klanToplam.get(ad)?.size ?? 0,
+      hucre: new Map(Array.from(h.entries()).map(([s, set]) => [s, set.size])),
+    }))
+    .sort((a, b) => b.kisi - a.kisi)
+    .slice(0, enFazlaKlan);
+  // Sütunlar: yalnızca kalan klanlarda gerçekten görülen sınıflar, çoktan aza
+  const gorulen = new Set<number>();
+  for (const r of satirlar) for (const s of Array.from(r.hucre.keys())) gorulen.add(s);
+  const sutunlar = Array.from(gorulen)
+    .sort((a, b) => (sinifToplam.get(b) ?? 0) - (sinifToplam.get(a) ?? 0));
+  const enBuyuk = Math.max(1, ...satirlar.flatMap((r) => Array.from(r.hucre.values())));
+  return { satirlar, sutunlar, enBuyuk };
+}
+
+export interface KarakterSatiri {
+  ad: string;
+  aile: string;
+  klan: string;
+  /** Sınıf bilinmiyorsa null */
+  sinif: number | null;
+  /** Bizi öldürdüğü sayı */
+  bizeOlum: number;
+  /** Bizim onu öldürdüğümüz sayı */
+  bizimKill: number;
+  toplam: number;
+}
+
+/**
+ * Karakter dağılımı — aile değil, o ailenin savaşta gördüğümüz karakteri.
+ *
+ * Bir aile savaş içinde karakter değiştirebiliyor (ölen karakterle geri
+ * gelmek yerine ikinci sınıfına geçen çok); aile bazında bakınca bu
+ * kayboluyor, burada ayrı satır oluyor.
+ */
+export function karakterDagilimi(olaylar: SavasOlayi[], siniflar: SinifHaritasi): KarakterSatiri[] {
+  const m = new Map<string, KarakterSatiri>();
+  for (const o of olaylar) {
+    if (!o.rakipKarakter) continue;
+    const anahtar = o.rakipKarakter.toLocaleLowerCase("tr");
+    const r = m.get(anahtar) ?? {
+      ad: o.rakipKarakter, aile: o.rakipAile, klan: o.rakipKlan,
+      sinif: siniflar[anahtar] ?? null, bizeOlum: 0, bizimKill: 0, toplam: 0,
+    };
+    if (o.bizimKill) r.bizimKill++; else r.bizeOlum++;
+    r.toplam++;
+    if (r.sinif == null) r.sinif = siniflar[anahtar] ?? null;
+    m.set(anahtar, r);
+  }
+  return Array.from(m.values()).sort((a, b) => b.bizeOlum - a.bizeOlum || b.toplam - a.toplam);
+}
+
+/**
+ * Ailelerin kadrosu: profilden okunan bütün karakterler, savaşta görülen
+ * karakterle birlikte. "Bu aile hangi sınıfları oynuyor" sorusu — savaşta
+ * cadıyı gördüysek de adamın asıl karakteri başka olabilir.
+ */
+export function aileKadrosu(
+  olaylar: SavasOlayi[],
+  kadro: Record<string, Array<{ ad: string; sinif: number }>>,
+) {
+  const gorulen = new Map<string, Set<string>>();
+  const sayac = new Map<string, { bizeOlum: number; bizimKill: number }>();
+  for (const o of olaylar) {
+    if (!o.rakipAile) continue;
+    const g = gorulen.get(o.rakipAile) ?? new Set<string>();
+    if (o.rakipKarakter) g.add(o.rakipKarakter.toLocaleLowerCase("tr"));
+    gorulen.set(o.rakipAile, g);
+    const s = sayac.get(o.rakipAile) ?? { bizeOlum: 0, bizimKill: 0 };
+    if (o.bizimKill) s.bizimKill++; else s.bizeOlum++;
+    sayac.set(o.rakipAile, s);
+  }
+  return Array.from(gorulen.entries())
+    .map(([aile, g]) => {
+      const hepsi = kadro[aile.toLocaleLowerCase("tr")] ?? [];
+      return {
+        aile,
+        ...(sayac.get(aile) ?? { bizeOlum: 0, bizimKill: 0 }),
+        /** Profilde kayıtlı bütün karakterler */
+        karakterler: hepsi,
+        /** Savaşta gerçekten gördüklerimiz */
+        gorulen: hepsi.filter((k) => g.has(k.ad.toLocaleLowerCase("tr"))),
+      };
+    })
+    .sort((a, b) => b.bizeOlum - a.bizeOlum || b.bizimKill - a.bizimKill);
+}

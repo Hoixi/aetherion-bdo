@@ -31,6 +31,11 @@ type Props = {
   seciliOlay?: number | null;
   /** Yoğunluk katmanı: kırmızı öldüğümüz, yeşil öldürdüğümüz yerler */
   isi?: boolean;
+  /**
+   * Oynatmada bulunulan an. Doluysa son saniyelerdeki olaylar parlak ve
+   * büyük, öncekiler soluk çiziliyor — savaşın nereye kaydığı görünsün.
+   */
+  vurguAt?: number | null;
   /** Değişince harita buraya gider — oyun koordinatı ve yakınlık */
   odak?: { x: number; z: number; zoom: number } | null;
   odakKey?: string;
@@ -43,9 +48,11 @@ type Props = {
 
 const KILL = "#5fd39a";
 const DEATH = "#ef5f5f";
+/** Oynatmada "taze olay" penceresi (ms, kayıt saati) */
+const VURGU_PENCERE = 25_000;
 
 export default function DunyaHaritasi({
-  nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false,
+  nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false, vurguAt,
   odak, odakKey, onKaroHata, onNokta, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -237,10 +244,22 @@ export default function DunyaHaritasi({
       const [lat, lng] = dunyaToProj(o.dunya[0], o.dunya[2]);
       const secili = seciliOlay != null && o.at === seciliOlay;
       const renk = o.bizimKill ? KILL : DEATH;
+      // Oynatmada son 25 saniye taze sayılıyor; eskiler geri plana çekiliyor
+      const yas = vurguAt != null ? vurguAt - o.at : null;
+      const taze = yas != null && yas <= VURGU_PENCERE;
+      const solgun = yas != null && !taze;
+      if (taze) {
+        L.circleMarker([lat, lng], {
+          radius: 12 - (yas / VURGU_PENCERE) * 5, color: renk, weight: 1,
+          fillColor: renk, fillOpacity: 0.18 * (1 - yas / VURGU_PENCERE), interactive: false,
+        }).addTo(katman);
+      }
       L.circleMarker([lat, lng], {
-        radius: secili ? 8 : 5,
+        radius: secili ? 8 : taze ? 6.5 : 5,
         color: secili ? "#fff" : renk, weight: secili ? 2 : 1,
-        fillColor: renk, fillOpacity: secili ? 1 : 0.75,
+        fillColor: renk,
+        fillOpacity: secili ? 1 : solgun ? 0.3 : 0.78,
+        opacity: solgun ? 0.35 : 1,
       })
         .bindTooltip(
           `<b>${o.bizimAile}</b> ${o.bizimKill ? "→" : "←"} ${o.rakipAile}` +
@@ -250,7 +269,7 @@ export default function DunyaHaritasi({
         .on("click", () => olayCb.current?.(o.at))
         .addTo(katman);
     }
-  }, [olaylar, seciliOlay, ready]);
+  }, [olaylar, seciliOlay, vurguAt, ready]);
 
   // ── Isı katmanı
   useEffect(() => {

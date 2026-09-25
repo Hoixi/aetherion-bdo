@@ -300,3 +300,18 @@
   inset: -9px; border-color: rgba(239, 95, 95, 0.45);
   background: radial-gradient(circle, rgba(239, 95, 95, 0.14), transparent 70%);
 }
+
+/* Oynatma çubuğu — savaşı zaman çizgisinde ileri sarma */
+/* Geçen kısım altın, kalanı sönük: çubuk savaşın neresinde olduğumuzu
+   renkle de söylüyor, yalnız tutamağın yeriyle değil. */
+.oynatma-cizgi { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 99px;
+                 background: linear-gradient(90deg, rgba(232,180,81,.8) var(--ilerleme, 100%),
+                                             rgba(255,255,255,.13) var(--ilerleme, 100%));
+                 outline: none; cursor: pointer; }
+.oynatma-cizgi::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px;
+                 border-radius: 99px; background: var(--t-gold); border: 2px solid #0b0b0c;
+                 box-shadow: 0 0 0 1px rgba(232,180,81,.5); cursor: grab; }
+.oynatma-cizgi::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.1); }
+.oynatma-cizgi::-moz-range-thumb { width: 11px; height: 11px; border-radius: 99px; background: var(--t-gold);
+                 border: 2px solid #0b0b0c; cursor: grab; }
+.oynatma-cizgi:focus-visible { box-shadow: 0 0 0 2px rgba(232,180,81,.45); }
