@@ -5,11 +5,12 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   Search, Swords, Upload, MapPin, Castle, Users, Skull, X, ChevronLeft, Crosshair, Flame,
-  Move, RotateCcw, Check, Radio,
+  Move, RotateCcw, Check, Radio, BarChart3,
 } from "lucide-react";
 import { TestShell } from "@/components/app-shell";
 import { olaylariCoz, olayOzeti, type SavasOlayi } from "@/lib/savas-olaylari";
 import { KayitSecici } from "@/components/kayit-secici";
+import { SavasAnalizi } from "@/components/savas-analizi";
 import { TIER_RENK, enYakinNode, type HaritaNode } from "@/lib/bdo-harita";
 import haritaVeri from "@/data/harita/nodlar.json";
 
@@ -43,7 +44,7 @@ const KALE_SAYI = SAVAS_NODLARI.filter((n) => n.kale).length;
 export default function SavasHaritasiPage() {
   const { data: session } = useSession();
   const yonetici = !!session?.user?.canManageWars;
-  const [sekme, setSekme] = useState<"mevzi" | "savas">("mevzi");
+  const [sekme, setSekme] = useState<"mevzi" | "savas" | "analiz">("mevzi");
   const [ara, setAra] = useState("");
   const [seciliHam, setSecili] = useState<HaritaNode | null>(null);
   const [olaylar, setOlaylar] = useState<SavasOlayi[]>([]);
@@ -193,6 +194,20 @@ export default function SavasHaritasiPage() {
           </div>
         )}
 
+        {isi && olaylar.length > 0 && (
+          <div className="absolute bottom-3 right-3 z-[500] px-3 py-2 rounded-[var(--t-r-sm)]"
+               style={{ background: "rgba(16,16,19,.94)", border: "1px solid var(--t-line)" }}>
+            <p className="text-[10px] uppercase tracking-[0.06em] mb-1" style={{ color: "var(--t-faint)" }}>
+              Yoğunluk
+            </p>
+            <div className="h-[6px] w-[140px] rounded-full"
+                 style={{ background: "linear-gradient(90deg, var(--t-good), var(--t-gold), var(--t-bad))" }} />
+            <div className="flex justify-between text-[9.5px] mt-1" style={{ color: "var(--t-faint)" }}>
+              <span>öldürdük</span><span>öldük</span>
+            </div>
+          </div>
+        )}
+
         {karoHata && (
           <div className="absolute top-3 right-14 z-[500] px-3 py-2 rounded-[var(--t-r-sm)] text-[11.5px]"
                style={{ background: "rgba(16,16,19,.94)", border: "1px solid rgba(239,95,95,.35)", color: "#ef8080" }}>
@@ -211,6 +226,11 @@ export default function SavasHaritasiPage() {
               <button className="t-tab" data-on={sekme === "savas"} onClick={() => setSekme("savas")}>
                 <Swords className="w-3.5 h-3.5" /> Savaş
               </button>
+              {olaylar.length > 0 && (
+                <button className="t-tab" data-on={sekme === "analiz"} onClick={() => setSekme("analiz")}>
+                  <BarChart3 className="w-3.5 h-3.5" /> Analiz
+                </button>
+              )}
               <button className="t-tab ml-auto" onClick={() => setPanel(false)} title="Paneli gizle">
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -429,6 +449,8 @@ export default function SavasHaritasiPage() {
                 )}
               </div>
             )}
+
+            {sekme === "analiz" && <SavasAnalizi olaylar={gorunen} />}
 
             <div className="px-3 py-2" style={{ borderTop: "1px solid var(--t-line)" }}>
               <span className="text-[10px]" style={{ color: "var(--t-faint)" }}>

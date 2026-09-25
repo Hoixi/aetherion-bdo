@@ -8,7 +8,7 @@ import {
   dunyaToProj, projToDunya, projYaricap, sinirlar, type HaritaNode,
 } from "@/lib/bdo-harita";
 import type { SavasOlayi } from "@/lib/savas-olaylari";
-import { addCombatHeat } from "@/lib/combat-heat-layer";
+import { isiKatmani } from "@/lib/olay-isi";
 
 /**
  * Dünya haritası — oyundan çıkarılmış karolar.
@@ -29,7 +29,7 @@ type Props = {
   onNode?: (n: HaritaNode) => void;
   onOlay?: (at: number) => void;
   seciliOlay?: number | null;
-  /** Olay yoğunluğu katmanı — ekran pikseli ölçeğinde, alan hâkimiyeti değil */
+  /** Yoğunluk katmanı: kırmızı öldüğümüz, yeşil öldürdüğümüz yerler */
   isi?: boolean;
   /** Değişince harita buraya gider — oyun koordinatı ve yakınlık */
   odak?: { x: number; z: number; zoom: number } | null;
@@ -256,7 +256,9 @@ export default function DunyaHaritasi({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isi || olaylar.length === 0) return;
-    return addCombatHeat(map, olaylar.map((o) => dunyaToProj(o.dunya[0], o.dunya[2])));
+    return isiKatmani(map, olaylar.map((o) => ({
+      nokta: dunyaToProj(o.dunya[0], o.dunya[2]), kill: o.bizimKill,
+    })));
   }, [isi, olaylar, ready]);
 
   // ── Odak
