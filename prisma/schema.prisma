@@ -206,6 +206,23 @@ model NodeFort {
   @@map("node_forts")
 }
 
+/**
+ * Oyunun resmî maceracı profilinden okunan karakter listesi — önbellek.
+ *
+ * Kill akışı rakibin sınıfını vermiyor; profil sayfası veriyor. Aynı aile
+ * için sayfa bir kez okunup burada saklanıyor (bkz. `lib/bdo-profil.ts`).
+ * Bulunamayan aile boş dizi olarak yazılıyor: her seferinde yeniden
+ * denenmesin.
+ */
+model BdoFamily {
+  aile        String   @id
+  /// [{ ad, sinif }] — sinif, oyunun class_<id> numarası
+  karakterler Json     @default("[]")
+  alindi      DateTime @default(now())
+
+  @@map("bdo_families")
+}
+
 // ── GeoGuessr mini-game ─────────────────────────────────────────────────────
 
 model GeoImage {
