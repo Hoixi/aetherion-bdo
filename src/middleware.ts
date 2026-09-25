@@ -43,7 +43,7 @@ export const config = {
     "/kristaller/:path*",
     "/eserler/:path*",
     "/savas-gunlugu/:path*",
-    // GECICI-ONIZLEME
+    "/savas-haritasi/:path*",
     "/uygulama/:path*",
     "/admin/:path*",
   ],
