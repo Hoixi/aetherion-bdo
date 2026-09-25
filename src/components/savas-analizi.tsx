@@ -7,14 +7,14 @@ import {
 } from "lucide-react";
 import {
   savasAnalizi, olayYayilimi, zamanKovalari, sinifDagilimi, klanSinifMatrisi,
-  karakterDagilimi, aileKadrosu, sinifEslesmeleri, type SinifSatiri,
+  karakterDagilimi, aileKadrosu, type SinifSatiri,
 } from "@/lib/savas-analiz";
 import type { SavasOlayi } from "@/lib/savas-olaylari";
 import { BDO_CLASSES } from "@/lib/classes";
 import type { SinifDurumu, SinifTanisi } from "@/lib/rakip-siniflari";
 import {
-  AkisGrafigi, FarkCizgisi, SinifDagilimGrafigi, IsiMatrisi, sinifAdi, sinifIkonu,
-  type MatrisSatiri,
+  AkisGrafigi, FarkCizgisi, SinifDagilimGrafigi, IsiMatrisi, OlumSiralamasi,
+  sinifAdi, sinifIkonu, type MatrisSatiri,
 } from "@/components/analiz-grafikler";
 
 /**
@@ -108,24 +108,11 @@ export function SavasAnalizi({
   }, [olaylar, bizimSinifHaritasi]);
 
   /** Bizim sınıf × karşı sınıf: hangi sınıfımız neye yem oluyor */
-  const eslesme = useMemo(
-    () => sinifEslesmeleri(olaylar, siniflar, bizimSinifHaritasi),
-    [olaylar, siniflar, bizimSinifHaritasi],
-  );
-
   /** Klan kadrosu matrisinin satırları */
   const klanSatirlari: MatrisSatiri[] = useMemo(
     () => matris.satirlar.map((r) => ({ anahtar: r.ad, etiket: r.ad, ek: r.kisi, hucre: r.hucre })),
     [matris],
   );
-  const eslesmeSatirlari: MatrisSatiri[] = useMemo(
-    () => eslesme.satirlar.map((r) => ({
-      anahtar: String(r.sinif), etiket: sinifAdi(r.sinif), ikon: sinifIkonu(r.sinif),
-      ek: r.toplam, hucre: r.hucre,
-    })),
-    [eslesme],
-  );
-
   if (olaylar.length === 0) return null;
 
   const enCok = a.klanlar[0];
@@ -256,23 +243,13 @@ export function SavasAnalizi({
             </div>
           )}
 
-          {eslesmeSatirlari.length > 0 && (
-            <div style={tam}>
-              <Kart icon={Skull} baslik="Sınıf eşleşmeleri · hangi sınıfımız neye ölüyor"
-                    sag={<span className="text-[10.5px]" style={{ color: "var(--t-dim)" }}>
-                      {eslesme.sayilan} ölüm · satır bizim sınıf, sütun karşı sınıf
-                    </span>}>
-                <IsiMatrisi satirlar={eslesmeSatirlari} sutunlar={eslesme.sutunlar} enBuyuk={eslesme.enBuyuk}
-                            renk="kirmizi" baslik="Bizim sınıf" birim="ölüm"
-                            altYazi="İki tarafın da sınıfı bilinen ölümler" />
-              </Kart>
-            </div>
-          )}
-
-          <Kart icon={Sparkles} baslik={`Karşı tarafın sınıfları · ${rakipSinif.satirlar.length}`}>
-            <div className="p-2.5">
+          <div style={tam}>
+            <Kart icon={Skull} baslik={`Bizi en çok öldüren sınıflar · ${rakipSinif.satirlar.length}`}
+                  sag={<span className="text-[10.5px]" style={{ color: "var(--t-dim)" }}>
+                    klanın geneli · {a.death} ölümün {rakipSinif.satirlar.reduce((t, r) => t + r.olum, 0)} tanesinde sınıf biliniyor
+                  </span>}>
               {rakipSinif.satirlar.length === 0 ? (
-                <div className="text-[11.5px] space-y-1" style={{ color: "var(--t-dim)" }}>
+                <div className="p-3 text-[11.5px] space-y-1" style={{ color: "var(--t-dim)" }}>
                   <p>{calisiyor ? "Profiller okunuyor…" : "Sınıf bilgisi yok — «Karakterleri bul»."}</p>
                   {tani && !calisiyor && tani.denenen > 0 && (
                     <p className="flex items-start gap-1.5 text-[10.5px]"
@@ -286,16 +263,18 @@ export function SavasAnalizi({
                     </p>
                   )}
                 </div>
-              ) : <SinifDagilimGrafigi satirlar={rakipSinif.satirlar} />}
-              {rakipSinif.bilinmeyen > 0 && rakipSinif.satirlar.length > 0 && (
-                <p className="mt-2 text-[10px]" style={{ color: "var(--t-faint)" }}>
-                  {rakipSinif.bilinmeyen} olayda karakterin sınıfı bilinmiyor.
-                </p>
-              )}
-            </div>
-          </Kart>
+              ) : <OlumSiralamasi satirlar={rakipSinif.satirlar} toplamOlum={a.death} />}
+            </Kart>
+          </div>
+        </div>
 
-          <Kart icon={Users} baslik={`Bizim sınıflar · ${bizimSinif.satirlar.length}`}>
+        {/*
+          Kartlar farklı boylarda: ızgarada uzun bir kartın yanında koca
+          boşluklar kalıyordu. Sütunlu yığın düzeninde her kart bir
+          öncekinin hemen altına oturuyor, delik kalmıyor.
+        */}
+        <div className="mt-3" style={{ columnWidth: 330, columnGap: 12 }}>
+          <Kart sutun icon={Users} baslik={`Bizim sınıflar · ${bizimSinif.satirlar.length}`}>
             <div className="p-2.5">
               {bizimSinif.satirlar.length === 0 ? (
                 <p className="text-[11.5px]" style={{ color: "var(--t-dim)" }}>
@@ -310,8 +289,8 @@ export function SavasAnalizi({
             </div>
           </Kart>
 
-          <Kart icon={Shield} baslik={`Karşı klanlar · ${a.klanlar.length}`}>
-            <div className="p-2.5 space-y-1.5 max-h-[420px] overflow-y-auto">
+          <Kart sutun icon={Shield} baslik={`Karşı klanlar · ${a.klanlar.length}`}>
+            <div className="p-2.5 space-y-1.5 max-h-[min(64vh,640px)] overflow-y-auto">
               {a.klanlar.map((k) => (
                 <Cubuk key={k.ad} ad={k.ad} kill={k.kill} olum={k.olum}
                        en={Math.max(1, ...a.klanlar.map((x) => x.toplam))} />
@@ -319,8 +298,8 @@ export function SavasAnalizi({
             </div>
           </Kart>
 
-          <Kart icon={Skull} baslik={`Karşı karakterler · ${karakterler.length}`}>
-            <div className="p-1.5 max-h-[420px] overflow-y-auto">
+          <Kart sutun icon={Skull} baslik={`Karşı karakterler · ${karakterler.length}`}>
+            <div className="p-1.5 max-h-[min(64vh,640px)] overflow-y-auto">
               {karakterler.map((k) => (
                 <div key={k.ad} className="flex items-center gap-2 px-1.5 py-1 text-[12.5px]">
                   <SinifIkonu sinif={k.sinif} />
@@ -335,8 +314,8 @@ export function SavasAnalizi({
             </div>
           </Kart>
 
-          <Kart icon={UserSearch} baslik={`Ailelerin karakterleri · ${aileler.length}`}>
-            <div className="p-1.5 max-h-[420px] overflow-y-auto">
+          <Kart sutun icon={UserSearch} baslik={`Ailelerin karakterleri · ${aileler.length}`}>
+            <div className="p-1.5 max-h-[min(64vh,640px)] overflow-y-auto">
               {aileler.map((r) => (
                 <div key={r.aile} className="px-1.5 py-1">
                   <div className="flex items-center gap-2 text-[12.5px]">
@@ -368,8 +347,8 @@ export function SavasAnalizi({
             </div>
           </Kart>
 
-          <Kart icon={Users} baslik={`Bizimkiler · ${a.biz.length}`}>
-            <div className="p-1.5 max-h-[420px] overflow-y-auto">
+          <Kart sutun icon={Users} baslik={`Bizimkiler · ${a.biz.length}`}>
+            <div className="p-1.5 max-h-[min(64vh,640px)] overflow-y-auto">
               {a.biz.map((p) => {
                 const s = bizimSinifHaritasi[p.ad.toLocaleLowerCase("tr")];
                 return (
@@ -390,8 +369,8 @@ export function SavasAnalizi({
           </Kart>
 
           {a.ikililer.length > 0 && (
-            <Kart icon={Swords} baslik="Tekrarlayan eşleşmeler">
-              <div className="p-1.5 max-h-[420px] overflow-y-auto">
+            <Kart sutun icon={Swords} baslik="Tekrarlayan eşleşmeler">
+              <div className="p-1.5 max-h-[min(64vh,640px)] overflow-y-auto">
                 {a.ikililer.map((i) => (
                   <div key={`${i.bizim}-${i.rakip}`} className="flex items-center gap-1.5 px-1.5 py-1 text-[12px]">
                     <span className="truncate flex-1">{i.bizim}</span>
@@ -405,7 +384,7 @@ export function SavasAnalizi({
             </Kart>
           )}
 
-          <Kart icon={Clock} baslik="Zaman ve yer">
+          <Kart sutun icon={Clock} baslik="Zaman ve yer">
             <div className="p-3 space-y-1.5 text-[11.5px]">
               {a.enYogunDakika && (
                 <Satir ikon={Flame} etiket="En yoğun dakika"
@@ -423,7 +402,7 @@ export function SavasAnalizi({
           </Kart>
         </div>
 
-        <p className="mt-3 text-[10.5px]" style={{ color: "var(--t-faint)" }}>
+        <p className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
           Sayılar bu kaydın gördüğü olaylardan; tek istemci bütün ittifakın akışını görmeyebilir.
           Resmî hasar raporunun yerine geçmez. Rakip karakterleri ve sınıfları oyunun herkese açık
           profil sayfasından, bizimkiler üye kaydından.
@@ -458,12 +437,16 @@ function Efsane() {
   );
 }
 
-function Kart({ icon: Icon, baslik, sag, children }: {
-  icon: React.ElementType; baslik: string; sag?: React.ReactNode; children: React.ReactNode;
+function Kart({ icon: Icon, baslik, sag, sutun, children }: {
+  icon: React.ElementType; baslik: string; sag?: React.ReactNode;
+  /** Sütunlu (yığın) düzende: kutu sütun sonunda ikiye bölünmesin */
+  sutun?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <div className="rounded-[var(--t-r-sm)] overflow-hidden"
-         style={{ background: "var(--t-surface)", border: "1px solid var(--t-line)" }}>
+         style={{ background: "var(--t-surface)", border: "1px solid var(--t-line)",
+                  ...(sutun ? { breakInside: "avoid" as const, marginBottom: 12 } : null) }}>
       <div className="flex items-center gap-1.5 px-3 py-2" style={{ borderBottom: "1px solid var(--t-line)" }}>
         <Icon className="w-3 h-3 flex-shrink-0" style={{ color: "var(--t-gold)" }} />
         <span className="text-[10px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>{baslik}</span>

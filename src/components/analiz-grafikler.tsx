@@ -383,3 +383,76 @@ export function IsiMatrisi({ satirlar, sutunlar, enBuyuk, renk = "altin", baslik
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ *
+ *  Bizi en çok öldüren sınıflar — klanın geneli, tek seri
+ * ------------------------------------------------------------------ */
+
+/**
+ * Tek soru, tek seri: hangi sınıfa kaç ölüm verdik. Çubuk yalnız ölümü
+ * çiziyor; kendi kill'imiz ve kişi sayısı satırın sağında yazı olarak
+ * duruyor, çünkü iki çubuk aynı satırda büyüklük karşılaştırmasını
+ * bozuyor.
+ */
+export function OlumSiralamasi({ satirlar, toplamOlum, enFazla = 14 }: {
+  satirlar: SinifSatiri[];
+  /** Kayıttaki bütün ölümler — pay hesabı için (sınıfı bilinmeyenler dahil) */
+  toplamOlum: number;
+  enFazla?: number;
+}) {
+  const sirali = satirlar.slice().sort((a, b) => b.olum - a.olum || b.toplam - a.toplam);
+  const gosterilen = sirali.slice(0, enFazla);
+  const kuyruk = sirali.slice(enFazla);
+  const en = Math.max(1, ...sirali.map((r) => r.olum));
+  const pay = (n: number) => (toplamOlum > 0 ? Math.round((n / toplamOlum) * 100) : 0);
+
+  return (
+    <div className="p-2.5 space-y-[7px]">
+      {gosterilen.map((r, i) => {
+        const ikon = sinifIkonu(r.sinif);
+        return (
+          <div key={r.sinif} className="flex items-center gap-2"
+               title={`${sinifAdi(r.sinif)} · ${r.olum} ölüm · ${r.kisi} kişi · biz ${r.kill} kill aldık`}>
+            <span className="w-[14px] text-[10px] tabular-nums text-right flex-shrink-0"
+                  style={{ color: "var(--t-faint)" }}>{i + 1}</span>
+            {ikon ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ikon} alt="" className="w-[18px] h-[18px] opacity-85 flex-shrink-0" />
+            ) : <span className="w-[18px] flex-shrink-0" />}
+            <span className="w-[86px] text-[12px] truncate flex-shrink-0">{sinifAdi(r.sinif)}</span>
+
+            <span className="flex-1 min-w-[60px] h-[10px] rounded-[3px] relative"
+                  style={{ background: "var(--t-raised)" }}>
+              <i className="absolute left-0 top-0 h-full"
+                 style={{ width: `${Math.max(2, (r.olum / en) * 100)}%`, background: KIRMIZI,
+                          borderRadius: "3px 4px 4px 3px" }} />
+            </span>
+
+            <span className="t-num text-[12.5px] tabular-nums w-7 text-right font-semibold"
+                  style={{ color: "var(--t-bad)" }}>{r.olum}</span>
+            <span className="text-[10px] tabular-nums w-8 text-right" style={{ color: "var(--t-dim)" }}>
+              %{pay(r.olum)}
+            </span>
+            <span className="text-[10px] tabular-nums w-14 text-right hidden sm:block"
+                  style={{ color: "var(--t-faint)" }}>{r.kisi} kişi</span>
+            <span className="text-[10px] tabular-nums w-16 text-right hidden md:block"
+                  style={{ color: "var(--t-faint)" }}>
+              kişi başı {(r.olum / Math.max(1, r.kisi)).toFixed(1)}
+            </span>
+            <span className="t-num text-[11px] tabular-nums w-8 text-right hidden md:block"
+                  style={{ color: "var(--t-good)" }}>{r.kill}</span>
+          </div>
+        );
+      })}
+      {kuyruk.length > 0 && (
+        <p className="text-[10.5px] pt-1" style={{ color: "var(--t-faint)" }}>
+          + {kuyruk.length} sınıf daha, toplam {kuyruk.reduce((t, r) => t + r.olum, 0)} ölüm
+        </p>
+      )}
+      <p className="text-[10px] pt-1" style={{ color: "var(--t-faint)" }}>
+        Çubuk ölümü gösteriyor · yüzde kayıttaki bütün ölümlere oran ·
+        sağdaki yeşil sayı o sınıfa karşı aldığımız kill
+      </p>
+    </div>
+  );
+}
