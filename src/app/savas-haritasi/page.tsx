@@ -11,6 +11,7 @@ import { TestShell } from "@/components/app-shell";
 import { olaylariCoz, olayOzeti, type SavasOlayi } from "@/lib/savas-olaylari";
 import { KayitSecici } from "@/components/kayit-secici";
 import { SavasAnalizi } from "@/components/savas-analizi";
+import { useRakipSiniflari } from "@/lib/rakip-siniflari";
 import { TIER_RENK, enYakinNode, type HaritaNode } from "@/lib/bdo-harita";
 import haritaVeri from "@/data/harita/nodlar.json";
 
@@ -134,6 +135,8 @@ export default function SavasHaritasiPage() {
     [olaylar, suzgec],
   );
   const ozet = useMemo(() => olayOzeti(gorunen), [gorunen]);
+  // Rakip sınıfları arka planda okunuyor; analiz kapalıyken de sürüyor
+  const sinif = useRakipSiniflari(olaylar);
 
   /** Kavga nerede geçti — olayların ortalamasına en yakın mevzi */
   const savasYeri = useMemo(() => {
@@ -192,6 +195,12 @@ export default function SavasHaritasiPage() {
             <span><b>{tasinan.ad}</b> kalesinin doğru yerine tıkla</span>
             <button onClick={() => setTasinan(null)} className="t-tab">Vazgeç</button>
           </div>
+        )}
+
+        {sekme === "analiz" && olaylar.length > 0 && (
+          <SavasAnalizi olaylar={gorunen} siniflar={sinif.siniflar} sinifDurum={sinif.durum}
+                        okunan={sinif.okunan} toplam={sinif.toplam} kaynak={kaynak}
+                        onKapat={() => setSekme("savas")} />
         )}
 
         {isi && olaylar.length > 0 && (
@@ -449,8 +458,6 @@ export default function SavasHaritasiPage() {
                 )}
               </div>
             )}
-
-            {sekme === "analiz" && <SavasAnalizi olaylar={gorunen} />}
 
             <div className="px-3 py-2" style={{ borderTop: "1px solid var(--t-line)" }}>
               <span className="text-[10px]" style={{ color: "var(--t-faint)" }}>

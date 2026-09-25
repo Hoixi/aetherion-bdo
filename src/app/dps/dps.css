@@ -1,0 +1,287 @@
+/**
+ * DPS sayfaları.
+ *
+ * Temanın koyu katmanlarına ek olarak spec rengi (--spec) taşıyan birkaç
+ * parça var: çubuklar, hale, rozet. Renk satır satır değiştiği için
+ * değişken üzerinden veriliyor, sınıf patlaması olmasın.
+ */
+
+/* ── Portre ─────────────────────────────────────────────────────────── */
+.dps-face {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #0d0d10;
+}
+.dps-face img {
+  object-fit: cover;
+  object-position: 50% 16%;
+  transform: scale(1.55);
+  transform-origin: 52% 24%;
+  transition: transform 0.35s ease;
+}
+.dps-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+/* ── Kürsü ─────────────────────────────────────────────────────────── */
+.dps-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.18fr 1fr;
+  align-items: end;
+  gap: 14px;
+}
+@media (max-width: 767px) {
+  .dps-podium { grid-template-columns: 1fr; }
+  .dps-podium > :nth-child(1) { order: 2; }
+  .dps-podium > :nth-child(2) { order: 1; }
+  .dps-podium > :nth-child(3) { order: 3; }
+}
+.dps-pod {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--medal) 35%, transparent);
+  background: #07070a;
+  isolation: isolate;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.dps-pod:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 60px -20px color-mix(in srgb, var(--medal) 45%, transparent);
+}
+.dps-pod .dps-pod-img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+.dps-pod .dps-pod-img img {
+  object-fit: cover;
+  object-position: 50% 12%;
+  transition: transform 0.6s ease;
+}
+.dps-pod:hover .dps-pod-img img { transform: scale(1.05); }
+.dps-pod::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.72) 62%, #000 100%),
+    radial-gradient(90% 60% at 50% 110%, color-mix(in srgb, var(--medal) 35%, transparent), transparent 70%);
+}
+.dps-pod-rank {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  font-size: 84px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--medal) 85%, white);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--medal) 40%, transparent);
+  opacity: 0.9;
+}
+.dps-pod-crown {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--medal) 22%, rgba(0, 0, 0, 0.6));
+  border: 1px solid color-mix(in srgb, var(--medal) 60%, transparent);
+  color: var(--medal);
+  backdrop-filter: blur(6px);
+}
+
+/* ── Çubuklar ──────────────────────────────────────────────────────── */
+@keyframes dps-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.dps-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.045);
+  overflow: hidden;
+}
+.dps-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  transform-origin: left;
+  animation: dps-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--spec) 45%, transparent), var(--spec));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--spec) 45%, transparent);
+}
+.dps-bar > b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0 4px, transparent 4px 8px);
+}
+.dps-bar.thin { height: 5px; }
+
+/* ── Sıralama satırı ───────────────────────────────────────────────── */
+.dps-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px 52px minmax(0, 1.15fr) minmax(0, 2fr) 110px;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--t-line);
+  transition: background 0.15s;
+}
+.dps-row:last-child { border-bottom: 0; }
+.dps-row:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--spec) 7%, transparent), transparent 60%); }
+.dps-row:hover .dps-face img { transform: scale(1.7); }
+.dps-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--spec);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dps-row:hover::before { opacity: 1; }
+@media (max-width: 900px) {
+  .dps-row { grid-template-columns: 30px 44px minmax(0, 1fr) 92px; }
+  .dps-row .dps-row-bar { grid-column: 2 / -1; }
+}
+
+/* ── Galeri kartı ─────────────────────────────────────────────────── */
+.dps-tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--t-line);
+  background: #07070a;
+  isolation: isolate;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.dps-tile:hover { border-color: color-mix(in srgb, var(--spec) 55%, transparent); transform: translateY(-2px); }
+.dps-tile img.dps-tile-img { object-fit: cover; object-position: 50% 10%; transition: transform 0.5s ease, filter 0.3s; z-index: -2; }
+.dps-tile:hover img.dps-tile-img { transform: scale(1.06); }
+.dps-tile.muted img.dps-tile-img { filter: grayscale(0.85) brightness(0.55); }
+.dps-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, transparent 22%, transparent 45%, rgba(0, 0, 0, 0.92) 82%),
+    radial-gradient(80% 40% at 50% 105%, color-mix(in srgb, var(--spec) 40%, transparent), transparent 70%);
+}
+
+/* ── Rozetler ─────────────────────────────────────────────────────── */
+.dps-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  color: var(--spec);
+  background: color-mix(in srgb, var(--spec) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--spec) 30%, transparent);
+  white-space: nowrap;
+}
+.dps-key {
+  display: inline-flex;
+  align-items: center;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px 4px;
+  border-radius: 5px;
+  color: #d8d8de;
+  background: linear-gradient(180deg, #1d1d22, #121215);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+/* AoE ölçeği: üç halka, dolu olanlar alan büyüklüğü */
+.dps-aoe { display: inline-flex; align-items: center; gap: 6px; }
+.dps-aoe svg circle { transition: opacity 0.2s; }
+
+/* ── Detay hero ───────────────────────────────────────────────────── */
+.dps-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--spec) 25%, var(--t-line));
+  background: #050507;
+  isolation: isolate;
+  min-height: 380px;
+}
+.dps-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  opacity: 0.28;
+  filter: blur(2px) saturate(1.1);
+}
+.dps-hero-bg img { object-fit: cover; object-position: center 30%; }
+.dps-hero-portrait {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(46%, 520px);
+  z-index: -2;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 38%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 38%);
+}
+.dps-hero-portrait img { object-fit: cover; object-position: 50% 12%; }
+.dps-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #050507 0%, rgba(5, 5, 7, 0.92) 38%, rgba(5, 5, 7, 0.2) 70%, transparent 100%),
+    linear-gradient(0deg, #050507 0%, transparent 35%),
+    radial-gradient(60% 80% at 10% 0%, color-mix(in srgb, var(--spec) 16%, transparent), transparent 70%);
+}
+@media (max-width: 767px) {
+  .dps-hero-portrait { width: 100%; opacity: 0.35; -webkit-mask-image: none; mask-image: none; }
+}
+
+/* Kombo zaman çizelgesi */
+.dps-timeline { display: flex; gap: 2px; height: 58px; align-items: stretch; }
+.dps-timeline > div {
+  position: relative;
+  min-width: 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--spec) calc(var(--heat) * 70% + 12%), #111114);
+  border: 1px solid color-mix(in srgb, var(--spec) 30%, transparent);
+  transition: filter 0.15s, transform 0.15s;
+  cursor: default;
+}
+.dps-timeline > div:hover { filter: brightness(1.35); transform: translateY(-2px); }
+
+.dps-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.dps-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 99px; }
+
+/* Çizgi grafik noktası */
+.dps-dot { transition: r 0.15s; }
+.dps-dot:hover { r: 5; }
