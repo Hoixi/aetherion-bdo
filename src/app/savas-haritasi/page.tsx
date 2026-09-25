@@ -262,12 +262,12 @@ export default function SavasHaritasiPage() {
         {sekme === "analiz" && olaylar.length > 0 && (
           <SavasAnalizi olaylar={gorunen} siniflar={sinif.siniflar} kadro={sinif.kadro}
                         sinifDurum={sinif.durum} okunan={sinif.okunan} toplam={sinif.toplam}
-                        kalan={sinif.kalan}
+                        kalan={sinif.kalan} tani={sinif.tani}
                         // Oynatma bir ana kadar süzüyor: analiz de o kesiti okuyor, başlıkta yazsın
                         kaynak={an != null
                           ? `${kaynak ?? "kayıt"} · ${new Date(an).toLocaleTimeString("tr-TR")}'e kadar`
                           : kaynak}
-                        onSinifAra={() => void sinif.baslat()}
+                        onSinifAra={() => void sinif.baslat(true)}
                         onKapat={() => setSekme("savas")} />
         )}
 

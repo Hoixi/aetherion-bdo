@@ -24,6 +24,20 @@ const ILERLEME_YOK_SINIRI = 3;
 
 export type SinifDurumu = "bos" | "calisiyor" | "bitti" | "hata";
 
+/** Son turun ham sonucu — "neden bulamadı" sorusunun cevabı arayüzde dursun */
+export interface SinifTanisi {
+  /** Bu oturumda sayfaya gidilen aile sayısı */
+  denenen: number;
+  /** Karakteri çıkan aile */
+  bulunan: number;
+  /** Sayfası açıldı ama karakter yok (gizli profil, ad değişikliği) */
+  bos: number;
+  /** Sayfaya hiç ulaşılamadı — engel, zaman aşımı */
+  ulasilamayan: number;
+  /** İlk birkaç hatanın mesajı */
+  mesajlar: string[];
+}
+
 export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
   /** karakter adı (küçük harf) → sınıf numarası */
   const [siniflar, setSiniflar] = useState<Record<string, number>>({});
@@ -32,6 +46,7 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
   const [durum, setDurum] = useState<SinifDurumu>("bos");
   const [kalan, setKalan] = useState(0);
   const [toplam, setToplam] = useState(0);
+  const [tani, setTani] = useState<SinifTanisi>({ denenen: 0, bulunan: 0, bos: 0, ulasilamayan: 0, mesajlar: [] });
   const calisiyor = useRef(false);
   const durdurulan = useRef(false);
   /** Yürüyen turun kimliği — liste değişince eskisi kendini bırakıyor */
@@ -44,7 +59,8 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
 
   const durdur = useCallback(() => { durdurulan.current = true; setDurum("bitti"); }, []);
 
-  const baslat = useCallback(async () => {
+  /** `zorla`: boş kayıtlı aileler de yeniden okunuyor (elle "bul" düğmesi) */
+  const baslat = useCallback(async (zorla = false) => {
     if (calisiyor.current || aileler.length === 0) return;
     const benim = ++nesil.current;
     calisiyor.current = true;
@@ -55,16 +71,23 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
     let oncekiKalan = Infinity, duran = 0;
     for (;;) {
       if (durdurulan.current || nesil.current !== benim) break;
-      let d: { aileler?: Record<string, { karakterler: Array<{ ad: string; sinif: number }> }>; kalan?: number };
+      let d: {
+        aileler?: Record<string, { karakterler: Array<{ ad: string; sinif: number }> }>;
+        kalan?: number; denenen?: number; bulunan?: number; bos?: number; hataSayisi?: number;
+        hatalar?: Array<{ aile: string; mesaj: string }>;
+      };
       try {
         const r = await fetch("/api/bdo-profil", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ aileler }),
+          body: JSON.stringify({ aileler, zorla }),
         });
         d = await r.json();
-        if (!r.ok) throw new Error(d as unknown as string);
-      } catch {
-        if (nesil.current === benim) setDurum("hata");
+        if (!r.ok) throw new Error((d as unknown as { error?: string })?.error ?? `HTTP ${r.status}`);
+      } catch (e) {
+        if (nesil.current === benim) {
+          setDurum("hata");
+          setTani((o) => ({ ...o, mesajlar: [(e as Error)?.message ?? "istek başarısız", ...o.mesajlar].slice(0, 3) }));
+        }
         break;
       }
       if (nesil.current !== benim) break;
@@ -83,6 +106,14 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
         }
         return harita;
       });
+
+      setTani((o) => ({
+        denenen: o.denenen + (d.denenen ?? 0),
+        bulunan: o.bulunan + (d.bulunan ?? 0),
+        bos: o.bos + (d.bos ?? 0),
+        ulasilamayan: o.ulasilamayan + Math.max(0, d.hataSayisi ?? 0),
+        mesajlar: Array.from(new Set([...(d.hatalar ?? []).map((h) => `${h.aile}: ${h.mesaj}`), ...o.mesajlar])).slice(0, 3),
+      }));
 
       const yeniKalan = d.kalan ?? 0;
       setKalan(yeniKalan);
@@ -109,7 +140,7 @@ export function useRakipSiniflari(olaylar: SavasOlayi[], acik = true) {
   }, [acik, aileler, baslat]);
 
   return {
-    siniflar, kadro, durum, kalan, toplam,
+    siniflar, kadro, durum, kalan, toplam, tani,
     okunan: Math.max(0, toplam - kalan),
     durdur, baslat,
   };

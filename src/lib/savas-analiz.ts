@@ -309,3 +309,44 @@ export function aileKadrosu(
     })
     .sort((a, b) => b.bizeOlum - a.bizeOlum || b.bizimKill - a.bizimKill);
 }
+
+/**
+ * Sınıf eşleşmeleri: bizim sınıfımız × karşı sınıf, kaç ölüm / kaç kill.
+ *
+ * "Hangi sınıfımız hangi sınıfa yem oluyor" sorusu. Satır bizim sınıf,
+ * sütun karşı sınıf; iki tarafın da sınıfı bilinen olaylar sayılıyor, o
+ * yüzden toplamı genel toplamdan küçük olabiliyor.
+ */
+export function sinifEslesmeleri(
+  olaylar: SavasOlayi[],
+  rakipSinif: SinifHaritasi,
+  bizimSinif: SinifHaritasi,
+  enFazlaSatir = 10,
+) {
+  /** bizim sınıf → karşı sınıf → ölüm */
+  const olum = new Map<number, Map<number, number>>();
+  const satirToplam = new Map<number, number>();
+  const sutunToplam = new Map<number, number>();
+  let sayilan = 0;
+  for (const o of olaylar) {
+    if (o.bizimKill) continue;                       // burada yalnız ölümlerimiz
+    const biz = bizimSinif[o.bizimAile.toLocaleLowerCase("tr")];
+    const rakip = rakipSinif[o.rakipKarakter.toLocaleLowerCase("tr")];
+    if (biz == null || rakip == null) continue;
+    const h = olum.get(biz) ?? new Map<number, number>();
+    h.set(rakip, (h.get(rakip) ?? 0) + 1);
+    olum.set(biz, h);
+    satirToplam.set(biz, (satirToplam.get(biz) ?? 0) + 1);
+    sutunToplam.set(rakip, (sutunToplam.get(rakip) ?? 0) + 1);
+    sayilan++;
+  }
+  const satirlar = Array.from(olum.entries())
+    .map(([sinif, h]) => ({ sinif, toplam: satirToplam.get(sinif) ?? 0, hucre: h }))
+    .sort((a, b) => b.toplam - a.toplam)
+    .slice(0, enFazlaSatir);
+  const gorulen = new Set<number>();
+  for (const r of satirlar) for (const s of Array.from(r.hucre.keys())) gorulen.add(s);
+  const sutunlar = Array.from(gorulen).sort((a, b) => (sutunToplam.get(b) ?? 0) - (sutunToplam.get(a) ?? 0));
+  const enBuyuk = Math.max(1, ...satirlar.flatMap((r) => Array.from(r.hucre.values())));
+  return { satirlar, sutunlar, enBuyuk, sayilan };
+}

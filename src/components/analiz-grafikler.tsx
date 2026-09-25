@@ -268,18 +268,40 @@ function SinifSatir({ ad, ikon, kill, olum, kisi, en }: {
 }
 
 /* ------------------------------------------------------------------ *
- *  Klan × sınıf matrisi
+ *  Isı matrisi — klan × sınıf ve sınıf × sınıf aynı tabloyu kullanıyor
  * ------------------------------------------------------------------ */
 
-export function KlanSinifMatrisi({ satirlar, sutunlar, enBuyuk }: {
-  satirlar: Array<{ ad: string; kisi: number; hucre: Map<number, number> }>;
+export interface MatrisSatiri {
+  anahtar: string;
+  etiket: string;
+  /** Satır başındaki küçük ikon (sınıf) */
+  ikon?: string | null;
+  /** Etiketin yanındaki sayı (kişi, toplam) */
+  ek?: number;
+  hucre: Map<number, number>;
+}
+
+/**
+ * Sayı büyüdükçe koyulaşan tek renkli tablo. Değer hücrenin içinde de
+ * yazıyor: renk tek başına okuma zorunluluğu değil, tablo kendisi zaten
+ * okunabilir hâli.
+ */
+export function IsiMatrisi({ satirlar, sutunlar, enBuyuk, renk = "altin", baslik, altYazi, birim = "kişi" }: {
+  satirlar: MatrisSatiri[];
   sutunlar: number[];
   enBuyuk: number;
+  renk?: "altin" | "kirmizi";
+  /** Sol üst köşedeki sütun başlığı */
+  baslik: string;
+  altYazi: string;
+  birim?: string;
 }) {
-  const [uzeri, setUzeri] = useState<{ klan: string; sinif: number; n: number } | null>(null);
+  const [uzeri, setUzeri] = useState<{ satir: string; sinif: number; n: number } | null>(null);
   // Sütun sayısı yüksekse kırpıyoruz: 16 sınıftan sonra hücre okunmuyor
   const sut = useMemo(() => sutunlar.slice(0, 16), [sutunlar]);
   if (satirlar.length === 0 || sut.length === 0) return null;
+  const taban = renk === "kirmizi" ? "239,95,95" : "232,180,81";
+  const koyuYazi = renk === "kirmizi" ? "#2a0d0d" : "#151208";
 
   return (
     <div className="p-2.5">
@@ -288,7 +310,7 @@ export function KlanSinifMatrisi({ satirlar, sutunlar, enBuyuk }: {
           <thead>
             <tr>
               <th className="text-left text-[9.5px] uppercase tracking-[0.06em] font-normal pr-2"
-                  style={{ color: "var(--t-faint)" }}>Klan</th>
+                  style={{ color: "var(--t-faint)" }}>{baslik}</th>
               {sut.map((s) => {
                 const ikon = sinifIkonu(s);
                 return (
@@ -304,26 +326,35 @@ export function KlanSinifMatrisi({ satirlar, sutunlar, enBuyuk }: {
           </thead>
           <tbody>
             {satirlar.map((r) => (
-              <tr key={r.ad}>
-                <td className="pr-2 text-[11.5px] whitespace-nowrap max-w-[140px] truncate">
-                  {r.ad}
-                  <span className="ml-1.5 text-[10px] tabular-nums" style={{ color: "var(--t-faint)" }}>{r.kisi}</span>
+              <tr key={r.anahtar}>
+                <td className="pr-2 text-[11.5px] whitespace-nowrap max-w-[150px] truncate">
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.ikon && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={r.ikon} alt="" className="w-[14px] h-[14px] opacity-75" />
+                    )}
+                    <span className="truncate">{r.etiket}</span>
+                    {r.ek != null && (
+                      <span className="text-[10px] tabular-nums" style={{ color: "var(--t-faint)" }}>{r.ek}</span>
+                    )}
+                  </span>
                 </td>
                 {sut.map((s) => {
                   const n = r.hucre.get(s) ?? 0;
-                  const secili = uzeri?.klan === r.ad && uzeri?.sinif === s;
+                  const secili = uzeri?.satir === r.anahtar && uzeri?.sinif === s;
                   return (
                     <td key={s}
-                        onMouseEnter={() => setUzeri({ klan: r.ad, sinif: s, n })}
+                        onMouseEnter={() => setUzeri({ satir: r.anahtar, sinif: s, n })}
                         onMouseLeave={() => setUzeri(null)}
                         tabIndex={n ? 0 : -1}
-                        onFocus={() => setUzeri({ klan: r.ad, sinif: s, n })}
+                        onFocus={() => setUzeri({ satir: r.anahtar, sinif: s, n })}
                         onBlur={() => setUzeri(null)}
+                        title={n ? `${r.etiket} · ${sinifAdi(s)} · ${n} ${birim}` : undefined}
                         className="w-[22px] h-[22px] text-center text-[10.5px] tabular-nums rounded-[4px]"
                         style={{
-                          background: n ? `rgba(232,180,81,${(0.14 + 0.72 * (n / enBuyuk)).toFixed(3)})` : "var(--t-raised)",
-                          color: n ? (n / enBuyuk > 0.55 ? "#151208" : "#f4f4f5") : "transparent",
-                          outline: secili ? "1px solid var(--t-gold)" : "none",
+                          background: n ? `rgba(${taban},${(0.14 + 0.72 * (n / enBuyuk)).toFixed(3)})` : "var(--t-raised)",
+                          color: n ? (n / enBuyuk > 0.55 ? koyuYazi : "#f4f4f5") : "transparent",
+                          outline: secili ? `1px solid rgba(${taban},.9)` : "none",
                         }}>
                       {n || "·"}
                     </td>
@@ -336,17 +367,17 @@ export function KlanSinifMatrisi({ satirlar, sutunlar, enBuyuk }: {
       </div>
 
       <div className="flex items-center gap-2 mt-2 text-[10px]" style={{ color: "var(--t-faint)" }}>
-        <span>kişi sayısı</span>
+        <span>{birim} sayısı</span>
         <span className="flex items-center gap-[2px]">
           {[0.15, 0.4, 0.65, 0.9].map((a) => (
-            <i key={a} className="w-3 h-[7px] rounded-[2px]" style={{ background: `rgba(232,180,81,${a})` }} />
+            <i key={a} className="w-3 h-[7px] rounded-[2px]" style={{ background: `rgba(${taban},${a})` }} />
           ))}
         </span>
         <span>1 → {enBuyuk}</span>
         <span className="ml-auto truncate">
           {uzeri && uzeri.n > 0
-            ? `${uzeri.klan} · ${sinifAdi(uzeri.sinif)} · ${uzeri.n} kişi`
-            : "Kadroda görülen ayrı aile sayısı"}
+            ? `${satirlar.find((x) => x.anahtar === uzeri.satir)?.etiket} · ${sinifAdi(uzeri.sinif)} · ${uzeri.n} ${birim}`
+            : altYazi}
         </span>
       </div>
     </div>

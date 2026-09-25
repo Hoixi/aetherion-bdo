@@ -15,6 +15,16 @@
 
 const TABAN = "https://blackdesert.pearlabyss.com/TR/tr-TR/Game/Profile";
 const ZAMAN_ASIMI = 9000;
+/**
+ * Sunucudan giden istek tarayıcı gibi görünsün: varsayılan Node başlığıyla
+ * giden istekler sayfanın önündeki korumaya takılabiliyor. Sayfa herkese
+ * açık, yaptığımız iş tarayıcıda yapılanın aynısı.
+ */
+const TARAYICI = {
+  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "accept-language": "tr-TR,tr;q=0.9,en;q=0.8",
+};
 
 export type ProfilKarakteri = { ad: string; sinif: number };
 
@@ -28,9 +38,13 @@ function cozHtml(s: string): string {
     .trim();
 }
 
-async function getir(url: string): Promise<string> {
+async function getir(url: string, referer?: string): Promise<string> {
   const iptal = AbortSignal.timeout(ZAMAN_ASIMI);
-  const r = await fetch(url, { signal: iptal, headers: { "accept-language": "tr-TR,tr;q=0.9" } });
+  const r = await fetch(url, {
+    signal: iptal,
+    redirect: "follow",
+    headers: referer ? { ...TARAYICI, referer } : TARAYICI,
+  });
   if (!r.ok) throw new Error(`Profil sayfası ${r.status}`);
   return r.text();
 }
@@ -65,8 +79,12 @@ function karakterleriOku(html: string): ProfilKarakteri[] {
  * olabilir, adı değişmiş olabilir ya da başka bölgede olabilir.
  */
 export async function aileKarakterleri(aile: string): Promise<ProfilKarakteri[]> {
-  const arama = await getir(`${TABAN}/Search?_type=2&_keyword=${encodeURIComponent(aile)}`);
+  const aramaUrl = `${TABAN}/Search?_type=2&_keyword=${encodeURIComponent(aile)}`;
+  const arama = await getir(aramaUrl);
   const baglanti = profilBaglantisi(arama, aile);
   if (!baglanti) return [];
-  return karakterleriOku(await getir(baglanti));
+  const sayfa = await getir(baglanti, aramaUrl);
+  // Profil kapalıysa sayfa yerine "mevcut değil" diyen bir yönlendirme geliyor
+  if (sayfa.length < 400 && sayfa.includes("location.href")) return [];
+  return karakterleriOku(sayfa);
 }

@@ -3,17 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Shield, Users, Skull, Swords, Clock, Crosshair, Flame, Sparkles, X,
-  Search, Loader2, Activity, Grid3x3, UserSearch,
+  Search, Loader2, Activity, Grid3x3, UserSearch, Copy, TriangleAlert,
 } from "lucide-react";
 import {
   savasAnalizi, olayYayilimi, zamanKovalari, sinifDagilimi, klanSinifMatrisi,
-  karakterDagilimi, aileKadrosu, type SinifSatiri,
+  karakterDagilimi, aileKadrosu, sinifEslesmeleri, type SinifSatiri,
 } from "@/lib/savas-analiz";
 import type { SavasOlayi } from "@/lib/savas-olaylari";
 import { BDO_CLASSES } from "@/lib/classes";
-import type { SinifDurumu } from "@/lib/rakip-siniflari";
+import type { SinifDurumu, SinifTanisi } from "@/lib/rakip-siniflari";
 import {
-  AkisGrafigi, FarkCizgisi, SinifDagilimGrafigi, KlanSinifMatrisi, sinifAdi, sinifIkonu,
+  AkisGrafigi, FarkCizgisi, SinifDagilimGrafigi, IsiMatrisi, sinifAdi, sinifIkonu,
+  type MatrisSatiri,
 } from "@/components/analiz-grafikler";
 
 /**
@@ -57,7 +58,8 @@ function useBizimSiniflar() {
 }
 
 export function SavasAnalizi({
-  olaylar, siniflar, kadro, sinifDurum, okunan, toplam, kalan, kaynak, onKapat, onSinifAra,
+  olaylar, siniflar, kadro, sinifDurum, okunan, toplam, kalan, tani, bizimSiniflar, kaynak,
+  onKapat, onSinifAra,
 }: {
   olaylar: SavasOlayi[];
   /** karakter adı (küçük harf) → sınıf numarası */
@@ -68,6 +70,10 @@ export function SavasAnalizi({
   okunan: number;
   toplam: number;
   kalan?: number;
+  /** Son turun ham sonucu — bulunamayınca nedenini yazabilelim */
+  tani?: SinifTanisi;
+  /** Bizim taraf için hazır aile → sınıf eşlemesi; verilmezse üye listesinden okunuyor */
+  bizimSiniflar?: Record<string, number>;
   kaynak?: string | null;
   onKapat: () => void;
   /** Sınıf kuyruğunu elle bir tur daha sür */
@@ -81,7 +87,8 @@ export function SavasAnalizi({
   const karakterler = useMemo(() => karakterDagilimi(olaylar, siniflar), [olaylar, siniflar]);
   const aileler = useMemo(() => aileKadrosu(olaylar, kadro ?? {}), [olaylar, kadro]);
 
-  const bizimSinifHaritasi = useBizimSiniflar();
+  const uyeSiniflari = useBizimSiniflar();
+  const bizimSinifHaritasi = bizimSiniflar ?? uyeSiniflari;
   /** Bizim taraf sınıf dağılımı — aile adı üye kaydıyla eşleşenler */
   const bizimSinif = useMemo(() => {
     const m = new Map<number, { kill: number; olum: number; aile: Set<string> }>();
@@ -100,6 +107,25 @@ export function SavasAnalizi({
     return { satirlar, bilinmeyen };
   }, [olaylar, bizimSinifHaritasi]);
 
+  /** Bizim sınıf × karşı sınıf: hangi sınıfımız neye yem oluyor */
+  const eslesme = useMemo(
+    () => sinifEslesmeleri(olaylar, siniflar, bizimSinifHaritasi),
+    [olaylar, siniflar, bizimSinifHaritasi],
+  );
+
+  /** Klan kadrosu matrisinin satırları */
+  const klanSatirlari: MatrisSatiri[] = useMemo(
+    () => matris.satirlar.map((r) => ({ anahtar: r.ad, etiket: r.ad, ek: r.kisi, hucre: r.hucre })),
+    [matris],
+  );
+  const eslesmeSatirlari: MatrisSatiri[] = useMemo(
+    () => eslesme.satirlar.map((r) => ({
+      anahtar: String(r.sinif), etiket: sinifAdi(r.sinif), ikon: sinifIkonu(r.sinif),
+      ek: r.toplam, hucre: r.hucre,
+    })),
+    [eslesme],
+  );
+
   if (olaylar.length === 0) return null;
 
   const enCok = a.klanlar[0];
@@ -108,7 +134,10 @@ export function SavasAnalizi({
   const oran = a.death > 0 ? (a.kill / a.death).toFixed(2) : "—";
   const calisiyor = sinifDurum === "calisiyor";
   /** Profili hiç okunmamış aileler — düğme bunlar için var */
-  const eksikAile = aileler.filter((r) => r.karakterler.length === 0).length;
+  const eksikler = aileler.filter((r) => r.karakterler.length === 0).map((r) => r.aile);
+  const eksikAile = eksikler.length;
+  /** Bizi en çok öldüren sınıf */
+  const olduren = rakipSinif.satirlar[0] ?? null;
   const tam = { gridColumn: "1 / -1" } as const;
 
   return (
@@ -131,6 +160,14 @@ export function SavasAnalizi({
                 : toplam > 0 ? `${toplam} ailenin karakterleri okundu` : "karakter okunmadı"}
         </span>
 
+        {eksikAile > 0 && !calisiyor && (
+          <button onClick={() => void navigator.clipboard?.writeText(eksikler.join("\n"))}
+                  className="t-tab flex items-center gap-1.5 text-[11.5px]"
+                  title="Karakteri okunamayan ailelerin listesini panoya kopyala">
+            <Copy className="w-3.5 h-3.5" />
+            {eksikAile} aileyi kopyala
+          </button>
+        )}
         {onSinifAra && (
           <button onClick={onSinifAra} disabled={calisiyor} className="t-tab flex items-center gap-1.5 text-[11.5px]"
                   style={{ opacity: calisiyor ? 0.55 : 1, color: !calisiyor && eksikAile > 0 ? "var(--t-gold)" : undefined }}
@@ -166,6 +203,21 @@ export function SavasAnalizi({
             <Kutu etiket="Karşı klan" deger={String(a.klanlar.length)} />
             <Kutu etiket="Karşı aile" deger={String(a.rakip.length)} />
             <Kutu etiket="Karşı karakter" deger={String(karakterler.length)} />
+            {olduren && (
+              <div className="flex items-center gap-2">
+                <SinifIkonu sinif={olduren.sinif} boyut={26} />
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.06em]" style={{ color: "var(--t-faint)" }}>
+                    Bizi en çok öldüren sınıf
+                  </p>
+                  <p className="text-[14px] font-semibold leading-tight">{sinifAdi(olduren.sinif)}</p>
+                  <p className="text-[10.5px]" style={{ color: "var(--t-dim)" }}>
+                    <span style={{ color: "var(--t-bad)" }}>{olduren.olum} ölüm</span> · {olduren.kisi} kişi ·
+                    {" "}kişi başı {(olduren.olum / Math.max(1, olduren.kisi)).toFixed(1)}
+                  </p>
+                </div>
+              </div>
+            )}
             {enCok && enCok.olum > 0 && (
               <div className="ml-auto rounded-[var(--t-r-sm)] px-2.5 py-1.5"
                    style={{ background: "rgba(239,95,95,.08)", border: "1px solid rgba(239,95,95,.25)" }}>
@@ -195,10 +247,24 @@ export function SavasAnalizi({
             </Kart>
           </div>
 
-          {matris.satirlar.length > 0 && (
+          {klanSatirlari.length > 0 && (
             <div style={tam}>
               <Kart icon={Grid3x3} baslik="Karşı klanların sınıf kadrosu">
-                <KlanSinifMatrisi satirlar={matris.satirlar} sutunlar={matris.sutunlar} enBuyuk={matris.enBuyuk} />
+                <IsiMatrisi satirlar={klanSatirlari} sutunlar={matris.sutunlar} enBuyuk={matris.enBuyuk}
+                            baslik="Klan" birim="kişi" altYazi="Kadroda görülen ayrı aile sayısı" />
+              </Kart>
+            </div>
+          )}
+
+          {eslesmeSatirlari.length > 0 && (
+            <div style={tam}>
+              <Kart icon={Skull} baslik="Sınıf eşleşmeleri · hangi sınıfımız neye ölüyor"
+                    sag={<span className="text-[10.5px]" style={{ color: "var(--t-dim)" }}>
+                      {eslesme.sayilan} ölüm · satır bizim sınıf, sütun karşı sınıf
+                    </span>}>
+                <IsiMatrisi satirlar={eslesmeSatirlari} sutunlar={eslesme.sutunlar} enBuyuk={eslesme.enBuyuk}
+                            renk="kirmizi" baslik="Bizim sınıf" birim="ölüm"
+                            altYazi="İki tarafın da sınıfı bilinen ölümler" />
               </Kart>
             </div>
           )}
@@ -206,9 +272,20 @@ export function SavasAnalizi({
           <Kart icon={Sparkles} baslik={`Karşı tarafın sınıfları · ${rakipSinif.satirlar.length}`}>
             <div className="p-2.5">
               {rakipSinif.satirlar.length === 0 ? (
-                <p className="text-[11.5px]" style={{ color: "var(--t-dim)" }}>
-                  {calisiyor ? "Profiller okunuyor…" : "Sınıf bilgisi yok — «Karakterleri bul»."}
-                </p>
+                <div className="text-[11.5px] space-y-1" style={{ color: "var(--t-dim)" }}>
+                  <p>{calisiyor ? "Profiller okunuyor…" : "Sınıf bilgisi yok — «Karakterleri bul»."}</p>
+                  {tani && !calisiyor && tani.denenen > 0 && (
+                    <p className="flex items-start gap-1.5 text-[10.5px]"
+                       style={{ color: tani.ulasilamayan > 0 ? "var(--t-bad)" : "var(--t-faint)" }}>
+                      <TriangleAlert className="w-3 h-3 mt-[2px] flex-shrink-0" />
+                      <span>
+                        {tani.denenen} aile denendi · {tani.bulunan} bulundu · {tani.bos} profil boş ·
+                        {" "}{tani.ulasilamayan} ulaşılamadı
+                        {tani.mesajlar.length > 0 && <><br />{tani.mesajlar[0]}</>}
+                      </span>
+                    </p>
+                  )}
+                </div>
               ) : <SinifDagilimGrafigi satirlar={rakipSinif.satirlar} />}
               {rakipSinif.bilinmeyen > 0 && rakipSinif.satirlar.length > 0 && (
                 <p className="mt-2 text-[10px]" style={{ color: "var(--t-faint)" }}>
