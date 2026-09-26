@@ -222,23 +222,33 @@ export async function ozetKarti({ baslik, tarih, o, isiUrl }: {
             <div style={{ display: "flex", fontSize: "10px", color: YESIL }}>üst: öldürdük</div>
             <div style={{ display: "flex", fontSize: "10px", color: KIRMIZI }}>alt: öldük</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", height: "84px", gap: "2px" }}>
-            {o.dilimler.map((d) => (
-              <div key={d.t} style={{ display: "flex", flexDirection: "column", flex: 1,
-                                      alignItems: "center", height: "84px" }}>
-                <div style={{ display: "flex", flex: 1, width: "100%", alignItems: "flex-end" }}>
-                  <div style={{ display: "flex", width: "100%",
-                                height: `${(d.kill / enBuyukDilim) * 40}px`,
-                                background: YESIL, borderRadius: "3px 3px 0 0" }} />
+          {/*
+            Çubuk yüksekliği ayrı bir sarmalayıcıda: Satori'de yüksekliği
+            verilmiş boş bir kutu, esnek kapsayıcının içinde gerilip bütün
+            alanı kaplıyordu. Sütun yönünde justifyContent ile hizalanınca
+            verilen yükseklik korunuyor.
+          */}
+          <div style={{ display: "flex", alignItems: "center", height: "84px", gap: "3px" }}>
+            {o.dilimler.map((d) => {
+              const y = Math.round((d.kill / enBuyukDilim) * 38);
+              const k = Math.round((d.death / enBuyukDilim) * 38);
+              return (
+                <div key={d.t} style={{ display: "flex", flexDirection: "column", flex: 1, height: "84px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                                height: "40px", width: "100%" }}>
+                    <div style={{ display: "flex", width: "100%", height: `${y}px`, flexShrink: 0,
+                                  background: YESIL, borderRadius: "3px 3px 0 0" }} />
+                  </div>
+                  <div style={{ display: "flex", width: "100%", height: "2px", flexShrink: 0,
+                                background: "#26324a" }} />
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start",
+                                height: "40px", width: "100%" }}>
+                    <div style={{ display: "flex", width: "100%", height: `${k}px`, flexShrink: 0,
+                                  background: KIRMIZI, borderRadius: "0 0 3px 3px" }} />
+                  </div>
                 </div>
-                <div style={{ display: "flex", width: "100%", height: "1px", background: "#26324a" }} />
-                <div style={{ display: "flex", flex: 1, width: "100%" }}>
-                  <div style={{ display: "flex", width: "100%",
-                                height: `${(d.death / enBuyukDilim) * 40}px`,
-                                background: KIRMIZI, borderRadius: "0 0 3px 3px" }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: COK_SONUK }}>
             <div style={{ display: "flex" }}>{saat(o.ilk)}</div>
