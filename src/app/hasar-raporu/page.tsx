@@ -109,6 +109,25 @@ export default function HasarRaporuPage() {
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
+  /** Savaşın kill akışı kaydı var mı — özet kartı buna bağlı */
+  const [kayitSayisi, setKayitSayisi] = useState(0);
+  const [ozetGonderiliyor, setOzetGonderiliyor] = useState(false);
+  const [ozetMsg, setOzetMsg] = useState<string | null>(null);
+  const [ozetOnizleme, setOzetOnizleme] = useState(false);
+
+  useEffect(() => {
+    setKayitSayisi(0);
+    setOzetOnizleme(false);
+    if (warId === null) return;
+    let iptal = false;
+    fetch(`/api/wars/${warId}/publish-summary`)
+      .then((r) => (r.ok ? r.json() : { kayit: 0 }))
+      .then((d: { kayit?: number }) => { if (!iptal) setKayitSayisi(d.kayit ?? 0); })
+      .catch(() => {});
+    return () => { iptal = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secim]);
+
   // İlk yükleme savaş ve klan listesini de getiriyor; filtre değişince
   // sadece performanslar tazeleniyor
   useEffect(() => {
@@ -237,6 +256,17 @@ export default function HasarRaporuPage() {
     setTimeout(() => setPublishMsg(null), 6000);
   }
 
+  async function ozetGonder() {
+    if (warId === null) return;
+    setOzetGonderiliyor(true);
+    setOzetMsg(null);
+    const res = await fetch(`/api/wars/${warId}/publish-summary`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setOzetMsg(res.ok ? `Gönderildi (${data.sent} kanal).` : data.error ?? "Gönderilemedi.");
+    setOzetGonderiliyor(false);
+    setTimeout(() => setOzetMsg(null), 6000);
+  }
+
   const sortLabel = SORTS.find((s) => s.key === sortKey)?.label ?? "";
 
   return (
@@ -353,6 +383,43 @@ export default function HasarRaporuPage() {
                  style={{ border: "1px solid var(--t-line)", background: "var(--t-canvas)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={cardUrl} alt="Rapor önizlemesi" className="w-full h-auto" />
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* ── Savaş özeti (kill akışı kaydından) ─────────────────────── */}
+      {warId !== null && kayitSayisi > 0 && session?.user.canManageWars && (
+        <Card className="p-3.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Swords className="w-4 h-4 flex-shrink-0" strokeWidth={1.9} style={{ color: "var(--t-gold)" }} />
+            <p className="text-[12.5px] flex-1 min-w-[200px]" style={{ color: "var(--t-dim)" }}>
+              Savaşın kendi özetini gönder
+              <span style={{ color: "var(--t-faint)" }}>
+                {" "}— ısı haritası, akış, karşı klanlar ve bizi öldüren sınıflar
+                {kayitSayisi > 1 ? ` · ${kayitSayisi} kayıt birleştirilir` : ""}
+              </span>
+            </p>
+
+            {ozetMsg && <span className="text-[11.5px]" style={{ color: "var(--t-gold)" }}>{ozetMsg}</span>}
+
+            <GhostBtn onClick={() => setOzetOnizleme(!ozetOnizleme)} icon={ImageIcon}>
+              {ozetOnizleme ? "Önizlemeyi kapat" : "Önizle"}
+            </GhostBtn>
+            <button onClick={ozetGonder} disabled={ozetGonderiliyor}
+                    className="text-[12px] font-semibold px-3 h-[34px] rounded-[var(--t-r-sm)] inline-flex items-center gap-1.5 disabled:opacity-50"
+                    style={{ color: "var(--t-gold)", background: "var(--t-gold-soft)",
+                             border: "1px solid rgba(232,180,81,.3)" }}>
+              <Send className="w-3.5 h-3.5" strokeWidth={2} />
+              {ozetGonderiliyor ? "Gönderiliyor…" : "Discord'a gönder"}
+            </button>
+          </div>
+
+          {ozetOnizleme && (
+            <div className="mt-3 rounded-[var(--t-r-sm)] overflow-hidden"
+                 style={{ border: "1px solid var(--t-line)", background: "var(--t-canvas)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/savas-ozet-karti/${warId}`} alt="Savaş özeti önizlemesi" className="w-full h-auto" />
             </div>
           )}
         </Card>
