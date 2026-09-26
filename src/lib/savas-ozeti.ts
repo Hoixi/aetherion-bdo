@@ -111,9 +111,11 @@ export async function savasOzeti(warId: number) {
     sinif.set(s, v);
   }
 
-  // Zaman dilimleri: kart dar, 24 sütundan fazlası okunmuyor
+  // Zaman dilimleri: 30 küsur sütun kartın genişliğine sığıyor ve savaşın
+  // şekli görünüyor; daha az dilimde her sütun tavana dayanıp düz bir
+  // duvara dönüşüyor.
   const adaylar = [30, 60, 120, 300, 600];
-  const gerek = Math.max(1, (son - ilk) / 1000 / 24);
+  const gerek = Math.max(1, (son - ilk) / 1000 / 34);
   const dilimSn = adaylar.find((a) => a >= gerek) ?? 900;
   const genis = dilimSn * 1000;
   const bas = Math.floor(ilk / genis) * genis;

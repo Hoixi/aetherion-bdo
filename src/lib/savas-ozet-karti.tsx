@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { BDO_CLASSES, getClassIconUrl } from "@/lib/classes";
 import type { SavasOzeti } from "@/lib/savas-ozeti";
@@ -10,7 +12,26 @@ import type { SavasOzeti } from "@/lib/savas-ozeti";
  * kutular: ızgara, gölge, filtre yok.
  */
 
-const SITE_URL = process.env.NEXTAUTH_URL || "https://aetheri.online";
+/**
+ * Sınıf ikonu diskten, adresle değil.
+ *
+ * Satori her `<img>` için ayrı bir istek atıyor; bunlar kendi sitemizin
+ * statik dosyaları ve bir tanesi yavaş cevap verdiğinde ikon sessizce
+ * boş çıkıyordu. Dosyayı okuyup gömüyoruz, süreç ömrü boyunca bellekte.
+ */
+const ikonBellek = new Map<string, string | null>();
+function ikonVerisi(yol: string) {
+  if (ikonBellek.has(yol)) return ikonBellek.get(yol) ?? null;
+  let veri: string | null = null;
+  try {
+    const tam = path.join(process.cwd(), "public", yol.replace(/^\//, ""));
+    veri = `data:image/svg+xml;base64,${fs.readFileSync(tam).toString("base64")}`;
+  } catch {
+    veri = null;
+  }
+  ikonBellek.set(yol, veri);
+  return veri;
+}
 const SINIF = new Map<number, (typeof BDO_CLASSES)[number]>(
   BDO_CLASSES.map((c) => [c.classType, c]),
 );
@@ -187,7 +208,7 @@ export async function ozetKarti({ baslik, tarih, o, isiUrl }: {
                 </div>
               ) : siniflar.map((s) => {
                 const c = SINIF.get(s.sinif);
-                const ikon = c ? `${SITE_URL}${getClassIconUrl(c.id)}` : null;
+                const ikon = c ? ikonVerisi(getClassIconUrl(c.id)) : null;
                 return (
                   <div key={s.sinif} style={{ display: "flex", alignItems: "center", marginBottom: "6px", gap: "8px" }}>
                     {ikon
