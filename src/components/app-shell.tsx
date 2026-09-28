@@ -12,6 +12,7 @@ import {
   Hammer, MessagesSquare, Monitor, Mic,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
+import { Kurt } from "@/components/kurt";
 
 /**
  * /test ekranlarının ortak kabuğu.
@@ -208,7 +209,7 @@ export function TestShell({
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-[10px] grid place-items-center"
                    style={{ background: "linear-gradient(140deg, var(--t-gold), var(--t-ember))" }}>
-                <Swords className="w-4 h-4" strokeWidth={2.4} style={{ color: "#0a0a0b" }} />
+                <Kurt size={18} strokeWidth={2.2} style={{ color: "#0a0a0b" }} />
               </div>
               <div className="leading-none">
                 <div className="text-[15px] font-bold tracking-tight">Aetherion</div>
@@ -224,7 +225,7 @@ export function TestShell({
           <Link href="/panel" className="flex items-center gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 rounded-[10px] grid place-items-center"
                  style={{ background: "linear-gradient(140deg, var(--t-gold), var(--t-ember))" }}>
-              <Swords className="w-4 h-4" strokeWidth={2.4} style={{ color: "#0a0a0b" }} />
+              <Kurt size={18} strokeWidth={2.2} style={{ color: "#0a0a0b" }} />
             </div>
             <div className="leading-none hidden sm:block">
               <div className="text-[15px] font-bold tracking-tight">Aetherion</div>
