@@ -288,6 +288,8 @@ class SesYoneticisi {
       çıkıyor. Kapanabiliyor (stüdyo mikrofonu olan istemeyebilir).
     */
     let cikis: AudioNode = gurultusuz;
+    // Sıkıştırıcı kurulamazsa ses hiç gitmemektense düz zincirle gitsin
+    try {
     if (this.ayar.dengele) {
       const sikistirici = ctx.createDynamicsCompressor();
       // Zincir mono: varsayılan iki kanallı düğüm araya girince ses tek
@@ -299,6 +301,10 @@ class SesYoneticisi {
       telafi.channelCount = 1; telafi.channelCountMode = "explicit";
       gurultusuz.connect(sikistirici); sikistirici.connect(telafi);
       cikis = telafi;
+    }
+    } catch (e) {
+      cikis = gurultusuz;
+      this.yay({ hata: `Otomatik seviye kurulamadı, kapalı devam ediliyor: ${(e as Error).message}` });
     }
     cikis.connect(analiz); cikis.connect(kapi); kapi.connect(hedef);
     this.dinlemeKaynagi = kapi;
