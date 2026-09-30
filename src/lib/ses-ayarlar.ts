@@ -17,12 +17,14 @@ export interface SesAyarlar {
   esikDb: number;
   /** kulaklık ana sesi % */
   cikis: number;
+  /** otomatik seviye (mikrofon sıkıştırma) */
+  dengele: boolean;
   pttKod: string; pttAd: string;
   anonsMod: AnonsMod; anonsKod: string; anonsAd: string;
 }
 
 export const VARSAYILAN: SesAyarlar = {
-  mikrofon: "", hoparlor: "", gurultuMod: "rnnoise", kazanc: 1, esikDb: -100, cikis: 100,
+  mikrofon: "", hoparlor: "", gurultuMod: "rnnoise", kazanc: 1, esikDb: -100, cikis: 100, dengele: true,
   pttKod: "", pttAd: "", anonsMod: "kapali", anonsKod: "", anonsAd: "",
 };
 const ANAHTAR = "aetherion.ses";

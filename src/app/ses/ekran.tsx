@@ -186,6 +186,7 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
                             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}{ben ? " (sen)" : ""}</span>
                             {buradayim && d.yayinlar.some((y) => y.id === String(u.id)) && <span title="Ekran yayınlıyor" style={{ fontSize: 10 }}>📺</span>}
                             {o.kisitli && !u.canSpeak && <span className="faint" title="Dinleyici — konuşma yetkisi yok" style={{ fontSize: 10 }}>👂</span>}
+                            {k?.kisik && <span title="Bu kişinin sesi kısık geliyor — tıkla, sesini yükselt" style={{ fontSize: 10 }}>🔉</span>}
                             {k?.susturuldu && <HoparlorIkon acik={false} size={11} />}
                             {sessizler.has(u.id) && <MikIkon acik={false} size={11} />}
                           </div>
@@ -194,9 +195,20 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
                               <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, marginBottom: 6 }}><Avatar src={u.avatar} size={20} />{u.name}</div>
                               {k && !k.ben && (
                                 <>
-                                  <div className="small dim" style={{ display: "flex", justifyContent: "space-between" }}><span>Ses</span><span className="t-num">{k.susturuldu ? "—" : `%${k.seviye}`}</span></div>
-                                  <input type="range" min={0} max={200} value={k.susturuldu ? 0 : k.seviye} disabled={k.susturuldu} style={{ width: "100%" }}
+                                  <div className="small dim" style={{ display: "flex", justifyContent: "space-between" }}>
+                                    <span>Ses</span>
+                                    <span className="t-num">{k.susturuldu ? "—" : `%${k.seviye}`}{k.seviye > 300 ? " ⚠" : ""}</span>
+                                  </div>
+                                  <input type="range" min={0} max={500} step={10} list="ses-kademe" value={k.susturuldu ? 0 : k.seviye} disabled={k.susturuldu} style={{ width: "100%" }}
                                          onChange={(e) => ses.hacim(k.id, Number(e.target.value))} />
+                                  <datalist id="ses-kademe"><option value="100" /><option value="200" /><option value="300" /><option value="400" /></datalist>
+                                  {k.kisik && !k.susturuldu && k.seviye < 200 && (
+                                    <button className="btn btn-ghost" style={{ width: "100%", height: 26, marginTop: 4 }}
+                                            onClick={() => ses.hacim(k.id, 250)}>
+                                      Sesi kısık geliyor — %250 yap
+                                    </button>
+                                  )}
+                                  {k.seviye > 300 && <div className="small faint" style={{ marginTop: 2 }}>Yüksek kazançta cızırtı olabilir; asıl çözüm konuşanın mikrofon seviyesi.</div>}
                                   <button className={`btn ${k.susturuldu ? "" : "btn-ghost"}`} style={{ width: "100%", height: 28, marginTop: 6, color: k.susturuldu ? "var(--t-bad)" : undefined }}
                                           onClick={() => ses.sustur(k.id, !k.susturuldu)}>{k.susturuldu ? "Sesini aç" : "Sustur"}</button>
                                 </>
@@ -236,7 +248,7 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{benAd}</div>
             <div className="faint small" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
-              {d.baglaniyor ? "Bağlanıyor…" : d.bagli ? <span className="good">● {d.etiket}{!d.yayinIzni ? " · dinleyici" : ""}</span> : "Bağlı değil"}
+              {d.baglaniyor ? (d.yenidenDeneme ? `Bağlantı koptu, yeniden bağlanılıyor (${d.yenidenDeneme}/3)…` : "Bağlanıyor…") : d.bagli ? <span className="good">● {d.etiket}{!d.yayinIzni ? " · dinleyici" : ""}</span> : "Bağlı değil"}
               {d.bagli && d.gecikmeMs !== null && <span className="t-num" style={{ color: pingRenk }} title="Sunucuya gidiş-dönüş">{d.gecikmeMs} ms</span>}
               {d.anonsAcik && <span className="anons-rozet" title="Tüm odalara konuşuyorsun">📢 anons</span>}
             </div>

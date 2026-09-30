@@ -1,6 +1,6 @@
 "use client";
 
-import { Room, RoomEvent, Track, LocalAudioTrack, createAudioAnalyser, ScreenSharePresets, type RemoteAudioTrack, type RemoteParticipant, type Participant, type RemoteVideoTrack, type LocalVideoTrack } from "livekit-client";
+import { Room, RoomEvent, Track, LocalAudioTrack, createAudioAnalyser, ScreenSharePresets, DisconnectReason, type RemoteAudioTrack, type RemoteParticipant, type Participant, type RemoteVideoTrack, type LocalVideoTrack } from "livekit-client";
 import { useEffect, useState } from "react";
 import { RnnoiseWorkletNode, GtcrnWorkletNode, loadRnnoise, loadGtcrn } from "@sapphi-red/web-noise-suppressor";
 
@@ -38,7 +38,9 @@ export interface SesApi {
  * anons odasındaki kişi benim odamda da varsa anons kopyası kısılır.
  */
 
-export interface SesKatilimci { id: string; ad: string; konusuyor: boolean; sessiz: boolean; ben: boolean; seviye: number; susturuldu: boolean }
+export interface SesKatilimci { id: string; ad: string; konusuyor: boolean; sessiz: boolean; ben: boolean; seviye: number; susturuldu: boolean;
+  /** Konuşurken ölçülen seviyesi düşük — arayüz "sesi kısık" diyip yükseltmeyi önerir */
+  kisik: boolean }
 export interface SesDurum {
   bagli: boolean; baglaniyor: boolean; oda: string | null; etiket: string | null; savasId: number | null; partyId: number | null;
   mikrofon: boolean; ptt: boolean; katilimcilar: SesKatilimci[]; hata: string | null;
@@ -56,13 +58,17 @@ export interface SesDurum {
   yayinIzni: boolean;
   /** sunucuya gidiş-dönüş, ms (3 sn'de bir) */
   gecikmeMs: number | null;
+  /** beklenmedik kopmadan sonra kaçıncı yeniden bağlanma denemesi (0 = yok) */
+  yenidenDeneme: number;
   /** odadaki ekran yayınları (kimlik + ad); kendi yayınım da dahil */
   yayinlar: Array<{ id: string; ad: string; ben: boolean }>;
   ekranPaylasiyorum: boolean;
 }
 export type AnonsMod = "kapali" | "tus" | "otomatik";
 export type GurultuMod = "kapali" | "tarayici" | "rnnoise" | "gtcrn";
-export interface SesAyar { gurultuMod: GurultuMod; kazanc: number; esikDb: number; mikrofon: string | null; hoparlor: string | null; cikis: number }
+export interface SesAyar { gurultuMod: GurultuMod; kazanc: number; esikDb: number; mikrofon: string | null; hoparlor: string | null; cikis: number;
+  /** Otomatik seviye: mikrofon sıkıştırılıp yükseltilir, kısık konuşan da duyulur */
+  dengele: boolean }
 
 /** getUserMedia hatasını Türkçe, ne yapılacağını söyleyen bir metne çevir */
 export function mikrofonHatasi(e: unknown): string {
@@ -100,7 +106,7 @@ class SesYoneticisi {
   private anonsBasili = false;
   /** anons tuşu mikrofonu açtıysa bırakınca kapatılır */
   private anonsMikActi = false;
-  private ayar: SesAyar = { gurultuMod: "rnnoise", kazanc: 1, esikDb: -100, mikrofon: null, hoparlor: null, cikis: 1 };
+  private ayar: SesAyar = { gurultuMod: "rnnoise", kazanc: 1, esikDb: -100, mikrofon: null, hoparlor: null, cikis: 1, dengele: true };
   private wasm: { rnnoise?: ArrayBuffer; gtcrn?: ArrayBuffer; worklets: Set<string> } = { worklets: new Set() };
   private denoiser: AudioWorkletNode | null = null;
   private susturulan = new Set<string>();
@@ -116,15 +122,25 @@ class SesYoneticisi {
   private sonSesli = 0;
   // "Konuşuyor" göstergesi: sunucunun aktif konuşmacı olayı ~1 sn gecikiyor;
   // her uzak parçaya yerel bir analizör bağlayıp 60 ms'de bir kendimiz bakıyoruz.
-  private analizler = new Map<string, { hacim: () => number; kapat: () => Promise<void>; son: number }>();
+  private analizler = new Map<string, { hacim: () => number; kapat: () => Promise<void>; son: number;
+    /** Konuşurken toplanan seviye — "sesi kısık" kararı buradan */
+    sesliToplam: number; sesliOrnek: number }>();
   private konusanlar = new Set<string>();
   private konusmaZamanlayici: number | null = null;
   private benKonusuyor = false;
   private benSonSes = 0;
   private gecikmeZamanlayici: number | null = null;
+  // Beklenmedik kopmadan sonra geri dönebilmek için son girişin bileti
+  private sonGiris: { api: SesApi; anahtar: () => Promise<{ url: string; token: string; room: string; label: string; partyId?: number | null }>; warId: number | null } | null = null;
+  /** Odadan kendim mi çıktım (çıktıysam geri dönmeye çalışma) */
+  private kendiAyrildim = true;
+  private yenidenZamanlayici: number | null = null;
+  /** Kaçıncı otomatik deneme — durumdaki alan arayüz için, sayaç burada tutulur
+      (yeniden bağlanırken odayaGir yine çağrıldığı için durum sıfırlanıyor) */
+  private denemeSayaci = 0;
 
   durum: SesDurum = { bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, ptt: false,
-                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null, yayinlar: [], ekranPaylasiyorum: false };
+                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null, yenidenDeneme: 0, yayinlar: [], ekranPaylasiyorum: false };
 
   abone(f: Dinleyici) { this.dinleyiciler.add(f); f(this.durum); return () => { this.dinleyiciler.delete(f); }; }
   private yay(p: Partial<SesDurum>) { this.durum = { ...this.durum, ...p }; this.dinleyiciler.forEach((f) => f(this.durum)); }
@@ -138,6 +154,7 @@ class SesYoneticisi {
       sessiz: ben ? !this.durum.mikrofon : !p.isMicrophoneEnabled,
       seviye: ben ? 100 : Math.round((this.hacimler.get(p.identity) ?? 1) * 100),
       susturuldu: !ben && this.susturulan.has(p.identity),
+      kisik: !ben && this.kisikMi(p.identity) && (this.hacimler.get(p.identity) ?? 1) < 2,
     });
     ekle(r.localParticipant, true);
     r.remoteParticipants.forEach((p: RemoteParticipant) => ekle(p, false));
@@ -147,13 +164,13 @@ class SesYoneticisi {
 
   /** Ayarları uygula; bağlıyken de canlı değişir */
   ayarla(a: Partial<SesAyar>) {
-    const eskiMik = this.ayar.mikrofon, eskiGurultu = this.ayar.gurultuMod, eskiHop = this.ayar.hoparlor;
+    const eskiMik = this.ayar.mikrofon, eskiGurultu = this.ayar.gurultuMod, eskiHop = this.ayar.hoparlor, eskiDengele = this.ayar.dengele;
     this.ayar = { ...this.ayar, ...a };
     if (this.kazanc) this.kazanc.gain.value = this.ayar.kazanc;
     if (a.cikis !== undefined) { this.room?.remoteParticipants.forEach((p) => this.uygulaHacim(p.identity)); this.anonsHacimUygula(); }
     if (this.room && eskiHop !== this.ayar.hoparlor) void this.room.switchActiveDevice("audiooutput", this.ayar.hoparlor ?? "default").catch(() => {});
     // Mikrofon ya da gürültü engelleme değiştiyse akışı yeniden aç
-    if (this.ham && (eskiMik !== this.ayar.mikrofon || eskiGurultu !== this.ayar.gurultuMod)) void this.mikrofonuKur(!!this.room);
+    if (this.ham && (eskiMik !== this.ayar.mikrofon || eskiGurultu !== this.ayar.gurultuMod || eskiDengele !== this.ayar.dengele)) void this.mikrofonuKur(!!this.room);
   }
 
   /** Mikrofon zinciri: ölçer bağlantı öncesi de çalışır (ayar sayfasında kalibrasyon) */
@@ -192,7 +209,28 @@ class SesYoneticisi {
     const hedef = ctx.createMediaStreamDestination();
     const temiz = await this.gurultuDugumu(ctx);
     kaynak.connect(mono); mono.connect(kazanc);
-    const cikis: AudioNode = temiz ? (kazanc.connect(temiz), temiz) : kazanc;
+    const gurultusuz: AudioNode = temiz ? (kazanc.connect(temiz), temiz) : kazanc;
+
+    /*
+      Otomatik seviye.
+
+      En sık şikâyet "falancanın sesi çok kısık geliyor" ve dinleyen tarafta
+      bunu düzeltmek zor: tarayıcı hacmi %100'ü geçemiyor, geçse de kısık
+      kaydı yükseltmek cızırtı getiriyor. Doğru yer kaynak: konuşan kişinin
+      akışı burada sıkıştırılıp sabit bir seviyeye çekiliyor. Yüksek sesle
+      konuşan bastırılıyor, kısık konuşan yükseliyor; ikisi de aynı yükseklikte
+      çıkıyor. Kapanabiliyor (stüdyo mikrofonu olan istemeyebilir).
+    */
+    let cikis: AudioNode = gurultusuz;
+    if (this.ayar.dengele) {
+      const sikistirici = ctx.createDynamicsCompressor();
+      sikistirici.threshold.value = -34; sikistirici.knee.value = 26; sikistirici.ratio.value = 5;
+      sikistirici.attack.value = 0.005; sikistirici.release.value = 0.22;
+      const telafi = ctx.createGain(); telafi.gain.value = 2.4;
+      telafi.channelCount = 1; telafi.channelCountMode = "explicit";
+      gurultusuz.connect(sikistirici); sikistirici.connect(telafi);
+      cikis = telafi;
+    }
     cikis.connect(analiz); cikis.connect(kapi); kapi.connect(hedef);
     this.kazanc = kazanc; this.denoiser = temiz;
 
@@ -274,8 +312,12 @@ class SesYoneticisi {
     return this.odayaGir(api, () => api.voiceRoomToken(odaId), null);
   }
 
-  private async odayaGir(api: SesApi, anahtar: () => Promise<{ url: string; token: string; room: string; label: string; partyId?: number | null }>, warId: number | null) {
+  private async odayaGir(api: SesApi, anahtar: () => Promise<{ url: string; token: string; room: string; label: string; partyId?: number | null }>, warId: number | null, tekrar = false) {
     if (this.room) await this.ayril();
+    if (this.yenidenZamanlayici) { clearTimeout(this.yenidenZamanlayici); this.yenidenZamanlayici = null; }
+    if (!tekrar) { this.denemeSayaci = 0; this.yay({ yenidenDeneme: 0 }); }
+    this.sonGiris = { api, anahtar, warId };
+    this.kendiAyrildim = false;
     this.yay({ baglaniyor: true, hata: null });
     try {
       const t = await anahtar();
@@ -299,7 +341,11 @@ class SesYoneticisi {
           .on(RoomEvent.TrackUnsubscribed, (track, pub, p) => { track.detach(); if (pub.source !== Track.Source.ScreenShareAudio) this.analizSil(p.identity); if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); this.tazele(); })
           .on(RoomEvent.LocalTrackPublished, (pub) => { if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); })
           .on(RoomEvent.LocalTrackUnpublished, (pub) => { if (pub.source === Track.Source.ScreenShare) this.yayinlariTazele(); })
-          .on(RoomEvent.Disconnected, () => { this.room = null; this.gecikmeDurdur(); this.mikrofonuKapat(); this.analizleriTemizle(); this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] }); })
+          .on(RoomEvent.Disconnected, (sebep) => {
+            this.room = null; this.gecikmeDurdur(); this.mikrofonuKapat(); this.analizleriTemizle();
+            this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [] });
+            this.kopmayiIsle(sebep);
+          })
           .on(RoomEvent.Reconnecting, () => this.yay({ baglaniyor: true }))
           .on(RoomEvent.Reconnected, () => this.yay({ baglaniyor: false }))
           // Yönetici konuşma yetkisi verdi/aldı → yayını yeniden kur
@@ -391,12 +437,73 @@ class SesYoneticisi {
   }
 
   async ayril() {
+    this.kendiAyrildim = true;
+    this.yenidenDurdur();
+    this.sonGiris = null;
     const r = this.room; this.room = null;
     this.gecikmeDurdur();
     this.mikrofonuKapat(); this.analizleriTemizle();
     await this.anonstanAyril();
     if (r) await r.disconnect();
     this.yay({ bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, katilimcilar: [], yayinIzni: true, yayinlar: [], ekranPaylasiyorum: false });
+  }
+
+  // ---- Beklenmedik kopma ----
+
+  /**
+   * Oda kopunca ne olacağı.
+   *
+   * Eskiden her kopma sessizce "bağlı değil"e düşüyordu: ağ bir saniye
+   * takılan kişi odadan atılmış gibi kalıyor, kimse fark etmeden savaşın
+   * ortasında sessizleşiyordu. Artık sebebe bakılıyor:
+   *
+   * - Kendim çıktıysam bir şey yapılmaz.
+   * - Aynı hesapla başka bir yerden girilmişse (telefon, ikinci pencere)
+   *   geri dönmeye çalışmak iki cihazı sırayla atar; sadece söylenir.
+   * - Sunucu çıkardıysa (başka odaya geçildiği için) geri dönülmez.
+   * - Geri kalan her şey ağ kazası sayılır: artan aralıklarla üç kez
+   *   yeniden bağlanılır.
+   */
+  private kopmayiIsle(sebep?: DisconnectReason) {
+    if (this.kendiAyrildim || !this.sonGiris) return;
+    if (sebep === DisconnectReason.DUPLICATE_IDENTITY) {
+      this.sonGiris = null;
+      this.yay({ hata: "Aynı hesapla başka bir cihazdan girildi; bu bağlantı kapandı." });
+      return;
+    }
+    if (sebep === DisconnectReason.PARTICIPANT_REMOVED || sebep === DisconnectReason.ROOM_DELETED) {
+      this.sonGiris = null;
+      this.yay({ hata: "Odadan çıkarıldın." });
+      return;
+    }
+    this.yenidenDene();
+  }
+
+  private yenidenDene() {
+    const giris = this.sonGiris; if (!giris) return;
+    const deneme = ++this.denemeSayaci;
+    if (deneme > 3) {
+      this.denemeSayaci = 0;
+      this.yay({ yenidenDeneme: 0, baglaniyor: false, hata: "Bağlantı koptu ve geri dönülemedi. Odaya yeniden tıkla." });
+      return;
+    }
+    const bekle = [1500, 4000, 9000][deneme - 1];
+    this.yay({ yenidenDeneme: deneme, baglaniyor: true, hata: `Bağlantı koptu, yeniden bağlanılıyor (${deneme}/3)…` });
+    this.yenidenZamanlayici = (setTimeout(() => {
+      this.yenidenZamanlayici = null;
+      if (this.kendiAyrildim || !this.sonGiris) return;
+      // odayaGir hatayı kendi yakalıyor, reject etmiyor: sonucu duruma bakarak anlıyoruz
+      void this.odayaGir(giris.api, giris.anahtar, giris.warId, true).then(() => {
+        if (this.durum.bagli) { this.denemeSayaci = 0; this.yay({ yenidenDeneme: 0, hata: null }); }
+        else if (!this.kendiAyrildim) this.yenidenDene();
+      });
+    }, bekle) as unknown) as number;
+  }
+
+  private yenidenDurdur() {
+    if (this.yenidenZamanlayici) { clearTimeout(this.yenidenZamanlayici); this.yenidenZamanlayici = null; }
+    this.denemeSayaci = 0;
+    if (this.durum.yenidenDeneme) this.yay({ yenidenDeneme: 0 });
   }
 
   async mikrofon(acik: boolean) {
@@ -419,19 +526,38 @@ class SesYoneticisi {
     this.analizSil(anahtar);
     try {
       const a = createAudioAnalyser(track, { fftSize: 256, smoothingTimeConstant: 0.2 });
-      this.analizler.set(anahtar, { hacim: a.calculateVolume, kapat: a.cleanup, son: 0 });
+      this.analizler.set(anahtar, { hacim: a.calculateVolume, kapat: a.cleanup, son: 0, sesliToplam: 0, sesliOrnek: 0 });
     } catch { return; }
     if (this.konusmaZamanlayici) return;
     this.konusmaZamanlayici = window.setInterval(() => {
       const t = performance.now(); let degisti = false;
       for (const [k, a] of Array.from(this.analizler)) {
-        if (a.hacim() > 0.04) a.son = t;
+        const h = a.hacim();
+        if (h > 0.04) a.son = t;
+        // Konuşurkenki seviyeyi biriktir: kimin sesi kısık geliyor, tahmin
+        // etmek yerine ölçelim. Pencere kayan: son ~500 örnek ağırlıklı.
+        if (h > 0.02) {
+          a.sesliToplam += h; a.sesliOrnek++;
+          if (a.sesliOrnek > 500) { a.sesliToplam *= 0.5; a.sesliOrnek = Math.round(a.sesliOrnek * 0.5); }
+        }
         const on = t - a.son < 200;
         if (on !== this.konusanlar.has(k)) { if (on) this.konusanlar.add(k); else this.konusanlar.delete(k); degisti = true; }
       }
       if (degisti) { this.tazele(); this.anonsKonusanlariTazele(); }
     }, 60);
   }
+  /**
+   * Bu kişinin sesi kısık mı: konuşurken ölçülen ortalama seviyesi düşük.
+   * Eşik deneyerek bulundu — normal konuşma 0.08-0.2 arası geliyor,
+   * 0.05 altı kulakta "duyulmuyor" oluyor. En az iki saniyelik konuşma
+   * (≈33 örnek) birikmeden karar verilmiyor.
+   */
+  private kisikMi(anahtar: string) {
+    const a = this.analizler.get(anahtar);
+    if (!a || a.sesliOrnek < 33) return false;
+    return a.sesliToplam / a.sesliOrnek < 0.05;
+  }
+
   private analizSil(anahtar: string) {
     const a = this.analizler.get(anahtar);
     if (a) { void a.kapat().catch(() => {}); this.analizler.delete(anahtar); }
@@ -530,9 +656,16 @@ class SesYoneticisi {
     const v = this.durum.sagir || this.susturulan.has(identity) ? 0 : (this.hacimler.get(identity) ?? 1) * this.ayar.cikis;
     try { p.setVolume(v); } catch (e) { this.yay({ hata: `Ses ayarlanamadı: ${(e as Error).message}` }); }
   }
-  /** Başkasının sesi: 0–200 (%) */
+  /**
+   * Başkasının sesi: 0–500 (%).
+   *
+   * Tavan %200'dü ve kısık konuşan biri için yetmiyordu. Ses LiveKit'in
+   * GainNode'undan geçtiği için (webAudioMix) %100 üstü gerçekten
+   * yükseltiyor; %300 üstünde kısık kayıtta cızırtı duyulabilir, arayüz
+   * bunu söylüyor.
+   */
   hacim(identity: string, yuzde: number) {
-    this.hacimler.set(identity, Math.max(0, Math.min(2, yuzde / 100)));
+    this.hacimler.set(identity, Math.max(0, Math.min(5, yuzde / 100)));
     this.uygulaHacim(identity); this.anonsHacimUygula(identity); this.tazele();
   }
   /** Tek kişiyi sustur / aç */

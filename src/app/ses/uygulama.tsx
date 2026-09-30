@@ -26,8 +26,8 @@ export default function SesUygulama() {
   // Ayarları ses katmanına geçir
   useEffect(() => {
     if (!hazir) return;
-    ses.ayarla({ gurultuMod: ayarlar.gurultuMod, kazanc: ayarlar.kazanc, esikDb: ayarlar.esikDb, mikrofon: ayarlar.mikrofon || null, hoparlor: ayarlar.hoparlor || null, cikis: ayarlar.cikis / 100 });
-  }, [hazir, ayarlar.gurultuMod, ayarlar.kazanc, ayarlar.esikDb, ayarlar.mikrofon, ayarlar.hoparlor, ayarlar.cikis]);
+    ses.ayarla({ gurultuMod: ayarlar.gurultuMod, kazanc: ayarlar.kazanc, esikDb: ayarlar.esikDb, mikrofon: ayarlar.mikrofon || null, hoparlor: ayarlar.hoparlor || null, cikis: ayarlar.cikis / 100, dengele: ayarlar.dengele });
+  }, [hazir, ayarlar.gurultuMod, ayarlar.kazanc, ayarlar.esikDb, ayarlar.mikrofon, ayarlar.hoparlor, ayarlar.cikis, ayarlar.dengele]);
   useEffect(() => { if (hazir) void ses.pttAyarla(ayarlar.pttKod); }, [hazir, ayarlar.pttKod]);
   useEffect(() => { if (hazir) void ses.anonsAyarla(ayarlar.anonsMod, ayarlar.anonsKod); }, [hazir, ayarlar.anonsMod, ayarlar.anonsKod]);
 

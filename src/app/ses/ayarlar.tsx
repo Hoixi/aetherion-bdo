@@ -141,6 +141,17 @@ export function SesAyarlariPaneli({ ayarlar, onAyar, yonetici = false }: {
             </div>
             <input type="range" min={0} max={200} value={ayarlar.cikis} style={{ width: "100%" }} onChange={(e) => onAyar("cikis", Number(e.target.value))} />
           </div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer" }}>
+            <input type="checkbox" checked={ayarlar.dengele} onChange={(e) => onAyar("dengele", e.target.checked)}
+                   style={{ marginTop: 3, accentColor: "var(--t-gold)" }} />
+            <span>
+              <span>Otomatik seviye</span>
+              <span className="faint small" style={{ display: "block", marginTop: 2 }}>
+                Sesin sıkıştırılıp sabit seviyeye çekilir: kısık konuştuğunda yükselir,
+                bağırdığında bastırılır. Karşı taraf senin sesini ayarlamak zorunda kalmaz.
+              </span>
+            </span>
+          </label>
           <div>
             <div className="small dim" style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Mikrofon seviyesi</span><span className="t-num">{Math.round(ayarlar.kazanc * 100)}%</span>
