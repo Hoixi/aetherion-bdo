@@ -105,12 +105,16 @@ interface MemberChipProps {
   guven?: GuvenOzet | null;
   /** Tam ekran görünümde: tıklayınca detay paneli */
   onSecim?: (userId: number) => void;
+  /** Bu kişi partinin lideri mi */
+  lider?: boolean;
+  /** Yöneticiye: taca tıklayınca lideri değiştir (aynı kişiye tıklayınca kaldırır) */
+  onLider?: (userId: number) => void;
   secili?: boolean;
 }
 
 export function MemberChip({
   id, user, isDragOverlay, perf, attendanceHistory,
-  currentStatus, asClass, compact, guven, onSecim, secili,
+  currentStatus, asClass, compact, guven, onSecim, secili, lider, onLider,
 }: MemberChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const [tip, setTip] = useState<{ top: number; left: number } | null>(null);
@@ -226,6 +230,25 @@ export function MemberChip({
           <span className="text-xs font-semibold text-bdo-text-primary truncate flex-1">
             {user.familyName}
           </span>
+
+          {/*
+            Taç: lider işareti ve aynı zamanda düğmesi. Kart sürüklenebilir
+            olduğu için tıklama sürüklemeye dönüşmesin diye pointerdown
+            burada kesiliyor.
+          */}
+          {(lider || onLider) && (
+            <button type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onLider?.(user.id); }}
+                    disabled={!onLider}
+                    title={lider ? "Parti lideri — kaldırmak için tıkla" : "Parti lideri yap"}
+                    className={`shrink-0 leading-none rounded px-1 py-0.5 text-[11px] transition-opacity
+                                ${lider ? "opacity-100" : "opacity-25 hover:opacity-80"}
+                                ${onLider ? "cursor-pointer" : "cursor-default"}`}
+                    style={lider ? { background: "rgba(232,180,81,.16)" } : undefined}>
+              👑
+            </button>
+          )}
 
           {user.not && (
             <span className="text-[11px] shrink-0" title={`Not: ${user.not}`}>📝</span>

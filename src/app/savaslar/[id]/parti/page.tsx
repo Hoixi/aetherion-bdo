@@ -24,7 +24,7 @@ import { classifyAttendance, attendanceKnown } from "@/lib/attendance";
 
 type User = { id: number; familyName: string; class: string; ap: number; dp: number; avatarUrl: string; guild?: { id: number; tag: string; color: string } | null };
 type Participant = { id: number; status: string; asClass?: string | null; asSpec?: string | null; note?: string | null; user: User };
-type Party = { id: number; name: string; order: number; isDefense: boolean; role?: string; members: Array<{ id: number; userId: number; asClass?: string | null; asSpec?: string | null; user: User }> };
+type Party = { id: number; name: string; order: number; isDefense: boolean; role?: string; leaderId?: number | null; members: Array<{ id: number; userId: number; asClass?: string | null; asSpec?: string | null; user: User }> };
 type WarDetail = { id: number; title: string; date: string; tier?: string | null; maxParticipants: number | null; participants: Participant[]; parties: Party[]; participantsHidden?: boolean };
 type Perf = { inGameName: string; user?: { familyName: string } | null };
 

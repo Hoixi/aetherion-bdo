@@ -439,6 +439,8 @@ model Party {
   role      String  @default("MAIN")  // MAIN | DEFENSE | FLANK
   /** role ile senkron tutulur; eski kod bunu okuyor */
   isDefense Boolean @default(false)
+  /** Parti lideri (User.id) — sesli odada yanında işaret çıkar, hedef çağırır */
+  leaderId  Int?
 
   war     War           @relation(fields: [warId], references: [id], onDelete: Cascade)
   members PartyMember[]

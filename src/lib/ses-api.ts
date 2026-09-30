@@ -10,7 +10,7 @@ import type { SesApi } from "@/lib/ses-web";
 export interface Savas {
   id: number; title: string; type: string; tier: string; date: string; deadline: string | null;
   isAllyWar: boolean; attending: number | null; myStatus: "ATTENDING" | "DECLINED" | null; myClass: string | null;
-  parties: Array<{ id: number; name: string; role: string; members: Array<{ id: number; familyName: string; class: string }> }>;
+  parties: Array<{ id: number; name: string; role: string; leaderId?: number | null; members: Array<{ id: number; familyName: string; class: string }> }>;
   myParty: { id: number; name: string; role: string } | null;
 }
 export interface OdaUyesi { id: number; name: string; avatar: string | null; canSpeak: boolean }

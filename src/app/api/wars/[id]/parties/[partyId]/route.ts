@@ -33,6 +33,22 @@ export async function PUT(req: Request, { params }: { params: { id: string; part
 
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = body.name;
+  /*
+    Parti lideri. Yalnızca o partideki biri lider olabilir; `null` lideri
+    kaldırır. Partide olmayan biri gönderilirse sessizce yok saymak yerine
+    hata veriyoruz — arayüzde yanlış kişiyi seçtiğini kimse fark etmesin.
+  */
+  if (body.leaderId !== undefined) {
+    if (body.leaderId === null) data.leaderId = null;
+    else {
+      const uye = await prisma.partyMember.findFirst({
+        where: { partyId, userId: Number(body.leaderId) },
+        select: { id: true },
+      });
+      if (!uye) return NextResponse.json({ error: "Lider bu partide değil." }, { status: 400 });
+      data.leaderId = Number(body.leaderId);
+    }
+  }
   if (nextRole !== undefined) {
     data.role = nextRole;
     // isDefense senkron kalsın — eski sorgular hâlâ onu okuyor

@@ -24,7 +24,10 @@ const sinifAdi = (id: string) => getClassByID(id)?.name ?? id;
  *  Oda listesi sunucunun canlı akışıyla (SSE) anında güncellenir.
  */
 
-interface Oda { anahtar: string; ad: string; id?: number; uyeler: OdaUyesi[]; kilit?: boolean; kisitli?: boolean; gir: () => void; sil?: () => void }
+interface Oda { anahtar: string; ad: string; id?: number; uyeler: OdaUyesi[]; kilit?: boolean; kisitli?: boolean;
+  /** Bu odada taç takacak kişiler: parti odasında o partinin lideri, genelde bütün liderler */
+  liderler?: Set<number>;
+  gir: () => void; sil?: () => void }
 interface Kategori { ad: string; odalar: Oda[]; savas?: boolean }
 
 function Avatar({ src, size = 16 }: { src: string | null | undefined; size?: number }) {
@@ -90,11 +93,15 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
 
   const kategoriler: Kategori[] = [];
   if (savas) {
+    // Parti liderleri: genel odada hepsi, parti odasında yalnız o partininki
+    const tumLiderler = new Set<number>(savas.parties.map((p) => p.leaderId).filter((x): x is number => !!x));
     const odalarS: Oda[] = [
-      { anahtar: `savas-${savas.id}-genel`, ad: "Genel", uyeler: uyeler(`savas-${savas.id}-genel`, true), gir: () => ses.baglan(api, savas.id, "genel") },
+      { anahtar: `savas-${savas.id}-genel`, ad: "Genel", uyeler: uyeler(`savas-${savas.id}-genel`, true), liderler: tumLiderler, gir: () => ses.baglan(api, savas.id, "genel") },
       ...savas.parties.map((p) => ({
         anahtar: `savas-${savas.id}-parti-${p.id}`, ad: p.name + (p.id === partim?.id ? " · partin" : ""),
-        uyeler: uyeler(`savas-${savas.id}-parti-${p.id}`, true), gir: () => ses.baglan(api, savas.id, "parti", p.id),
+        uyeler: uyeler(`savas-${savas.id}-parti-${p.id}`, true),
+        liderler: p.leaderId ? new Set<number>([p.leaderId]) : undefined,
+        gir: () => ses.baglan(api, savas.id, "parti", p.id),
       })),
     ];
     kategoriler.push({ ad: savas.title, odalar: odalarS, savas: true });
@@ -186,6 +193,7 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
                             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}{ben ? " (sen)" : ""}</span>
                             {buradayim && d.yayinlar.some((y) => y.id === String(u.id)) && <span title="Ekran yayınlıyor" style={{ fontSize: 10 }}>📺</span>}
                             {o.kisitli && !u.canSpeak && <span className="faint" title="Dinleyici — konuşma yetkisi yok" style={{ fontSize: 10 }}>👂</span>}
+                            {o.liderler?.has(u.id) && <span title="Parti lideri" style={{ fontSize: 10 }}>👑</span>}
                             {k?.kisik && <span title="Bu kişinin sesi kısık geliyor — tıkla, sesini yükselt" style={{ fontSize: 10 }}>🔉</span>}
                             {k?.susturuldu && <HoparlorIkon acik={false} size={11} />}
                             {sessizler.has(u.id) && <MikIkon acik={false} size={11} />}

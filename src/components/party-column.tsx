@@ -37,7 +37,7 @@ export type PartyMemberData = {
 };
 
 interface PartyColumnProps {
-  party: { id: number; name: string; isDefense: boolean; role?: string; members: PartyMemberData[] };
+  party: { id: number; name: string; isDefense: boolean; role?: string; leaderId?: number | null; members: PartyMemberData[] };
   onRename: (partyId: number, name: string) => void;
   onDelete: (partyId: number) => void;
   onSetRole: (partyId: number, role: string) => Promise<{ error?: string }>;
@@ -50,11 +50,13 @@ interface PartyColumnProps {
   guven?: Record<number, GuvenOzet>;
   onSecim?: (userId: number) => void;
   seciliId?: number | null;
+  /** Yöneticiye: parti liderini seç/kaldır */
+  onLider?: (partyId: number, userId: number | null) => void;
 }
 
 export function PartyColumn({
   party, onRename, onDelete, onSetRole, memberStats, attendanceHistory,
-  currentStatuses, capacity = 20, guven, onSecim, seciliId,
+  currentStatuses, capacity = 20, guven, onSecim, seciliId, onLider,
 }: PartyColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(party.name);
@@ -209,7 +211,9 @@ export function PartyColumn({
                         perf={memberStats?.[m.userId]} attendanceHistory={attendanceHistory}
                         currentStatus={currentStatuses?.[m.userId]} asClass={m.asClass}
                         guven={guven ? guven[m.userId] ?? null : undefined}
-                        onSecim={onSecim} secili={seciliId === m.userId} />
+                        onSecim={onSecim} secili={seciliId === m.userId}
+                        lider={party.leaderId === m.userId}
+                        onLider={onLider ? (uid) => onLider(party.id, party.leaderId === uid ? null : uid) : undefined} />
           ))}
         </div>
       </SortableContext>

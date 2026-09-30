@@ -51,6 +51,8 @@ interface PartyData {
   name: string;
   isDefense: boolean;
   role?: string;
+  /** Parti lideri (User.id) */
+  leaderId?: number | null;
   members: PartyMemberData[];
 }
 
@@ -421,6 +423,20 @@ export function PartyBuilder({
     setParties(parties.map((p) => (p.id === partyId ? { ...p, name } : p)));
   }
 
+  /**
+   * Parti lideri. Sesli odada lider yanında taç görünüyor, hedefi o
+   * çağırıyor. Aynı kişiye tekrar tıklamak lideri kaldırıyor.
+   */
+  async function setLider(partyId: number, userId: number | null) {
+    const onceki = parties;
+    setParties(parties.map((p) => (p.id === partyId ? { ...p, leaderId: userId } : p)));
+    const res = await fetch(`/api/wars/${warId}/parties/${partyId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leaderId: userId }),
+    });
+    if (!res.ok) setParties(onceki);
+  }
+
   async function setRole(partyId: number, role: string): Promise<{ error?: string }> {
     const res = await fetch(`/api/wars/${warId}/parties/${partyId}`, {
       method: "PUT",
@@ -529,7 +545,8 @@ export function PartyBuilder({
                     <div key={party.id} className="h-full overflow-y-auto">
                       <PartyColumn party={party} onRename={renameParty} onDelete={deleteParty} onSetRole={setRole}
                                    memberStats={memberStats} attendanceHistory={attendanceHistory}
-                                   currentStatuses={currentStatuses} guven={guven} onSecim={onSecim} seciliId={seciliId} />
+                                   currentStatuses={currentStatuses} guven={guven} onSecim={onSecim} seciliId={seciliId}
+                                   onLider={setLider} />
                     </div>
                   ))}
                 </div>
@@ -670,7 +687,7 @@ export function PartyBuilder({
               <PartyColumn key={party.id} party={party} onRename={renameParty}
                            onDelete={deleteParty} onSetRole={setRole}
                            memberStats={memberStats} attendanceHistory={attendanceHistory}
-                           currentStatuses={currentStatuses} guven={guven} />
+                           currentStatuses={currentStatuses} guven={guven} onLider={setLider} />
             ))}
           </div>
         )}

@@ -25,6 +25,13 @@ export async function PUT(req: Request, { params }: { params: { id: string; part
     }),
   ]);
 
+  // Lider partiden çıkarıldıysa taç da gitsin — yoksa sesli odada
+  // artık orada olmayan birinin yanında taç duruyordu
+  await prisma.party.updateMany({
+    where: { id: partyId, leaderId: { notIn: memberIds.length ? memberIds : [-1] } },
+    data: { leaderId: null },
+  });
+
   const party = await prisma.party.findUnique({
     where: { id: partyId },
     include: { members: { include: { user: true }, orderBy: { order: "asc" } } },

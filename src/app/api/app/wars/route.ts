@@ -52,13 +52,14 @@ export async function GET(req: Request) {
         myNote: w.participants[0]?.note ?? null,
         // Kurulan partiler: ad, rol, üyeler — "şu partiler kuruldu" ekranı
         parties: w.parties.map((p) => ({
-          id: p.id, name: p.name, role: p.role,
+          // leaderId: sesli odada liderin yanında taç çıkar
+          id: p.id, name: p.name, role: p.role, leaderId: p.leaderId,
           members: p.members.map((m) => ({
             id: m.user.id, familyName: m.user.familyName,
             class: m.asClass ?? m.user.class, spec: m.asSpec ?? m.user.spec,
           })),
         })),
-        myParty: benimParti ? { id: benimParti.id, name: benimParti.name, role: benimParti.role } : null,
+        myParty: benimParti ? { id: benimParti.id, name: benimParti.name, role: benimParti.role, leaderId: benimParti.leaderId } : null,
       };
     }), { headers: APP_HEADERS });
   });
