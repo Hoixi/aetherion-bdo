@@ -244,6 +244,9 @@ class SesYoneticisi {
     let cikis: AudioNode = gurultusuz;
     if (this.ayar.dengele) {
       const sikistirici = ctx.createDynamicsCompressor();
+      // Zincir mono: varsayılan iki kanallı düğüm araya girince ses tek
+      // kulaktan gelebiliyor (aynı tuzağa gürültü engelleyicide düşmüştük)
+      sikistirici.channelCount = 1; sikistirici.channelCountMode = "explicit"; sikistirici.channelInterpretation = "speakers";
       sikistirici.threshold.value = -34; sikistirici.knee.value = 26; sikistirici.ratio.value = 5;
       sikistirici.attack.value = 0.005; sikistirici.release.value = 0.22;
       const telafi = ctx.createGain(); telafi.gain.value = 2.4;
