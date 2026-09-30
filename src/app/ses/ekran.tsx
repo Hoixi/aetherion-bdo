@@ -194,6 +194,7 @@ export function SesEkrani({ benId, benAd, yonetici, ayarlar, onAyar, savaslar, o
                             {buradayim && d.yayinlar.some((y) => y.id === String(u.id)) && <span title="Ekran yayınlıyor" style={{ fontSize: 10 }}>📺</span>}
                             {o.kisitli && !u.canSpeak && <span className="faint" title="Dinleyici — konuşma yetkisi yok" style={{ fontSize: 10 }}>👂</span>}
                             {o.liderler?.has(u.id) && <span title="Parti lideri" style={{ fontSize: 10 }}>👑</span>}
+                            {k?.kalite === "kotu" && <span title="Bağlantısı kötü — sesi kesik kesik gelebilir" style={{ fontSize: 10 }}>📶</span>}
                             {k?.kisik && <span title="Bu kişinin sesi kısık geliyor — tıkla, sesini yükselt" style={{ fontSize: 10 }}>🔉</span>}
                             {k?.susturuldu && <HoparlorIkon acik={false} size={11} />}
                             {sessizler.has(u.id) && <MikIkon acik={false} size={11} />}

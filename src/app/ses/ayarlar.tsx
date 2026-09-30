@@ -174,6 +174,13 @@ export function SesAyarlariPaneli({ ayarlar, onAyar, yonetici = false }: {
                       }}>
                 {olcum === "calisiyor" ? "Konuş… (4 sn)" : "Seviyemi ölç"}
               </button>
+              <button className="btn btn-ghost" style={{ height: 26 }}
+                      onClick={() => void ses.kendiniDinle(!d.kendiniDinliyor)}
+                      title="İşlenmiş sesini kendi kulaklığından duy — karşının duyduğunun aynısı">
+                {d.kendiniDinliyor ? "Dinlemeyi kapat" : "Kendini dinle"}
+              </button>
+              {d.kendiniDinliyor && <span className="small dim">Kulaklık kullan; hoparlörde eko yapar.</span>}
+
               {olcum === "sessiz" && <span className="small dim">Ses gelmedi — mikrofon açık mı?</span>}
               {sonuc && (
                 <>

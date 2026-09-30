@@ -40,12 +40,16 @@ export interface SesApi {
 
 export interface SesKatilimci { id: string; ad: string; konusuyor: boolean; sessiz: boolean; ben: boolean; seviye: number; susturuldu: boolean;
   /** Konuşurken ölçülen seviyesi düşük — arayüz "sesi kısık" diyip yükseltmeyi önerir */
-  kisik: boolean }
+  kisik: boolean;
+  /** Sunucunun bildirdiği bağlantı kalitesi; kesik kesik konuşanı ayırt etmek için */
+  kalite: "iyi" | "orta" | "kotu" | "bilinmiyor" }
 export interface SesDurum {
   bagli: boolean; baglaniyor: boolean; oda: string | null; etiket: string | null; savasId: number | null; partyId: number | null;
   mikrofon: boolean; ptt: boolean; katilimcilar: SesKatilimci[]; hata: string | null;
   /** kulaklık kapalı: kimseyi duymam (mikrofon da kapanır, Discord gibi) */
   sagir: boolean;
+  /** kendi sesimi kulaklığımdan duyuyor muyum (mikrofon testi) */
+  kendiniDinliyor: boolean;
   /** anlık mikrofon seviyesi, dBFS (−100..0) — kapı öncesi */
   olcer: number;
   /** kapı şu an açık mı (eşik üstü) */
@@ -105,6 +109,20 @@ function kisiAyarlariniOku(): { hacim: Record<string, number>; sus: string[] } {
 
 type Dinleyici = (d: SesDurum) => void;
 
+/**
+ * LiveKit'in bağlantı kalitesi değerini arayüzün anladığı dile çevir.
+ * "Sesi kesik kesik geliyor" ile "sesi kısık" farklı sorunlar; ikisini
+ * ayırt edemeyince yanlış yerde çözüm aranıyor.
+ */
+function kaliteAdi(q: unknown): "iyi" | "orta" | "kotu" | "bilinmiyor" {
+  switch (q) {
+    case "excellent": return "iyi";
+    case "good": return "orta";
+    case "poor": return "kotu";
+    default: return "bilinmiyor";
+  }
+}
+
 /** Worklet düğümü tek kanal alsın ve tek kanal versin; hedef stereoya kendisi yayar */
 function monoYap<T extends AudioWorkletNode>(n: T): T {
   n.channelCount = 1; n.channelCountMode = "explicit"; n.channelInterpretation = "speakers";
@@ -150,6 +168,10 @@ class SesYoneticisi {
   private benKonusuyor = false;
   private benSonSes = 0;
   private gecikmeZamanlayici: number | null = null;
+  /** Kendini dinlerken zincirin sonunu hoparlöre bağlayan düğüm */
+  private dinlemeDugumu: GainNode | null = null;
+  /** Zincirin sonu (kapı çıkışı) — kendini dinleme buradan alıyor */
+  private dinlemeKaynagi: AudioNode | null = null;
   // Beklenmedik kopmadan sonra geri dönebilmek için son girişin bileti
   private sonGiris: { api: SesApi; anahtar: () => Promise<{ url: string; token: string; room: string; label: string; partyId?: number | null }>; warId: number | null } | null = null;
   /** Odadan kendim mi çıktım (çıktıysam geri dönmeye çalışma) */
@@ -160,7 +182,7 @@ class SesYoneticisi {
   private denemeSayaci = 0;
 
   durum: SesDurum = { bagli: false, baglaniyor: false, oda: null, etiket: null, savasId: null, partyId: null, mikrofon: false, ptt: false,
-                      katilimcilar: [], hata: null, sagir: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null, yenidenDeneme: 0, yayinlar: [], ekranPaylasiyorum: false };
+                      katilimcilar: [], hata: null, sagir: false, kendiniDinliyor: false, olcer: -100, kapiAcik: false, anonsAcik: false, anonsKonusanlar: [], yayinIzni: true, gecikmeMs: null, yenidenDeneme: 0, yayinlar: [], ekranPaylasiyorum: false };
 
   abone(f: Dinleyici) { this.dinleyiciler.add(f); f(this.durum); return () => { this.dinleyiciler.delete(f); }; }
   private yay(p: Partial<SesDurum>) { this.durum = { ...this.durum, ...p }; this.dinleyiciler.forEach((f) => f(this.durum)); }
@@ -175,6 +197,7 @@ class SesYoneticisi {
       seviye: ben ? 100 : Math.round((this.hacimler.get(p.identity) ?? 1) * 100),
       susturuldu: !ben && this.susturulan.has(p.identity),
       kisik: !ben && this.kisikMi(p.identity) && (this.hacimler.get(p.identity) ?? 1) < 2,
+      kalite: kaliteAdi(p.connectionQuality),
     });
     ekle(r.localParticipant, true);
     r.remoteParticipants.forEach((p: RemoteParticipant) => ekle(p, false));
@@ -191,6 +214,29 @@ class SesYoneticisi {
     if (this.room && eskiHop !== this.ayar.hoparlor) void this.room.switchActiveDevice("audiooutput", this.ayar.hoparlor ?? "default").catch(() => {});
     // Mikrofon ya da gürültü engelleme değiştiyse akışı yeniden aç
     if (this.ham && (eskiMik !== this.ayar.mikrofon || eskiGurultu !== this.ayar.gurultuMod || eskiDengele !== this.ayar.dengele)) void this.mikrofonuKur(!!this.room);
+  }
+
+  /**
+   * Kendini dinle: işlenmiş mikrofon sesi kendi kulaklığına verilir.
+   *
+   * "Benim sesim nasıl geliyor" sorusunun tek dürüst cevabı. Zincirin
+   * sonundan (gürültü engelleyici, otomatik seviye ve kapıdan sonra)
+   * alınıyor, yani karşının duyduğunun aynısı. Hoparlörle açılırsa eko
+   * olur; tarayıcının eko iptali çoğunu yutuyor ama uyarı arayüzde.
+   */
+  async kendiniDinle(ac: boolean) {
+    if (!ac) {
+      if (this.dinlemeDugumu) { try { this.dinlemeDugumu.disconnect(); } catch { /* zaten kopmuş */ } this.dinlemeDugumu = null; }
+      this.yay({ kendiniDinliyor: false });
+      return;
+    }
+    if (!this.ham) { try { await this.olcerBaslat(); } catch { return; } }
+    const ctx = this.ctx, kaynak = this.dinlemeKaynagi;
+    if (!ctx || !kaynak) return;
+    const g = ctx.createGain(); g.gain.value = 1;
+    kaynak.connect(g); g.connect(ctx.destination);
+    this.dinlemeDugumu = g;
+    this.yay({ kendiniDinliyor: true });
   }
 
   /** Mikrofon zinciri: ölçer bağlantı öncesi de çalışır (ayar sayfasında kalibrasyon) */
@@ -255,6 +301,7 @@ class SesYoneticisi {
       cikis = telafi;
     }
     cikis.connect(analiz); cikis.connect(kapi); kapi.connect(hedef);
+    this.dinlemeKaynagi = kapi;
     this.kazanc = kazanc; this.denoiser = temiz;
 
     // Ölçer + kapı: 50 ms'de bir RMS → dBFS; eşik altı 250 ms sonra kapanır
@@ -318,6 +365,9 @@ class SesYoneticisi {
   }
 
   private mikrofonuKapat() {
+    if (this.dinlemeDugumu) { try { this.dinlemeDugumu.disconnect(); } catch { /* zaten kopmuş */ } this.dinlemeDugumu = null; }
+    this.dinlemeKaynagi = null;
+    if (this.durum.kendiniDinliyor) this.yay({ kendiniDinliyor: false });
     if (this.olcerZamanlayici) { clearInterval(this.olcerZamanlayici); this.olcerZamanlayici = null; }
     this.ham?.getTracks().forEach((t) => t.stop()); this.ham = null;
     this.kazanc = null;
@@ -350,6 +400,7 @@ class SesYoneticisi {
       room.on(RoomEvent.ParticipantConnected, () => { this.tazele(); this.anonsHacimUygula(); })
           .on(RoomEvent.ParticipantDisconnected, () => { this.tazele(); this.anonsHacimUygula(); })
           .on(RoomEvent.ActiveSpeakersChanged, () => this.tazele())
+          .on(RoomEvent.ConnectionQualityChanged, () => this.tazele())
           .on(RoomEvent.TrackMuted, () => this.tazele())
           .on(RoomEvent.TrackUnmuted, () => this.tazele())
           .on(RoomEvent.TrackSubscribed, (track, pub, p) => {
