@@ -29,6 +29,8 @@ export function SesAyarlariPaneli({ ayarlar, onAyar, yonetici = false }: {
 }) {
   const d = useSes();
   const [cihazlar, setCihazlar] = useState<{ mikrofonlar: Array<{ id: string; ad: string }>; hoparlorler: Array<{ id: string; ad: string }> }>({ mikrofonlar: [], hoparlorler: [] });
+  const [olcum, setOlcum] = useState<null | "calisiyor" | "bitti" | "sessiz">(null);
+  const [sonuc, setSonuc] = useState<{ ortalama: number; zirve: number; oneri: number } | null>(null);
   const [tusDinle, setTusDinle] = useState<null | "ptt" | "anons">(null);
   const [izin, setIzin] = useState<PermissionState | null>(null);
   const izinTazele = () => { void ses.izinDurumu().then(setIzin); };
@@ -157,6 +159,38 @@ export function SesAyarlariPaneli({ ayarlar, onAyar, yonetici = false }: {
               <span>Mikrofon seviyesi</span><span className="t-num">{Math.round(ayarlar.kazanc * 100)}%</span>
             </div>
             <input type="range" min={20} max={300} value={Math.round(ayarlar.kazanc * 100)} style={{ width: "100%" }} onChange={(e) => onAyar("kazanc", Number(e.target.value) / 100)} />
+
+            {/*
+              Seviye ölçümü: kısık konuşanın kendi kendine düzeltebilmesi
+              için. dB okumasını beklemek yerine dört saniye konuşturup
+              doğru kazancı söylüyor.
+            */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <button className="btn btn-ghost" style={{ height: 26 }} disabled={olcum === "calisiyor"}
+                      onClick={async () => {
+                        setOlcum("calisiyor"); setSonuc(null);
+                        const r = await ses.seviyeOlc();
+                        setSonuc(r); setOlcum(r ? "bitti" : "sessiz");
+                      }}>
+                {olcum === "calisiyor" ? "Konuş… (4 sn)" : "Seviyemi ölç"}
+              </button>
+              {olcum === "sessiz" && <span className="small dim">Ses gelmedi — mikrofon açık mı?</span>}
+              {sonuc && (
+                <>
+                  <span className="small dim">
+                    ortalama <b className="t-num">{sonuc.ortalama} dB</b>
+                    {sonuc.ortalama < -30 ? " · çok kısık" : sonuc.ortalama > -10 ? " · çok yüksek" : " · iyi"}
+                  </span>
+                  {Math.abs(sonuc.oneri - ayarlar.kazanc) > 0.05 && (
+                    <button className="btn" style={{ height: 26 }}
+                            onClick={() => { onAyar("kazanc", sonuc.oneri); toast(`Mikrofon seviyesi %${Math.round(sonuc.oneri * 100)} yapıldı.`, "iyi"); }}>
+                      %{Math.round(sonuc.oneri * 100)} yap
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
           </div>
           <div>
             <div className="small dim" style={{ display: "flex", justifyContent: "space-between" }}>

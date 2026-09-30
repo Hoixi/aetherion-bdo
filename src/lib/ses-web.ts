@@ -684,6 +684,41 @@ class SesYoneticisi {
     }, 400) as unknown) as number;
   }
 
+  /**
+   * Mikrofon seviyesini ölç ve doğru kazancı öner.
+   *
+   * "Sesin kısık geliyor" denen kişi çoğu zaman dB'nin ne olduğunu
+   * bilmiyor ve kaydırıcıyla oynamıyor. Burada dört saniye konuşuluyor,
+   * konuşma kısmının ortalaması alınıyor ve hedefe (−18 dBFS, konuşma
+   * için rahat bir seviye) getirecek kazanç hesaplanıyor. Tek tıkla
+   * uygulanabiliyor.
+   *
+   * Ölçüm kapı ve gürültü engelleyiciden sonrasını görür, yani karşıya
+   * giden sesi ölçer — mikrofonun ham çıkışını değil.
+   */
+  async seviyeOlc(ms = 4000): Promise<{ ortalama: number; zirve: number; oneri: number } | null> {
+    if (!this.ham) { try { await this.olcerBaslat(); } catch { return null; } }
+    return new Promise((coz) => {
+      const basla = performance.now();
+      const ornekler: number[] = [];
+      const t = setInterval(() => {
+        // −70 dB altı sessizlik sayılıyor, ortalamayı aşağı çekmesin
+        if (this.durum.olcer > -70) ornekler.push(this.durum.olcer);
+        if (performance.now() - basla < ms) return;
+        clearInterval(t);
+        if (ornekler.length < 8) { coz(null); return; }
+        const sirali = ornekler.slice().sort((a, b) => a - b);
+        // Üst yarı = gerçekten konuştuğu anlar
+        const ust = sirali.slice(Math.floor(sirali.length / 2));
+        const ortalama = ust.reduce((a, b) => a + b, 0) / ust.length;
+        const zirve = sirali[sirali.length - 1];
+        const HEDEF = -18;
+        const oneri = Math.max(0.2, Math.min(3, this.ayar.kazanc * Math.pow(10, (HEDEF - ortalama) / 20)));
+        coz({ ortalama: Math.round(ortalama), zirve: Math.round(zirve), oneri: Math.round(oneri * 100) / 100 });
+      }, 60);
+    });
+  }
+
   /** Etkin ses: susturma ve sağırlık hacmi ezer */
   private uygulaHacim(identity: string) {
     const p = this.room?.remoteParticipants.get(identity); if (!p) return;
