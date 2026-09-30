@@ -84,6 +84,25 @@ export function mikrofonHatasi(e: unknown): string {
   return `Mikrofon açılamadı: ${m}`;
 }
 
+/**
+ * Kişi başına ses ayarı diskte kalsın.
+ *
+ * "Falancanın sesini yükselttim ama her açılışta sıfırlanıyor" — ayar
+ * bellekteydi, uygulama kapanınca gidiyordu. Kimlik kullanıcı numarası,
+ * yani aynı kişi yarın da aynı seviyede geliyor.
+ */
+const HACIM_ANAHTARI = "aetherion.ses.kisi";
+
+function kisiAyarlariniOku(): { hacim: Record<string, number>; sus: string[] } {
+  // Sunucuda çizim yok ama modül yine de yüklenebiliyor
+  if (typeof localStorage === "undefined") return { hacim: {}, sus: [] };
+  try {
+    const v = JSON.parse(localStorage.getItem(HACIM_ANAHTARI) ?? "null");
+    if (v && typeof v === "object") return { hacim: v.hacim ?? {}, sus: Array.isArray(v.sus) ? v.sus : [] };
+  } catch { /* özel pencere ya da bozuk kayıt */ }
+  return { hacim: {}, sus: [] };
+}
+
 type Dinleyici = (d: SesDurum) => void;
 
 /** Worklet düğümü tek kanal alsın ve tek kanal versin; hedef stereoya kendisi yayar */
@@ -109,7 +128,7 @@ class SesYoneticisi {
   private ayar: SesAyar = { gurultuMod: "rnnoise", kazanc: 1, esikDb: -100, mikrofon: null, hoparlor: null, cikis: 1, dengele: true };
   private wasm: { rnnoise?: ArrayBuffer; gtcrn?: ArrayBuffer; worklets: Set<string> } = { worklets: new Set() };
   private denoiser: AudioWorkletNode | null = null;
-  private susturulan = new Set<string>();
+  private susturulan = new Set<string>(kisiAyarlariniOku().sus);
   private sagirOncesiMik = false;
   // Web Audio zinciri
   private ctx: AudioContext | null = null;
@@ -117,7 +136,8 @@ class SesYoneticisi {
   private kazanc: GainNode | null = null;
   private olcerZamanlayici: number | null = null;
   private yayin: LocalAudioTrack | null = null;
-  private hacimler = new Map<string, number>();
+  private hacimler = new Map<string, number>(Object.entries(kisiAyarlariniOku().hacim));
+  private kisiKayitZamanlayici: number | null = null;
   /** Kapı açık kalsın diye eşik üstü son an (ms) */
   private sonSesli = 0;
   // "Konuşuyor" göstergesi: sunucunun aktif konuşmacı olayı ~1 sn gecikiyor;
@@ -650,6 +670,20 @@ class SesYoneticisi {
     })();
   }
 
+  /** Kişi ayarlarını diske yaz — kaydırma sırasında her adımda değil, arkadan */
+  private kisiAyarlariniYaz() {
+    if (this.kisiKayitZamanlayici) clearTimeout(this.kisiKayitZamanlayici);
+    this.kisiKayitZamanlayici = (setTimeout(() => {
+      this.kisiKayitZamanlayici = null;
+      try {
+        // Varsayılan (%100) olanları yazmaya gerek yok
+        const hacim: Record<string, number> = {};
+        for (const [k, v] of Array.from(this.hacimler)) if (Math.abs(v - 1) > 0.01) hacim[k] = v;
+        localStorage.setItem(HACIM_ANAHTARI, JSON.stringify({ hacim, sus: Array.from(this.susturulan) }));
+      } catch { /* yazılamıyorsa oturumluk kalsın */ }
+    }, 400) as unknown) as number;
+  }
+
   /** Etkin ses: susturma ve sağırlık hacmi ezer */
   private uygulaHacim(identity: string) {
     const p = this.room?.remoteParticipants.get(identity); if (!p) return;
@@ -666,12 +700,12 @@ class SesYoneticisi {
    */
   hacim(identity: string, yuzde: number) {
     this.hacimler.set(identity, Math.max(0, Math.min(5, yuzde / 100)));
-    this.uygulaHacim(identity); this.anonsHacimUygula(identity); this.tazele();
+    this.uygulaHacim(identity); this.anonsHacimUygula(identity); this.kisiAyarlariniYaz(); this.tazele();
   }
   /** Tek kişiyi sustur / aç */
   sustur(identity: string, sus: boolean) {
     if (sus) this.susturulan.add(identity); else this.susturulan.delete(identity);
-    this.uygulaHacim(identity); this.anonsHacimUygula(identity); this.tazele();
+    this.uygulaHacim(identity); this.anonsHacimUygula(identity); this.kisiAyarlariniYaz(); this.tazele();
   }
   /** Kulaklık: kapalıyken kimseyi duymam ve mikrofonum da kapanır (açınca eski hâline döner) */
   async sagirlik(sagir: boolean) {
