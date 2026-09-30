@@ -111,6 +111,8 @@ model User {
   avatarUrl   String   @default("")
   isAdmin     Boolean   @default(false)   // site geneli tam yetki
   isGuildAdmin Boolean  @default(false)   // sadece kendi klanını yönetir
+  /** Yönetici olmadan yalnızca oyundan savaş raporu yükleyebilir (Companion) */
+  canImportReports Boolean @default(false)
   siteRoleId  Int?
   guildId     Int?
   absenceCount Int     @default(0)

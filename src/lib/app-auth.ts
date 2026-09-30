@@ -81,6 +81,8 @@ export interface AppActor {
   guildId: number | null;
   isAdmin: boolean;
   isGuildAdmin: boolean;
+  /** Yönetici olmadan oyundan rapor yükleme yetkisi (kişi bazlı verilir) */
+  canImportReports: boolean;
   tokenId: number;
 }
 
@@ -102,7 +104,7 @@ export async function authenticateApp(req: Request): Promise<AppActor | null> {
       user: {
         select: {
           id: true, familyName: true, class: true, spec: true, guildId: true,
-          isAdmin: true, isGuildAdmin: true, deletedAt: true,
+          isAdmin: true, isGuildAdmin: true, canImportReports: true, deletedAt: true,
         },
       },
     },
@@ -120,6 +122,7 @@ export async function authenticateApp(req: Request): Promise<AppActor | null> {
   return {
     id: u.id, familyName: u.familyName, class: u.class, spec: u.spec,
     guildId: u.guildId, isAdmin: u.isAdmin, isGuildAdmin: u.isGuildAdmin,
+    canImportReports: u.canImportReports,
     tokenId: row.id,
   };
 }
@@ -129,10 +132,10 @@ async function oturumdanAktor(): Promise<AppActor | null> {
   if (!session?.user?.id) return null;
   const u = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, familyName: true, class: true, spec: true, guildId: true, isAdmin: true, isGuildAdmin: true, deletedAt: true },
+    select: { id: true, familyName: true, class: true, spec: true, guildId: true, isAdmin: true, isGuildAdmin: true, canImportReports: true, deletedAt: true },
   });
   if (!u || u.deletedAt) return null;
-  return { id: u.id, familyName: u.familyName, class: u.class, spec: u.spec, guildId: u.guildId, isAdmin: u.isAdmin, isGuildAdmin: u.isGuildAdmin, tokenId: 0 };
+  return { id: u.id, familyName: u.familyName, class: u.class, spec: u.spec, guildId: u.guildId, isAdmin: u.isAdmin, isGuildAdmin: u.isGuildAdmin, canImportReports: u.canImportReports, tokenId: 0 };
 }
 
 export async function revokeAppToken(userId: number, tokenId: number) {

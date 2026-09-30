@@ -8,5 +8,6 @@ export async function GET(req: Request) {
     NextResponse.json({
       id: me.id, familyName: me.familyName, class: me.class, spec: me.spec,
       guildId: me.guildId, isAdmin: me.isAdmin, isGuildAdmin: me.isGuildAdmin,
+      canImportReports: me.canImportReports,
     }, { headers: APP_HEADERS }));
 }

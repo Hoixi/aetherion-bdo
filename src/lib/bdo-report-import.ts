@@ -3,9 +3,19 @@ import { BDO_CLASSES } from "@/lib/classes";
 import type { AppActor } from "@/lib/app-auth";
 import { type DecodedReport, reportMergePlan } from "./bdo-report-decoder";
 
+/**
+ * Oyundan rapor yükleyebilir mi.
+ *
+ * Yönetici olmak şart değil: tek başına bu yetki kişi bazlı da
+ * verilebiliyor (users.canImportReports). Raporu kim yüklerse yüklesin
+ * hangi savaşlara dokunabileceği `reportWarScope` ile sınırlı kalıyor —
+ * yetki "rapor yükle" demek, "her savaşı yönet" demek değil.
+ */
 export async function canImportReports(me: AppActor) {
-  if (!me.isAdmin && (!me.isGuildAdmin || me.guildId === null)) return false;
-  return true;
+  if (me.isAdmin) return true;
+  if (me.isGuildAdmin && me.guildId !== null) return true;
+  if (me.canImportReports && me.guildId !== null) return true;
+  return false;
 }
 export async function reportWarScope(me: AppActor) {
   if (me.isAdmin) return {};

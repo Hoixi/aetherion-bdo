@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, Shield, Trash2, Search, ExternalLink } from "lucide-react";
+import { Users, Shield, Trash2, Search, ExternalLink, FileUp } from "lucide-react";
 import { Card, Head } from "@/components/app-shell";
 import { Ava, Blank, Btn, Select, Tag } from "./ui";
 
@@ -19,6 +19,9 @@ type Member = {
   familyName: string;
   class: string;
   isAdmin: boolean;
+  isGuildAdmin: boolean;
+  /** Yönetici olmadan oyundan rapor yükleyebilir */
+  canImportReports: boolean;
   avatarUrl: string;
   siteRole: { name: string; color: string } | null;
   guild: { id: number; name: string; tag: string; color: string } | null;
@@ -60,6 +63,20 @@ export default function UyelerTab({ isSiteAdmin, flash }: {
     });
     setMembers((prev) => prev?.map((m) => (m.id === id ? { ...m, isAdmin } : m)) ?? null);
     flash(isAdmin ? "Admin yetkisi verildi." : "Admin yetkisi kaldırıldı.");
+  }
+
+  /**
+   * Oyundan rapor yetkisi. Yönetici olanlarda ayrıca göstermeye gerek
+   * yok — onlar zaten yükleyebiliyor; düğme sade üyeler için.
+   */
+  async function toggleRapor(id: number, ver: boolean) {
+    const res = await fetch(`/api/members/${id}/rapor-yetkisi`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ canImportReports: ver }),
+    });
+    if (!res.ok) { flash((await res.json().catch(() => ({}))).error ?? "Yetki değiştirilemedi."); return; }
+    setMembers((prev) => prev?.map((m) => (m.id === id ? { ...m, canImportReports: ver } : m)) ?? null);
+    flash(ver ? "Oyundan rapor yetkisi verildi." : "Oyundan rapor yetkisi kaldırıldı.");
   }
 
   async function remove(id: number, name: string) {
@@ -115,6 +132,9 @@ export default function UyelerTab({ isSiteAdmin, flash }: {
                   <span className="text-[13px] truncate">{m.familyName || "İsimsiz"}</span>
                   {m.guild && <Tag color={m.guild.color}>{m.guild.tag}</Tag>}
                   {m.siteRole && <Tag color={m.siteRole.color}>{m.siteRole.name}</Tag>}
+                  {m.canImportReports && !m.isAdmin && !m.isGuildAdmin && (
+                    <Tag color="#e8b451">rapor</Tag>
+                  )}
                 </div>
               </div>
             </Link>
@@ -131,18 +151,42 @@ export default function UyelerTab({ isSiteAdmin, flash }: {
                        onClick={() => toggleAdmin(m.id, !m.isAdmin)}>
                     {m.isAdmin ? "Admin" : "Admin yap"}
                   </Btn>
+                  <RaporDugmesi m={m} onToggle={toggleRapor} />
                   <Btn small icon={Trash2} tone="danger" title="Üyeyi sil"
                        onClick={() => remove(m.id, m.familyName || "İsimsiz")} />
                 </>
               ) : (
-                <Link href={`/uyeler/${m.id}`}>
-                  <Btn small icon={ExternalLink}>Profil</Btn>
-                </Link>
+                <>
+                  <RaporDugmesi m={m} onToggle={toggleRapor} />
+                  <Link href={`/uyeler/${m.id}`}>
+                    <Btn small icon={ExternalLink}>Profil</Btn>
+                  </Link>
+                </>
               )}
             </div>
           </div>
         ))}
       </div>
     </Card>
+  );
+}
+
+/**
+ * Tek düğme: oyundan rapor yükleme yetkisi. Zaten yönetici olanda
+ * anlamsız olduğu için orada yalnızca "yönetici" yazıyor.
+ */
+function RaporDugmesi({ m, onToggle }: {
+  m: { id: number; isAdmin: boolean; isGuildAdmin: boolean; canImportReports: boolean };
+  onToggle: (id: number, ver: boolean) => void;
+}) {
+  if (m.isAdmin || m.isGuildAdmin) {
+    return <span className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>yönetici</span>;
+  }
+  return (
+    <Btn small icon={FileUp} tone={m.canImportReports ? "gold" : "ghost"}
+         title="Oyun içi savaş raporunu Companion'dan yükleyebilir (yönetim araçlarının kalanı kapalı)"
+         onClick={() => onToggle(m.id, !m.canImportReports)}>
+      {m.canImportReports ? "Rapor yetkisi" : "Rapor yetkisi ver"}
+    </Btn>
   );
 }
