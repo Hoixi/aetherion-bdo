@@ -1,0 +1,205 @@
+{
+ "kaynak": "gamecommondata/binary/regioninfo.bss",
+ "cikarildi": "2026-10-01",
+ "aciklama": "Fetih bölgesi çapaları: kayıt imzası 20 bc be 4c, +61 baytta float32 x/y/z. Kale/fort kurulum yerinin oyundaki karşılığı; ölçümde gerçek fortun 6-30 m yakını.",
+ "nokta": [
+  {
+   "x": -33839.3,
+   "y": 185.1,
+   "z": 16641.5,
+   "nodeKey": 2,
+   "nodeAd": "Batı Muhafız Kampı",
+   "aktif": true,
+   "mevziyeMetre": 392
+  },
+  {
+   "x": 17755.9,
+   "y": 2937.4,
+   "z": 129437,
+   "nodeKey": 3,
+   "nodeAd": "Cron Kalesi",
+   "aktif": true,
+   "mevziyeMetre": 93
+  },
+  {
+   "x": -7459.9,
+   "y": 355.4,
+   "z": 37858.2,
+   "nodeKey": 21,
+   "nodeAd": "Bartali Çiftliği",
+   "aktif": true,
+   "mevziyeMetre": 264
+  },
+  {
+   "x": 49162.2,
+   "y": -4247.3,
+   "z": 72871.6,
+   "nodeKey": 43,
+   "nodeAd": "Yağma Ormanı",
+   "aktif": true,
+   "mevziyeMetre": 125
+  },
+  {
+   "x": -66528.3,
+   "y": -1776.4,
+   "z": 79421.1,
+   "nodeKey": 47,
+   "nodeAd": "Agris Altarı",
+   "aktif": true,
+   "mevziyeMetre": 117
+  },
+  {
+   "x": -99929.6,
+   "y": -1820,
+   "z": 99268.8,
+   "nodeKey": 66,
+   "nodeAd": "Kurt Tepesi",
+   "aktif": true,
+   "mevziyeMetre": 139
+  },
+  {
+   "x": -6987.7,
+   "y": 1336.9,
+   "z": -8183.1,
+   "nodeKey": 321,
+   "nodeAd": "Alejandro Çiftliği",
+   "aktif": true,
+   "mevziyeMetre": 180
+  },
+  {
+   "x": 105044,
+   "y": 693.3,
+   "z": -103682,
+   "nodeKey": 324,
+   "nodeAd": "Kale Harabeleri",
+   "aktif": true,
+   "mevziyeMetre": 162
+  },
+  {
+   "x": -28717.3,
+   "y": 4500.4,
+   "z": -170172,
+   "nodeKey": 325,
+   "nodeAd": "Kanlı Manastır",
+   "aktif": true,
+   "mevziyeMetre": 53
+  },
+  {
+   "x": -97235.8,
+   "y": -1447.9,
+   "z": -50244.8,
+   "nodeKey": 371,
+   "nodeAd": "Biraghi İni",
+   "aktif": true,
+   "mevziyeMetre": 221
+  },
+  {
+   "x": -71212.4,
+   "y": 557.6,
+   "z": -103917,
+   "nodeKey": 374,
+   "nodeAd": "Ork Kampı",
+   "aktif": true,
+   "mevziyeMetre": 180
+  },
+  {
+   "x": -253733,
+   "y": 820.6,
+   "z": 29855.8,
+   "nodeKey": 623,
+   "nodeAd": "Anti-Trol Tahkimatı",
+   "aktif": false,
+   "mevziyeMetre": 216
+  },
+  {
+   "x": -180853,
+   "y": 618.7,
+   "z": -19647.3,
+   "nodeKey": 625,
+   "nodeAd": "Khuruto Mağarası",
+   "aktif": false,
+   "mevziyeMetre": 220
+  },
+  {
+   "x": -240964,
+   "y": 3347.5,
+   "z": -150874,
+   "nodeKey": 659,
+   "nodeAd": "Trina İşaret Höyüğü",
+   "aktif": false,
+   "mevziyeMetre": 161
+  },
+  {
+   "x": -338943,
+   "y": 2269.2,
+   "z": -59466.4,
+   "nodeKey": 701,
+   "nodeAd": "Calpheon Kalesi Bölgesi",
+   "aktif": false,
+   "mevziyeMetre": 164
+  },
+  {
+   "x": -200020,
+   "y": 10198.1,
+   "z": -257280,
+   "nodeKey": 716,
+   "nodeAd": "Marie Mağarası",
+   "aktif": false,
+   "mevziyeMetre": 118
+  },
+  {
+   "x": -340120,
+   "y": 12623.6,
+   "z": -256387,
+   "nodeKey": 719,
+   "nodeAd": "Uzunyapraklı Nöbet Karakolu",
+   "aktif": false,
+   "mevziyeMetre": 74
+  },
+  {
+   "x": 290355.7,
+   "y": -3045.2,
+   "z": 71964.6,
+   "nodeKey": 1152,
+   "nodeAd": "Mediah Kalesi",
+   "aktif": false,
+   "mevziyeMetre": 171
+  },
+  {
+   "x": 356739,
+   "y": -200.9,
+   "z": -240769,
+   "nodeKey": 1835,
+   "nodeAd": "Ateşsahra",
+   "aktif": false,
+   "mevziyeMetre": 289
+  },
+  {
+   "x": 279234,
+   "y": 5727.4,
+   "z": -306868,
+   "nodeKey": 1837,
+   "nodeAd": "Ölüler Şehri",
+   "aktif": false,
+   "mevziyeMetre": 236
+  },
+  {
+   "x": 278530,
+   "y": -2477.2,
+   "z": -222764,
+   "nodeKey": 1840,
+   "nodeAd": "Neruda Ovası",
+   "aktif": false,
+   "mevziyeMetre": 88
+  },
+  {
+   "x": 18114.2,
+   "y": -253.6,
+   "z": -76084.3,
+   "nodeKey": null,
+   "nodeAd": null,
+   "aktif": false,
+   "mevziyeMetre": 608
+  }
+ ]
+}

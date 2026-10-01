@@ -15,6 +15,7 @@ import { useRakipSiniflari } from "@/lib/rakip-siniflari";
 import { OynatmaCubugu } from "@/components/oynatma-cubugu";
 import { TIER_RENK, enYakinNode, type HaritaNode } from "@/lib/bdo-harita";
 import haritaVeri from "@/data/harita/nodlar.json";
+import oyunKale from "@/data/harita/oyun-kale.json";
 
 /**
  * Savaş haritası — oyunun kendi haritası, tam ekran.
@@ -38,7 +39,29 @@ const Harita = dynamic(() => import("@/components/dunya-haritasi"), {
   ),
 });
 
-const NODLAR = (haritaVeri as { nodlar: HaritaNode[] }).nodlar;
+const HAM_NODLAR = (haritaVeri as { nodlar: HaritaNode[] }).nodlar;
+
+/**
+ * Kale konumu üç kaynaktan gelebiliyor, güven sırası şöyle:
+ *
+ *  1. Elle düzeltme (yönetici oyuna bakıp taşımış) — her şeyi ezer.
+ *  2. Oyun istemcisi: fetih bölgesi çapaları (`oyun-kale.json`, bkz.
+ *     PAZ deposundaki `kale-noktalari.mjs`). Ölçtüğümüzde gerçek fortun
+ *     6-30 metre yakını çıkıyor.
+ *  3. Garmoth haritalarından türetme — eski yöntem, 40-100 metre sapıyor.
+ */
+const OYUN_KALE = new Map<number, { x: number; z: number }>(
+  (oyunKale as { nokta: Array<{ nodeKey: number | null; x: number; z: number }> }).nokta
+    .filter((p) => p.nodeKey != null)
+    .map((p) => [p.nodeKey as number, { x: p.x, z: p.z }]),
+);
+
+const NODLAR: HaritaNode[] = HAM_NODLAR.map((n) => {
+  const o = OYUN_KALE.get(n.key);
+  if (!o) return n.kaleX != null ? { ...n, kaleKaynak: "turetme" as const } : n;
+  return { ...n, kaleX: o.x, kaleZ: o.z, kaleKaynak: "oyun" as const,
+           kaleUzak: Math.round(Math.hypot(o.x - n.x, o.z - n.z) / 100) };
+});
 const SAVAS_NODLARI = NODLAR.filter((n) => n.tur === "savas");
 const AKTIF_SAYI = SAVAS_NODLARI.filter((n) => n.aktif).length;
 const KALE_SAYI = SAVAS_NODLARI.filter((n) => n.kale).length;
@@ -91,7 +114,10 @@ export default function SavasHaritasiPage() {
   const kaleKonumlu = useMemo(
     () => NODLAR.map((n) => {
       const e = elleKale[n.key];
-      return e ? { ...n, kaleX: e[0], kaleZ: e[1], kaleUzak: Math.round(Math.hypot(e[0] - n.x, e[1] - n.z) / 100) } : n;
+      return e
+        ? { ...n, kaleX: e[0], kaleZ: e[1], kaleKaynak: "elle" as const,
+            kaleUzak: Math.round(Math.hypot(e[0] - n.x, e[1] - n.z) / 100) }
+        : n;
     }),
     [elleKale],
   );
@@ -373,7 +399,9 @@ export default function SavasHaritasiPage() {
                     </div>
                     <p className="t-num text-[10.5px]" style={{ color: "var(--t-faint)" }}>
                       oyun konumu {secili.x}, {secili.z}
-                      {elleKale[secili.key] && <span style={{ color: "var(--t-good)" }}> · kale elle ayarlı</span>}
+                      {secili.kaleKaynak === "elle" && <span style={{ color: "var(--t-good)" }}> · kale elle ayarlı</span>}
+                      {secili.kaleKaynak === "oyun" && <span style={{ color: "var(--t-gold)" }}> · kale oyun verisinden</span>}
+                      {secili.kaleKaynak === "turetme" && <span> · kale tahmini (garmoth)</span>}
                     </p>
                     {yonetici && secili.tur === "savas" && (
                       <div className="flex gap-1.5">

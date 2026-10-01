@@ -89,6 +89,8 @@ export type HaritaNode = {
   /** Mevzinin kalesinin konumu — node merkezi değil, kalenin kurulduğu yer */
   kaleX?: number;
   kaleZ?: number;
+  /** Kale konumu nereden: oyun istemcisi, elle düzeltme ya da garmoth'tan türetme */
+  kaleKaynak?: "oyun" | "elle" | "turetme";
   /** Kale ile node merkezi arası, metre */
   kaleUzak?: number;
 };
