@@ -195,7 +195,7 @@ export default function DunyaHaritasi({
       })
         .bindTooltip(sehir ? n.ad
                      : n.kale ? `${n.ad} · kuşatma savaşı${n.aktif ? " · node war da açık" : ""}`
-                       : `${n.ad} · T${n.tier}${n.aktif ? " · savaş açık" : ""}`,
+                       : `${n.ad} · T${n.tier}${n.aktif ? ` · savaş açık (T${n.acikTier ?? 1} gecesi)` : ""}`,
                      { direction: "top", opacity: 0.95 })
         .on("click", () => nodeCb.current?.(n))
         .addTo(katman);

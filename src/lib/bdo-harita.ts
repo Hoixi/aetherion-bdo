@@ -91,6 +91,12 @@ export type HaritaNode = {
   kaleZ?: number;
   /** Kale konumu nereden: oyun istemcisi, elle düzeltme ya da garmoth'tan türetme */
   kaleKaynak?: "oyun" | "elle" | "turetme";
+  /**
+   * Bu hafta savaş açık olan mevzilerde hangi kademe: 1 ya da 2.
+   * `aktif` "savaş var mı", `acikTier` "hangi gece" demek — ikisi ayrı,
+   * çünkü düğümün kendi `tier` alanı (oyundan gelen 1-5) başka bir şey.
+   */
+  acikTier?: 1 | 2;
   /** Kale ile node merkezi arası, metre */
   kaleUzak?: number;
 };

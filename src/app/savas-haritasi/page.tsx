@@ -64,6 +64,8 @@ const NODLAR: HaritaNode[] = HAM_NODLAR.map((n) => {
 });
 const SAVAS_NODLARI = NODLAR.filter((n) => n.tur === "savas");
 const AKTIF_SAYI = SAVAS_NODLARI.filter((n) => n.aktif).length;
+const T1_SAYI = SAVAS_NODLARI.filter((n) => n.acikTier === 1).length;
+const T2_SAYI = SAVAS_NODLARI.filter((n) => n.acikTier === 2).length;
 const KALE_SAYI = SAVAS_NODLARI.filter((n) => n.kale).length;
 
 export default function SavasHaritasiPage() {
@@ -89,6 +91,8 @@ export default function SavasHaritasiPage() {
   const [panel, setPanel] = useState(true);
   /** Oyunda savaş açık olan mevziler — listeyi buna daraltmak için */
   const [sadeceAktif, setSadeceAktif] = useState(true);
+  /** Hangi kademeler görünsün — ikisi de kapalıysa süzgeç anlamsız, en az biri açık kalıyor */
+  const [tierler, setTierler] = useState<{ t1: boolean; t2: boolean }>({ t1: true, t2: true });
   const [karoHata, setKaroHata] = useState(false);
   /** Kuşatma kalesi sahaları — savaş mevzilerinden bağımsız katman */
   const [kaleler, setKaleler] = useState(true);
@@ -143,22 +147,26 @@ export default function SavasHaritasiPage() {
   const liste = useMemo(() => {
     const q = ara.trim().toLocaleLowerCase("tr");
     // Arama yazılınca daraltma kalkıyor: aranan mevzi aktif olmayabilir
+    const kademeUygun = (n: HaritaNode) =>
+      !n.aktif || (n.acikTier === 2 ? tierler.t2 : tierler.t1);
     const taban = sadeceAktif && !q
-      ? SAVAS_NODLARI.filter((n) => n.aktif || (kaleler && n.kale))
-      : SAVAS_NODLARI;
+      ? SAVAS_NODLARI.filter((n) => (n.aktif && kademeUygun(n)) || (kaleler && n.kale))
+      : SAVAS_NODLARI.filter(kademeUygun);
     const v = q
       ? taban.filter((n) => n.ad.toLocaleLowerCase("tr").includes(q) || n.adEn.toLowerCase().includes(q))
       : taban;
     return v.slice(0, 150);
-  }, [ara, sadeceAktif, kaleler]);
+  }, [ara, sadeceAktif, kaleler, tierler]);
 
   /** Haritaya giden düğümler — süzgeç açıkken yalnızca savaşı açık olanlar */
   const haritaNodlari = useMemo(
-    () => kaleKonumlu.filter((n) =>
-      n.tur === "sehir" ? true
-        : n.kale ? kaleler
-          : !sadeceAktif || !!n.aktif),
-    [sadeceAktif, kaleler, kaleKonumlu],
+    () => kaleKonumlu.filter((n) => {
+      if (n.tur === "sehir") return true;
+      if (n.aktif && (n.acikTier === 2 ? !tierler.t2 : !tierler.t1)) return false;
+      if (n.kale) return kaleler;
+      return !sadeceAktif || !!n.aktif;
+    }),
+    [sadeceAktif, kaleler, kaleKonumlu, tierler],
   );
 
   /** Kaydın zaman aralığı — oynatma çubuğunun sınırları */
@@ -365,6 +373,15 @@ export default function SavasHaritasiPage() {
                     <button onClick={() => setSadeceAktif((v) => !v)} className="t-tab" data-on={sadeceAktif}>
                       <Flame className="w-3.5 h-3.5" /> Savaş açık ({AKTIF_SAYI})
                     </button>
+                    {/* Kademe süzgeci: iki gece ayrı kadro, ayrı plan */}
+                    <button onClick={() => setTierler((v) => (v.t1 && !v.t2 ? v : { ...v, t1: !v.t1 }))}
+                            className="t-tab" data-on={tierler.t1} title="T1 gecesi açılan mevziler">
+                      T1 gecesi ({T1_SAYI})
+                    </button>
+                    <button onClick={() => setTierler((v) => (v.t2 && !v.t1 ? v : { ...v, t2: !v.t2 }))}
+                            className="t-tab" data-on={tierler.t2} title="T2 gecesi açılan mevziler">
+                      T2 gecesi ({T2_SAYI})
+                    </button>
                     <button onClick={() => setKaleler((v) => !v)} className="t-tab" data-on={kaleler}
                             title="Kuşatma savaşının yapıldığı kale sahaları">
                       <Castle className="w-3.5 h-3.5" /> Kuşatma ({KALE_SAYI})
@@ -394,7 +411,7 @@ export default function SavasHaritasiPage() {
                              renk={secili.kale ? "#c86fd8" : TIER_RENK[secili.tier]} />
                       <Bilgi etiket="Bölge" deger={secili.bolge || "—"} />
                       <Bilgi etiket="Kale" deger={secili.kaleUzak != null ? `${secili.kaleUzak} m` : "—"} />
-                      <Bilgi etiket="Durum" deger={secili.aktif ? "Savaş açık" : "Kapalı"}
+                      <Bilgi etiket="Durum" deger={secili.aktif ? `Savaş açık · T${secili.acikTier ?? 1} gecesi` : "Kapalı"}
                              renk={secili.aktif ? "var(--t-good)" : undefined} />
                     </div>
                     <p className="t-num text-[10.5px]" style={{ color: "var(--t-faint)" }}>
