@@ -43,7 +43,25 @@ type Props = {
   onKaroHata?: () => void;
   /** Dolu ise haritaya tıklama oyun koordinatı döndürür (kale konumu taşıma) */
   onNokta?: ((x: number, z: number) => void) | null;
+  /**
+   * Serbest işaretler — mevzi listesinden bağımsız noktalar. Kale
+   * kontrol ekranı aynı mevzinin oyun çapasını ve elle düzeltmesini
+   * yan yana çizebilsin diye var; düğüm katmanı buna uygun değil,
+   * çünkü orada bir düğümün tek bir kale konumu oluyor.
+   */
+  isaretler?: Isaret[];
   className?: string;
+};
+
+export type Isaret = {
+  id: string;
+  x: number;
+  z: number;
+  renk: string;
+  etiket: string;
+  /** Daire küçük nokta, kale ise kale ikonu */
+  bicim?: "daire" | "kale";
+  onTik?: () => void;
 };
 
 const KILL = "#5fd39a";
@@ -53,12 +71,13 @@ const VURGU_PENCERE = 25_000;
 
 export default function DunyaHaritasi({
   nodlar, olaylar = [], seciliKey, onNode, onOlay, seciliOlay, isi = false, vurguAt,
-  odak, odakKey, onKaroHata, onNokta, className,
+  odak, odakKey, onKaroHata, onNokta, isaretler, className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const nodeRef = useRef<LayerGroup | null>(null);
   const olayRef = useRef<LayerGroup | null>(null);
+  const isaretRef = useRef<LayerGroup | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
   const roRef = useRef<ResizeObserver | null>(null);
   const [ready, setReady] = useState(0);
@@ -136,6 +155,7 @@ export default function DunyaHaritasi({
 
       nodeRef.current = L.layerGroup().addTo(map);
       olayRef.current = L.layerGroup().addTo(map);
+      isaretRef.current = L.layerGroup().addTo(map);
       map.on("zoomend", () => setZoom(map.getZoom()));
       setZoom(map.getZoom());
 
@@ -234,6 +254,29 @@ export default function DunyaHaritasi({
       }
     }
   }, [nodlar, seciliKey, zoom, ready]);
+
+  // ── Serbest işaretler
+  useEffect(() => {
+    const L = LRef.current, katman = isaretRef.current;
+    if (!L || !katman) return;
+    katman.clearLayers();
+    for (const i of isaretler ?? []) {
+      const [lat, lng] = dunyaToProj(i.x, i.z);
+      const html = i.bicim === "kale"
+        ? `<img src="${IKON.kale}" alt="" style="display:block;width:22px;height:22px;
+             filter:drop-shadow(0 0 0 ${i.renk}) drop-shadow(0 1px 3px #000) drop-shadow(0 0 6px ${i.renk})">`
+        : `<i style="display:block;width:11px;height:11px;border-radius:99px;background:${i.renk};
+             border:2px solid rgba(0,0,0,.75);box-shadow:0 0 6px ${i.renk}"></i>`;
+      const boy = i.bicim === "kale" ? 22 : 15;
+      L.marker([lat, lng], {
+        icon: L.divIcon({ className: "", html, iconSize: [boy, boy], iconAnchor: [boy / 2, boy / 2] }),
+        zIndexOffset: 2000,
+      })
+        .bindTooltip(i.etiket, { direction: "top", opacity: 0.95 })
+        .on("click", () => i.onTik?.())
+        .addTo(katman);
+    }
+  }, [isaretler, ready]);
 
   // ── Savaş olayları
   useEffect(() => {

@@ -263,5 +263,91 @@
    "mevziyeMetre": 204,
    "payKat": 3.6
   }
+ ],
+ "eslesmeyen": [
+  {
+   "x": 1148639.3,
+   "y": 18942.1,
+   "z": 293381.7,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 752
+  },
+  {
+   "x": 1158150,
+   "y": 8493.3,
+   "z": 160542,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 843
+  },
+  {
+   "x": 1029150,
+   "y": 17754.7,
+   "z": 302672,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 1087
+  },
+  {
+   "x": 909869,
+   "y": 13109.7,
+   "z": 180748,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 2053
+  },
+  {
+   "x": 915702,
+   "y": 12665.6,
+   "z": 308844,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 2093
+  },
+  {
+   "x": 885711,
+   "y": 12696.8,
+   "z": 267640,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 2269
+  },
+  {
+   "x": 617818,
+   "y": 6859.6,
+   "z": 437525,
+   "enYakinAd": "Mediah Kalesi",
+   "enYakinMetre": 4867
+  },
+  {
+   "x": 533460,
+   "y": 238.2,
+   "z": 528394,
+   "enYakinAd": "Mediah Kalesi",
+   "enYakinMetre": 5171
+  },
+  {
+   "x": 589792,
+   "y": 3346.6,
+   "z": 504163,
+   "enYakinAd": "Mediah Kalesi",
+   "enYakinMetre": 5238
+  },
+  {
+   "x": 609386,
+   "y": 6536.2,
+   "z": 539761,
+   "enYakinAd": "Mediah Kalesi",
+   "enYakinMetre": 5643
+  },
+  {
+   "x": 655330,
+   "y": 2366,
+   "z": 615223,
+   "enYakinAd": "Valencia Kalesi Bölgesi",
+   "enYakinMetre": 5959
+  },
+  {
+   "x": 578371,
+   "y": 2394.2,
+   "z": 624575,
+   "enYakinAd": "Mediah Kalesi",
+   "enYakinMetre": 6232
+  }
  ]
 }
