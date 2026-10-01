@@ -46,14 +46,15 @@ const HAM_NODLAR = (haritaVeri as { nodlar: HaritaNode[] }).nodlar;
  *
  *  1. Elle düzeltme (yönetici oyuna bakıp taşımış) — her şeyi ezer.
  *  2. Oyun istemcisi: fetih bölgesi çapaları (`oyun-kale.json`, bkz.
- *     PAZ deposundaki `kale-noktalari.mjs`). Ölçtüğümüzde gerçek fortun
- *     6-30 metre yakını çıkıyor.
+ *     PAZ deposundaki `kale-noktalari.mjs`). Çoğu mevzide gerçek fortun
+ *     5-30 metre yakını çıkıyor; Cron Kalesi ve Yağma Ormanı gibi birkaç
+ *     bölgede ~150 metre sapıyor, orada 1. sıra devreye giriyor.
  *  3. Garmoth haritalarından türetme — eski yöntem, 40-100 metre sapıyor.
  */
-const OYUN_KALE = new Map<number, { x: number; z: number }>(
-  (oyunKale as { nokta: Array<{ nodeKey: number | null; x: number; z: number }> }).nokta
+const OYUN_KALE = new Map<number, { x: number; z: number; pay: number }>(
+  (oyunKale as { nokta: Array<{ nodeKey: number | null; x: number; z: number; payKat?: number }> }).nokta
     .filter((p) => p.nodeKey != null)
-    .map((p) => [p.nodeKey as number, { x: p.x, z: p.z }]),
+    .map((p) => [p.nodeKey as number, { x: p.x, z: p.z, pay: p.payKat ?? 9 }]),
 );
 
 const NODLAR: HaritaNode[] = HAM_NODLAR.map((n) => {
@@ -128,6 +129,14 @@ export default function SavasHaritasiPage() {
 
   /** Panelde elle ayarlanmış konum görünsün diye güncel kayıttan okunuyor */
   const secili = seciliHam ? kaleKonumlu.find((n) => n.key === seciliHam.key) ?? seciliHam : null;
+
+  /** Elle düzeltme ile oyun çapası arasındaki mesafe (m) — ikisi de varsa */
+  const capa = secili ? OYUN_KALE.get(secili.key) : undefined;
+  const capaFarki = capa && secili?.kaleKaynak === "elle" && secili.kaleX != null && secili.kaleZ != null
+    ? Math.round(Math.hypot(capa.x - secili.kaleX, capa.z - secili.kaleZ) / 100)
+    : null;
+  /** Çapa ikinci adaya da yakınsa hangi bölgeye ait olduğu kesin değil */
+  const capaSupheli = !!capa && capa.pay <= 1.3 && secili?.kaleKaynak === "oyun";
 
   async function kaleKaydet(n: HaritaNode, x: number, z: number) {
     setElleKale((p) => ({ ...p, [n.key]: [x, z] }));
@@ -369,24 +378,33 @@ export default function SavasHaritasiPage() {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
+                  {/* Yan menü dar: dört çip tek sıraya sığmıyor, ikiye bölündü */}
+                  <div className="flex items-center gap-1.5 mt-2">
                     <button onClick={() => setSadeceAktif((v) => !v)} className="t-tab" data-on={sadeceAktif}>
                       <Flame className="w-3.5 h-3.5" /> Savaş açık ({AKTIF_SAYI})
-                    </button>
-                    {/* Kademe süzgeci: iki gece ayrı kadro, ayrı plan */}
-                    <button onClick={() => setTierler((v) => (v.t1 && !v.t2 ? v : { ...v, t1: !v.t1 }))}
-                            className="t-tab" data-on={tierler.t1} title="T1 gecesi açılan mevziler">
-                      T1 gecesi ({T1_SAYI})
-                    </button>
-                    <button onClick={() => setTierler((v) => (v.t2 && !v.t1 ? v : { ...v, t2: !v.t2 }))}
-                            className="t-tab" data-on={tierler.t2} title="T2 gecesi açılan mevziler">
-                      T2 gecesi ({T2_SAYI})
                     </button>
                     <button onClick={() => setKaleler((v) => !v)} className="t-tab" data-on={kaleler}
                             title="Kuşatma savaşının yapıldığı kale sahaları">
                       <Castle className="w-3.5 h-3.5" /> Kuşatma ({KALE_SAYI})
                     </button>
-                    <span className="text-[10.5px]" style={{ color: "var(--t-faint)" }}>
+                  </div>
+                  {/* Kademe süzgeci: iki gece ayrı kadro, ayrı plan.
+                      Başlık "Gece" olunca çipler kısa kalıyor ve listedeki
+                      mevzi tier rozetiyle karışmıyor. */}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+                          style={{ color: "var(--t-faint)" }}>Gece</span>
+                    <button onClick={() => setTierler((v) => (v.t1 && !v.t2 ? v : { ...v, t1: !v.t1 }))}
+                            className="t-tab" style={{ padding: "0.35rem 0.65rem" }}
+                            data-on={tierler.t1} title="T1 gecesi açılan mevziler">
+                      T1 ({T1_SAYI})
+                    </button>
+                    <button onClick={() => setTierler((v) => (v.t2 && !v.t1 ? v : { ...v, t2: !v.t2 }))}
+                            className="t-tab" style={{ padding: "0.35rem 0.65rem" }}
+                            data-on={tierler.t2} title="T2 gecesi açılan mevziler">
+                      T2 ({T2_SAYI})
+                    </button>
+                    <span className="text-[10.5px] ml-auto" style={{ color: "var(--t-faint)" }}>
                       {liste.length}
                     </span>
                   </div>
@@ -419,6 +437,10 @@ export default function SavasHaritasiPage() {
                       {secili.kaleKaynak === "elle" && <span style={{ color: "var(--t-good)" }}> · kale elle ayarlı</span>}
                       {secili.kaleKaynak === "oyun" && <span style={{ color: "var(--t-gold)" }}> · kale oyun verisinden</span>}
                       {secili.kaleKaynak === "turetme" && <span> · kale tahmini (garmoth)</span>}
+                      {/* Elle düzeltme oyun çapasını gizliyor; farkı yazmazsak
+                          "oyun verisi geldi ama konum değişmedi" gibi görünüyor. */}
+                      {capaFarki != null && <span> · oyun çapası {capaFarki} m ötede</span>}
+                      {capaSupheli && <span style={{ color: "var(--t-ember)" }}> · çapa eşlemesi şüpheli</span>}
                     </p>
                     {yonetici && secili.tur === "savas" && (
                       <div className="flex gap-1.5">
