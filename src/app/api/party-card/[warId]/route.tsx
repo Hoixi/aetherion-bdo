@@ -36,6 +36,25 @@ const TIER_COLOR: Record<string, string> = {
 const kisalt = (ad: string, enFazla: number) =>
   ad.length > enFazla ? `${ad.slice(0, enFazla - 1)}…` : ad;
 
+/**
+ * Saate Türkçe ayrılma eki: "20:40'tan", "21:10'dan", "19:00'dan".
+ *
+ * Ek, saatin okunuşundaki son sözcüğe göre değişiyor. Savaşlar 21:00
+ * olduğu için pratikte hep "kırk"tan geliyor ama saat değişirse yazının
+ * da düzgün kalması gerekiyor.
+ */
+const SAAT_EKI: Record<number, string> = {
+  0: "'dan", 1: "'den", 2: "'den", 3: "'ten", 4: "'ten", 5: "'ten",
+  6: "'dan", 7: "'den", 8: "'den", 9: "'dan",
+  10: "'dan", 20: "'den", 30: "'dan", 40: "'tan", 50: "'den",
+};
+function saatEki(hhmm: string): string {
+  const [sa, dk] = hhmm.split(":").map(Number);
+  // Dakika sıfırsa okunan sözcük saatin kendisi
+  const n = dk > 0 ? dk : sa;
+  return SAAT_EKI[n % 10 === 0 ? n : n % 10] ?? "'tan";
+}
+
 /** Sütun başına parti — 3'ten fazlası kartı okunmaz genişlikte yapıyor */
 const COLS = 3;
 const CARD_W = 1080;
@@ -265,9 +284,9 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
           <div style={{ display: "flex", flexDirection: "column", padding: "16px 22px 6px" }}>
             <div style={{ display: "flex", alignItems: "center", height: "30px" }}>
               <div style={{
-                display: "flex", fontSize: "13px", fontWeight: 800, color: "#9a9aa2", letterSpacing: "1px",
+                display: "flex", fontSize: "13px", fontWeight: 800, color: "#e8b451", letterSpacing: "1px",
               }}>
-                PARTİSİZ
+                {`${katilSaati}${saatEki(katilSaati)} SONRA KATIL ATILABİLECEKLER`}
               </div>
               <div style={{
                 display: "flex", marginLeft: "8px", padding: "2px 8px", borderRadius: "5px",
@@ -275,8 +294,8 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
               }}>
                 {yedek.length}
               </div>
-              <div style={{ display: "flex", marginLeft: "auto", fontSize: "12px", color: "#e8b451" }}>
-                {katilSaati}&apos;tan sonra yer açılırsa katıl atılır
+              <div style={{ display: "flex", marginLeft: "auto", fontSize: "12px", color: "#5e5e66" }}>
+                yer açılırsa
               </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
