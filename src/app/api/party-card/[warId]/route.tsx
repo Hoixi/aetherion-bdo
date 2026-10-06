@@ -38,6 +38,18 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
     where: { id: warId },
     select: {
       id: true, title: true, type: true, date: true, tier: true, maxParticipants: true,
+      participants: {
+        where: { status: "ATTENDING" },
+        select: {
+          userId: true, asClass: true,
+          user: {
+            select: {
+              familyName: true, class: true, ap: true, dp: true,
+              guild: { select: { tag: true, color: true } },
+            },
+          },
+        },
+      },
       parties: {
         orderBy: { id: "asc" },
         select: {
@@ -45,7 +57,7 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
           members: {
             orderBy: { id: "asc" },
             select: {
-              asClass: true,
+              userId: true, asClass: true,
               user: {
                 select: {
                   familyName: true, class: true, ap: true, dp: true,
@@ -64,6 +76,21 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
   const parties = war.parties.filter((p) => p.members.length > 0);
   const total = parties.reduce((s, p) => s + p.members.length, 0);
 
+  /*
+    Partisi olmayan katılımcılar.
+
+    Bunlar listeden düşmüş değil: savaş başlamadan kısa süre önce yer
+    açılırsa onlara katıl atılıyor. Kartta görünmezlerse kimin yedekte
+    beklediği Discord'da kayboluyordu.
+  */
+  const inParty = new Set(war.parties.flatMap((p) => p.members.map((m) => m.userId)));
+  const yedek = war.participants
+    .filter((p) => !inParty.has(p.userId))
+    .sort((a, b) => (b.user.ap + b.user.dp) - (a.user.ap + a.user.dp));
+  /** Yedek satırı: sabit genişlikli kutular, yükseklik hesabı tutsun */
+  const YEDEK_SUTUN = 5;
+  const yedekSatir = Math.ceil(yedek.length / YEDEK_SUTUN);
+
   // Yükseklik satır satır hesaplanıyor. Tek bir "en kalabalık parti"
   // ölçüsünü bütün satırlara uygulamak, son satırda az kişi varsa kartın
   // altında koca bir boşluk bırakıyordu — flex-wrap satır içinde zaten
@@ -74,6 +101,7 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
     height += 52 + rowMax * 26 + 14 + 16;
   }
   if (parties.length === 0) height += 90;
+  if (yedek.length) height += 16 + 30 + yedekSatir * 28 + 6;
 
   const tier = war.tier ?? "T1";
   const when = new Date(war.date).toLocaleDateString("tr-TR", {
@@ -82,6 +110,9 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
   const at = new Date(war.date).toLocaleTimeString("tr-TR", {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul",
   });
+  // Yedeklere yer açma saati: savaş saatinden 20 dakika önce
+  const katilSaati = new Date(new Date(war.date).getTime() - 20 * 60_000)
+    .toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
 
   return new ImageResponse(
     (
@@ -218,6 +249,63 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
             );
           })}
         </div>
+
+        {/* Partisiz katılımcılar — yer açılırsa katıl atılacaklar */}
+        {yedek.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", padding: "16px 22px 6px" }}>
+            <div style={{ display: "flex", alignItems: "center", height: "30px" }}>
+              <div style={{
+                display: "flex", fontSize: "13px", fontWeight: 800, color: "#9a9aa2", letterSpacing: "1px",
+              }}>
+                PARTİSİZ
+              </div>
+              <div style={{
+                display: "flex", marginLeft: "8px", padding: "2px 8px", borderRadius: "5px",
+                fontSize: "12px", fontWeight: 800, background: "#ffffff0d", color: "#f4f4f5",
+              }}>
+                {yedek.length}
+              </div>
+              <div style={{ display: "flex", marginLeft: "auto", fontSize: "12px", color: "#e8b451" }}>
+                {katilSaati}&apos;tan sonra yer açılırsa katıl atılır
+              </div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {yedek.map((p) => {
+                const cls = getClassByID(p.asClass || p.user.class);
+                return (
+                  <div key={p.userId} style={{
+                    display: "flex", alignItems: "center", width: "200px", height: "26px",
+                    padding: "0 9px", borderRadius: "7px",
+                    background: "#141416", border: "1px solid #ffffff0f",
+                  }}>
+                    <div style={{
+                      display: "flex", fontSize: "12.5px", fontWeight: 600,
+                      maxWidth: "104px", overflow: "hidden",
+                    }}>
+                      {p.user.familyName}
+                    </div>
+                    {p.user.guild && (
+                      <div style={{
+                        display: "flex", marginLeft: "4px", fontSize: "9px", fontWeight: 800,
+                        color: p.user.guild.color,
+                      }}>
+                        {p.user.guild.tag}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", marginLeft: "auto", alignItems: "center" }}>
+                      <div style={{ display: "flex", fontSize: "9.5px", color: "#5e5e66", marginRight: "6px" }}>
+                        {cls?.name ?? ""}
+                      </div>
+                      <div style={{ display: "flex", fontSize: "11.5px", fontWeight: 700, color: "#9a9aa2" }}>
+                        {p.user.ap + p.user.dp}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Alt bilgi */}
         <div style={{

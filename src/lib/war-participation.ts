@@ -19,6 +19,11 @@ export async function setParticipation(
   userId: number,
   warId: number,
   input: { status: string; asClass?: unknown; asSpec?: unknown; note?: unknown },
+  /**
+   * Yönetici başkası adına işaretlerken son tarih kuralı geçmiyor: zaten
+   * geç kaldığı için elle haber veren kişiyi kaydediyoruz.
+   */
+  secenek?: { sonTarihiAtla?: boolean },
 ): Promise<KatilimSonuc> {
   const status = input.status;
   if (status !== "ATTENDING" && status !== "DECLINED") {
@@ -28,7 +33,7 @@ export async function setParticipation(
   const war = await prisma.war.findUnique({ where: { id: warId } });
   if (!war) return { ok: false, status: 404, error: "Savaş bulunamadı." };
 
-  if (war.deadline && new Date() > war.deadline) {
+  if (!secenek?.sonTarihiAtla && war.deadline && new Date() > war.deadline) {
     return { ok: false, status: 400, error: "Katılım süresi doldu." };
   }
 

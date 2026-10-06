@@ -7,7 +7,7 @@ import {
   type DragStartEvent, type DragEndEvent, type CollisionDetection,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Search, Plus, Users, AlertTriangle, Wand2 } from "lucide-react";
+import { Search, Plus, Users, AlertTriangle, Wand2, UserPlus } from "lucide-react";
 import { MemberChip, UserPerfStats, scoreColor, LOW_SAMPLE } from "./member-chip";
 import { RECENT_WAR_WINDOW } from "@/lib/perf-window";
 import { PartyColumn, ROLES, type PartyMemberData } from "./party-column";
@@ -192,6 +192,72 @@ function buildAutoPartyPlan(
   return plans;
 }
 
+
+/**
+ * Yönetici başkası adına "katıl" atıyor.
+ *
+ * Bazı üyeler savaş saatinde bakamıyor, geleceğini başka yoldan haber
+ * veriyor. Kimlik Discord ID çünkü tek benzersiz alan o; aynı kutuya
+ * aile adı da yazılabiliyor (aynı adlı iki üye yok).
+ */
+function KatilEkle({ warId, onEklendi, dar = false }: {
+  warId: number;
+  onEklendi: (u: User) => void;
+  dar?: boolean;
+}) {
+  const [deger, setDeger] = useState("");
+  const [calisiyor, setCalisiyor] = useState(false);
+  const [msg, setMsg] = useState<{ iyi: boolean; metin: string } | null>(null);
+
+  async function ekle() {
+    const kimlik = deger.trim();
+    if (!kimlik || calisiyor) return;
+    setCalisiyor(true);
+    try {
+      const r = await fetch(`/api/wars/${warId}/participants`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kimlik }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setMsg({ iyi: false, metin: d.error ?? "Eklenemedi." }); return; }
+      onEklendi({ ...d.user, not: null });
+      setDeger("");
+      setMsg({ iyi: true, metin: d.zatenVardi ? `${d.user.familyName} zaten katılıyordu.` : `${d.user.familyName} eklendi.` });
+    } catch {
+      setMsg({ iyi: false, metin: "Eklenemedi." });
+    } finally {
+      setCalisiyor(false);
+      setTimeout(() => setMsg(null), 4000);
+    }
+  }
+
+  return (
+    <div className={dar ? "space-y-1" : "flex items-center gap-1.5"}>
+      <div className="flex items-center gap-1.5">
+        <div className="relative flex-1">
+          <UserPlus className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-bdo-text-secondary" />
+          <input value={deger} onChange={(e) => setDeger(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === "Enter") void ekle(); }}
+                 placeholder="Discord ID ile katıl at"
+                 title="Gelemeyeceğini/geleceğini elle haber verenler için: Discord ID ya da aile adı"
+                 className={`pl-8 pr-2 h-[30px] rounded-lg text-[12px] bg-bdo-bg border border-bdo-border
+                             focus:border-bdo-gold focus:outline-none ${dar ? "w-full" : "w-[190px]"}`} />
+        </div>
+        <button onClick={() => void ekle()} disabled={calisiyor || !deger.trim()}
+                className="text-[11px] px-2.5 h-[30px] rounded-md bg-bdo-gold/10 text-bdo-gold
+                           hover:bg-bdo-gold/20 disabled:opacity-40 whitespace-nowrap">
+          {calisiyor ? "…" : "Katıl at"}
+        </button>
+      </div>
+      {msg && (
+        <span className="text-[10.5px] block" style={{ color: msg.iyi ? "var(--t-good)" : "#ef5f5f" }}>
+          {msg.metin}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function PartyBuilder({
   warId, attendees, initialParties, maxParticipants, tier, memberStats,
   attendanceHistory, currentStatuses, guven, tam = false, karakterler,
@@ -208,6 +274,8 @@ export function PartyBuilder({
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<PoolSort>("gs");
+  /** Yöneticinin elle "katıl" attığı kişiler — sunucuya yazıldı, listede de görünsün */
+  const [elleKatilan, setElleKatilan] = useState<User[]>([]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -215,8 +283,14 @@ export function PartyBuilder({
   const totalAssigned = assigned.size;
   const isOverMax = maxParticipants ? totalAssigned > maxParticipants : false;
 
+  /** Katılanlar + elle eklenenler (sayfa yenilenince prop zaten getiriyor) */
+  const katilanlar = useMemo(() => {
+    const varOlan = new Set(attendees.map((u) => u.id));
+    return [...attendees, ...elleKatilan.filter((u) => !varOlan.has(u.id))];
+  }, [attendees, elleKatilan]);
+
   const unassigned = useMemo(() => {
-    let list = attendees.filter((u) => !assigned.has(u.id));
+    let list = katilanlar.filter((u) => !assigned.has(u.id));
     const needle = q.trim().toLocaleLowerCase("tr");
     if (needle) {
       list = list.filter((u) => {
@@ -240,7 +314,7 @@ export function PartyBuilder({
       return b.ap + b.dp - (a.ap + a.dp);
     });
     // `assigned` her render'da yeniden kuruluyor; parties'e bağlamak yeterli
-  }, [attendees, parties, q, sort, memberStats, guven]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [katilanlar, parties, q, sort, memberStats, guven]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Üstteki özet — rol ve klan dağılımı tek bakışta */
   const summary = useMemo(() => {
@@ -268,9 +342,9 @@ export function PartyBuilder({
 
   const handleDragStart = useCallback((e: DragStartEvent) => {
     const userId = Number(String(e.active.id).replace("member-", ""));
-    const user = attendees.find((u) => u.id === userId);
+    const user = katilanlar.find((u) => u.id === userId);
     if (user) setActiveUser(user);
-  }, [attendees]);
+  }, [katilanlar]);
 
   const savePartyMembers = useCallback(async (partyId: number, members: { userId: number }[]) => {
     setSaveStatus("Kaydediliyor…");
@@ -315,7 +389,7 @@ export function PartyBuilder({
     if (target.members.length >= 20 && !target.members.some((m) => m.userId === userId)) return;
 
     const source = parties.find((p) => p.members.some((m) => m.userId === userId));
-    const user = attendees.find((u) => u.id === userId)!;
+    const user = katilanlar.find((u) => u.id === userId)!;
 
     let updated = [...parties];
     if (source) {
@@ -333,7 +407,7 @@ export function PartyBuilder({
     // Havuzdayken seçilen karakter partiye de taşınsın
     const havuz = havuzSecimRef.current[userId];
     if (!source && havuz) await karakterSecRef.current?.(targetId, userId, havuz);
-  }, [parties, attendees, savePartyMembers]);
+  }, [parties, katilanlar, savePartyMembers]);
 
   async function addParty() {
     const res = await fetch(`/api/wars/${warId}/parties`, {
@@ -345,7 +419,7 @@ export function PartyBuilder({
   }
 
   async function autoCreateParties() {
-    const plan = buildAutoPartyPlan(attendees, memberStats, attendanceHistory, maxParticipants, tier);
+    const plan = buildAutoPartyPlan(katilanlar, memberStats, attendanceHistory, maxParticipants, tier);
     if (plan.length === 0) return;
 
     const created: PartyData[] = [];
@@ -461,7 +535,7 @@ export function PartyBuilder({
   }
 
   // Seçili üye — havuzda ya da bir partide
-  const seciliUser = seciliId !== null ? attendees.find((u) => u.id === seciliId) ?? null : null;
+  const seciliUser = seciliId !== null ? katilanlar.find((u) => u.id === seciliId) ?? null : null;
   const seciliParti = seciliId !== null ? parties.find((p) => p.members.some((m) => m.userId === seciliId)) ?? null : null;
   const seciliUye = seciliParti?.members.find((m) => m.userId === seciliId) ?? null;
   const onSecim = tam ? (id: number) => setSeciliId((v) => (v === id ? null : id)) : undefined;
@@ -503,6 +577,7 @@ export function PartyBuilder({
                           style={sort === k ? { background: "rgb(var(--bdo-gold) / .14)", color: "rgb(var(--bdo-gold))" } : { color: "#5e5e66" }}>{label}</button>
                 ))}
               </div>
+              <KatilEkle dar warId={warId} onEklendi={(u) => setElleKatilan((v) => [...v, u])} />
             </div>
             <SortableContext items={unassigned.map((u) => `member-${u.id}`)} strategy={verticalListSortingStrategy}>
               <DroppablePoolDikey empty={unassigned.length === 0 && q.trim() === ""}>
@@ -626,6 +701,8 @@ export function PartyBuilder({
                      className="pl-8 pr-2 h-[30px] w-[200px] rounded-lg text-[12px] bg-bdo-bg
                                 border border-bdo-border focus:border-bdo-gold focus:outline-none" />
             </div>
+
+            <KatilEkle warId={warId} onEklendi={(u) => setElleKatilan((v) => [...v, u])} />
 
             <div className="ml-auto flex items-center gap-1">
               <span className="text-[10px] uppercase tracking-wider text-bdo-text-secondary mr-1">
