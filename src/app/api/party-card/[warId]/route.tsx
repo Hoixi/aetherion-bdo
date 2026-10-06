@@ -290,7 +290,7 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
               <div style={{
                 display: "flex", fontSize: "13px", fontWeight: 800, color: "#e8b451", letterSpacing: "1px",
               }}>
-                {`${katilSaati}${saatEki(katilSaati)} SONRA KATIL ATILABİLECEKLER`}
+                {`${katilSaati}${saatEki(katilSaati).toLocaleUpperCase("tr")} SONRA KATIL ATILABİLECEKLER`}
               </div>
               <div style={{
                 display: "flex", marginLeft: "8px", padding: "2px 8px", borderRadius: "5px",
