@@ -116,8 +116,12 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
   const yedek = war.participants
     .filter((p) => !inParty.has(p.userId))
     .sort((a, b) => (b.user.ap + b.user.dp) - (a.user.ap + a.user.dp));
-  /** Yedek satırı: sabit genişlikli kutular, yükseklik hesabı tutsun */
-  const YEDEK_SUTUN = 5;
+  /*
+    Yedek satırı: sabit genişlikli kutular, yükseklik hesabı tutsun.
+    Satırda dörder kişi — beşerken uzun aile adında klan etiketiyle class
+    yazısı birbirine yapışıyordu ("GOLDBüyücü").
+  */
+  const YEDEK_SUTUN = 4;
   const yedekSatir = Math.ceil(yedek.length / YEDEK_SUTUN);
 
   // Yükseklik satır satır hesaplanıyor. Tek bir "en kalabalık parti"
@@ -303,7 +307,7 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
                 const cls = getClassByID(p.asClass || p.user.class);
                 return (
                   <div key={p.userId} style={{
-                    display: "flex", alignItems: "center", width: "200px", height: "26px",
+                    display: "flex", alignItems: "center", width: "253px", height: "26px",
                     padding: "0 9px", borderRadius: "7px",
                     background: "#141416", border: "1px solid #ffffff0f",
                   }}>
@@ -311,10 +315,10 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
                         yanındaki class yazısının üstüne biniyordu */}
                     <div style={{
                       display: "flex", fontSize: "12.5px", fontWeight: 600,
-                      maxWidth: "104px", overflow: "hidden",
+                      maxWidth: "128px", overflow: "hidden",
                       whiteSpace: "nowrap", textOverflow: "ellipsis",
                     }}>
-                      {kisalt(p.user.familyName, 15)}
+                      {kisalt(p.user.familyName, 17)}
                     </div>
                     {p.user.guild && (
                       <div style={{
@@ -324,7 +328,10 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
                         {p.user.guild.tag}
                       </div>
                     )}
-                    <div style={{ display: "flex", marginLeft: "auto", alignItems: "center", flexShrink: 0 }}>
+                    <div style={{
+                      display: "flex", marginLeft: "auto", paddingLeft: "8px",
+                      alignItems: "center", flexShrink: 0,
+                    }}>
                       <div style={{ display: "flex", fontSize: "9.5px", color: "#5e5e66", marginRight: "6px" }}>
                         {cls?.name ?? ""}
                       </div>
