@@ -278,21 +278,24 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
                     padding: "0 9px", borderRadius: "7px",
                     background: "#141416", border: "1px solid #ffffff0f",
                   }}>
+                    {/* Uzun aile adı sarmasın: sarınca kutu iki satıra çıkıp
+                        yanındaki class yazısının üstüne biniyordu */}
                     <div style={{
                       display: "flex", fontSize: "12.5px", fontWeight: 600,
                       maxWidth: "104px", overflow: "hidden",
+                      whiteSpace: "nowrap", textOverflow: "ellipsis",
                     }}>
                       {p.user.familyName}
                     </div>
                     {p.user.guild && (
                       <div style={{
                         display: "flex", marginLeft: "4px", fontSize: "9px", fontWeight: 800,
-                        color: p.user.guild.color,
+                        flexShrink: 0, color: p.user.guild.color,
                       }}>
                         {p.user.guild.tag}
                       </div>
                     )}
-                    <div style={{ display: "flex", marginLeft: "auto", alignItems: "center" }}>
+                    <div style={{ display: "flex", marginLeft: "auto", alignItems: "center", flexShrink: 0 }}>
                       <div style={{ display: "flex", fontSize: "9.5px", color: "#5e5e66", marginRight: "6px" }}>
                         {cls?.name ?? ""}
                       </div>
