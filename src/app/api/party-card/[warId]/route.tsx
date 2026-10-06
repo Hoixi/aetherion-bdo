@@ -26,6 +26,16 @@ const TIER_COLOR: Record<string, string> = {
   T1: "#e0b040", T2: "#7a8ba3", T3: "#b87333",
 };
 
+/**
+ * Uzun aile adını kutuya sığdır.
+ *
+ * Satori'de `overflow: hidden` ve `text-overflow: ellipsis` tek başına
+ * kırpmıyor, metni alt satıra sarıyor; sarınca kutu yükseliyor ve
+ * yanındaki yazının üstüne biniyor. Bu yüzden kırpmayı burada yapıyoruz.
+ */
+const kisalt = (ad: string, enFazla: number) =>
+  ad.length > enFazla ? `${ad.slice(0, enFazla - 1)}…` : ad;
+
 /** Sütun başına parti — 3'ten fazlası kartı okunmaz genişlikte yapıyor */
 const COLS = 3;
 const CARD_W = 1080;
@@ -285,7 +295,7 @@ export async function GET(_req: Request, { params }: { params: { warId: string }
                       maxWidth: "104px", overflow: "hidden",
                       whiteSpace: "nowrap", textOverflow: "ellipsis",
                     }}>
-                      {p.user.familyName}
+                      {kisalt(p.user.familyName, 15)}
                     </div>
                     {p.user.guild && (
                       <div style={{
