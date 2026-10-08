@@ -69,6 +69,19 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+      /*
+        Discord artık yetkilendirme dönüşüne `iss` parametresini
+        ekliyor (RFC 9207; `.well-known/openid-configuration` içinde
+        `authorization_response_iss_parameter_supported: true`).
+
+        openid-client `iss` görünce onu sağlayıcının kendi issuer
+        değeriyle karşılaştırıyor; next-auth'un Discord tanımında issuer
+        yazmadığı için karşılaştıracak bir şey bulamayıp
+        "issuer must be configured on the issuer" diye patlıyordu ve
+        giriş callback'i yarıda kalıyordu. Bizde bir değişiklik olmadan
+        bozulmasının sebebi bu.
+      */
+      issuer: "https://discord.com",
       authorization: {
         params: {
           scope: "identify guilds.members.read",
