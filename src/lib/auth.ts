@@ -29,6 +29,27 @@ function sessionCookieDomain(): string | undefined {
 const COOKIE_DOMAIN = sessionCookieDomain();
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 gün
 
+/**
+ * Oturum okumasını geçici veritabanı kesintisine dayanıklı yapar.
+ *
+ * Havuz (Supabase pooler) ara sıra birkaç saniye bağlantı kabul
+ * etmiyor. Oturum geri çağrısı hata fırlatınca next-auth oturumu boş
+ * döndürüyor ve kişi bir anda çıkış yapmış gibi oluyordu — sunucu
+ * günlüğünde JWT_SESSION_ERROR. Kısa aralıklarla yeniden deniyoruz;
+ * yine olmazsa hata eskisi gibi yukarı çıkıyor.
+ */
+async function tekrarDene<T>(is: () => Promise<T>): Promise<T> {
+  const bekleme = [150, 400, 900];
+  for (let i = 0; ; i++) {
+    try {
+      return await is();
+    } catch (e) {
+      if (i >= bekleme.length) throw e;
+      await new Promise((r) => setTimeout(r, bekleme[i]));
+    }
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   useSecureCookies: useSecure,
   cookies: {
@@ -193,13 +214,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
+        const dbUser = await tekrarDene(() => prisma.user.findUnique({
           where: { discordId: token.sub },
           include: {
             siteRole: true,
             guild: { select: { id: true, name: true, tag: true, color: true } },
           },
-        });
+        }));
         if (dbUser) {
           session.user.id = dbUser.id;
           session.user.discordId = dbUser.discordId;
