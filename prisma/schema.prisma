@@ -4,24 +4,24 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")       // Supabase pooler (pgBouncer) — runtime queries
-  directUrl = env("DIRECT_URL")         // Supabase direct — prisma migrate
+  url       = env("DATABASE_URL") // Supabase pooler (pgBouncer) — runtime queries
+  directUrl = env("DIRECT_URL") // Supabase direct — prisma migrate
 }
 
 // ── Guilds (Aetherion + müttefikler) ────────────────────────────────────────
 
 model Guild {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique                    // "Aetherion"
-  tag         String   @unique                    // "AET" — listelerde rozet
-  color       String   @default("#d4a030")        // rozet rengi
-  isPrimary   Boolean  @default(false)            // true = kendi klanımız
-  discordServerId String?                         // rollerin bulunduğu Discord sunucusu
-  discordRoleIds String @default("[]") @db.Text   // JSON: bu guild'e ait Discord rol ID'leri
-  warChannelId    String?                         // klan içi savaş duyuruları
-  allyWarChannelId String?                        // ortak (ally) savaş duyuruları — boşsa warChannelId kullanılır
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  name             String   @unique // "Aetherion"
+  tag              String   @unique // "AET" — listelerde rozet
+  color            String   @default("#d4a030") // rozet rengi
+  isPrimary        Boolean  @default(false) // true = kendi klanımız
+  discordServerId  String? // rollerin bulunduğu Discord sunucusu
+  discordRoleIds   String   @default("[]") @db.Text // JSON: bu guild'e ait Discord rol ID'leri
+  warChannelId     String? // klan içi savaş duyuruları
+  allyWarChannelId String? // ortak (ally) savaş duyuruları — boşsa warChannelId kullanılır
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   members      User[]
   applications Application[]
@@ -30,32 +30,32 @@ model Guild {
 }
 
 enum ApplicationStatus {
-  NEW        // yeni geldi
-  REVIEW     // subay inceliyor
-  ACCEPTED   // kabul edildi, rol atandı
-  REJECTED   // reddedildi
+  NEW // yeni geldi
+  REVIEW // subay inceliyor
+  ACCEPTED // kabul edildi, rol atandı
+  REJECTED // reddedildi
 }
 
 /// Klana katılmak isteyenlerin başvuruları. Giriş gerektirmez —
 /// başvuran henüz Discord rolüne sahip olmadığı için siteye giremez.
 model Application {
-  id              Int      @id @default(autoincrement())
-  guildId         Int?                        // hangi klana başvurdu
+  id              Int               @id @default(autoincrement())
+  guildId         Int? // hangi klana başvurdu
   familyName      String
-  discordUsername String                      // rol atarken sunucuda aranır
-  discordId       String?                     // kabul sırasında çözülür
-  class           String   @default("")
-  spec            String   @default("awakening")
-  ap              Int      @default(0)
-  dp              Int      @default(0)
-  experience      String?  @db.Text           // PvP tecrübesi, önceki klanlar
-  note            String?  @db.Text           // başvuranın eklemek istediği
+  discordUsername String // rol atarken sunucuda aranır
+  discordId       String? // kabul sırasında çözülür
+  class           String            @default("")
+  spec            String            @default("awakening")
+  ap              Int               @default(0)
+  dp              Int               @default(0)
+  experience      String?           @db.Text // PvP tecrübesi, önceki klanlar
+  note            String?           @db.Text // başvuranın eklemek istediği
   status          ApplicationStatus @default(NEW)
-  reviewNote      String?  @db.Text           // subayın notu
+  reviewNote      String?           @db.Text // subayın notu
   reviewedBy      Int?
   reviewedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   guild    Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
   reviewer User?  @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
@@ -71,14 +71,14 @@ model MapPoint {
   title       String
   description String?  @db.Text
   category    String   @default("other")
-  mapX        Float                       // 0–1, batı → doğu
-  mapY        Float                       // 0–1, kuzey → güney
-  imageUrl    String?  @db.Text           // konumu gösteren ekran görüntüsü
+  mapX        Float // 0–1, batı → doğu
+  mapY        Float // 0–1, kuzey → güney
+  imageUrl    String?  @db.Text // konumu gösteren ekran görüntüsü
   createdBy   Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  creator     User               @relation("MapPointCreator", fields: [createdBy], references: [id])
+  creator     User           @relation("MapPointCreator", fields: [createdBy], references: [id])
   completions MapPointDone[]
 
   @@index([category])
@@ -101,61 +101,68 @@ model MapPointDone {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  discordId   String   @unique
-  familyName  String   @default("")
-  ap          Int      @default(0)
-  dp          Int      @default(0)
-  class       String   @default("")
-  spec        String   @default("awakening")
-  avatarUrl   String   @default("")
-  isAdmin     Boolean   @default(false)   // site geneli tam yetki
-  isGuildAdmin Boolean  @default(false)   // sadece kendi klanını yönetir
-  /** Yönetici olmadan yalnızca oyundan savaş raporu yükleyebilir (Companion) */
-  canImportReports Boolean @default(false)
-  siteRoleId  Int?
-  guildId     Int?
-  absenceCount Int     @default(0)
-  /** Siteye son geliş (oturum yenilendikçe, saatte en çok bir kez yazılır) */
-  lastSeenAt  DateTime?
-  /** Tarayıcı sesli sohbet sayfası açıkken dakikada bir yazılır (çevrimiçi listesi) */
-  webSeenAt   DateTime?
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               Int       @id @default(autoincrement())
+  discordId        String    @unique
+  familyName       String    @default("")
+  ap               Int       @default(0)
+  dp               Int       @default(0)
+  class            String    @default("")
+  spec             String    @default("awakening")
+  avatarUrl        String    @default("")
+  isAdmin          Boolean   @default(false) // site geneli tam yetki
+  isGuildAdmin     Boolean   @default(false) // sadece kendi klanını yönetir
+  /**
+   * Yönetici olmadan yalnızca oyundan savaş raporu yükleyebilir (Companion)
+   */
+  canImportReports Boolean   @default(false)
+  siteRoleId       Int?
+  guildId          Int?
+  absenceCount     Int       @default(0)
+  /**
+   * Siteye son geliş (oturum yenilendikçe, saatte en çok bir kez yazılır)
+   */
+  lastSeenAt       DateTime?
+  /**
+   * Tarayıcı sesli sohbet sayfası açıkken dakikada bir yazılır (çevrimiçi listesi)
+   */
+  webSeenAt        DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  guild          Guild?           @relation(fields: [guildId], references: [id], onDelete: SetNull)
-  siteRole       SiteRole?        @relation(fields: [siteRoleId], references: [id], onDelete: SetNull)
-  participations WarParticipant[]
-  partyMembers   PartyMember[]
-  createdWars    War[]
-  announcements  Announcement[]
-  gsHistory      GsHistory[]
-  notifications  Notification[]
-  mobileTokens   MobileToken[]
-  bossParties       BossParty[]
-  bossPartyJoins    BossPartyMember[]
-  warPerformances   WarPerformance[]
-  createdActivities Activity[]
-  activityJoins     ActivityMember[]
-  forumPosts        ForumPost[]
-  forumComments     ForumComment[]
-  forumReactions    ForumReaction[]
-  geoGames          GeoGame[]
-  geoImages         GeoImage[]
-  tierLists         TierList[]     @relation("TierListCreator")
-  tierVotes         TierVote[]
-  reviewedApplications Application[] @relation("ApplicationReviewer")
-  mapPoints            MapPoint[]     @relation("MapPointCreator")
+  guild                Guild?            @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  siteRole             SiteRole?         @relation(fields: [siteRoleId], references: [id], onDelete: SetNull)
+  participations       WarParticipant[]
+  partyMembers         PartyMember[]
+  createdWars          War[]
+  announcements        Announcement[]
+  gsHistory            GsHistory[]
+  notifications        Notification[]
+  mobileTokens         MobileToken[]
+  bossParties          BossParty[]
+  bossPartyJoins       BossPartyMember[]
+  warPerformances      WarPerformance[]
+  createdActivities    Activity[]
+  activityJoins        ActivityMember[]
+  forumPosts           ForumPost[]
+  forumComments        ForumComment[]
+  forumReactions       ForumReaction[]
+  geoGames             GeoGame[]
+  geoImages            GeoImage[]
+  tierLists            TierList[]        @relation("TierListCreator")
+  tierVotes            TierVote[]
+  reviewedApplications Application[]     @relation("ApplicationReviewer")
+  klipler              Klip[]
+  mapPoints            MapPoint[]        @relation("MapPointCreator")
   mapPointsDone        MapPointDone[]
-  fortPlans            FortPlan[]     @relation("FortPlanEditor")
-  nodeForts            NodeFort[]     @relation("NodeFortEditor")
+  fortPlans            FortPlan[]        @relation("FortPlanEditor")
+  nodeForts            NodeFort[]        @relation("NodeFortEditor")
   appPairCodes         AppPairCode[]
   appTokens            AppToken[]
-  castleBuffReports    CastleBuff[]   @relation("CastleBuffReporter")
+  castleBuffReports    CastleBuff[]      @relation("CastleBuffReporter")
   grindSessions        GrindSession[]
-  voiceInvites         VoiceInvite[]  @relation("VoiceInvitee")
-  voiceInvitesSent     VoiceInvite[]  @relation("VoiceInviter")
+  voiceInvites         VoiceInvite[]     @relation("VoiceInvitee")
+  voiceInvitesSent     VoiceInvite[]     @relation("VoiceInviter")
   voiceRooms           VoiceRoom[]
   chatMessages         ChatMessage[]
   characters           UserCharacter[]
@@ -189,7 +196,6 @@ model FortPlan {
 
 /**
  * Mevzi kalesinin konumu — elle düzeltme.
- *
  * Varsayılan konumlar garmoth kurulum haritalarından türetildi ve oyundaki
  * yerinden biraz kayabiliyor. Yöneticiler haritadan doğru noktayı işaretleyip
  * kaydediyor; kayıt yoksa türetilmiş konum kullanılıyor.
@@ -210,7 +216,6 @@ model NodeFort {
 
 /**
  * Oyunun resmî maceracı profilinden okunan karakter listesi — önbellek.
- *
  * Kill akışı rakibin sınıfını vermiyor; profil sayfası veriyor. Aynı aile
  * için sayfa bir kez okunup burada saklanıyor (bkz. `lib/bdo-profil.ts`).
  * Bulunamayan aile boş dizi olarak yazılıyor: her seferinde yeniden
@@ -229,10 +234,10 @@ model BdoFamily {
 
 model GeoImage {
   id        Int      @id @default(autoincrement())
-  imageUrl  String   @db.Text       // screenshot URL
-  mapX      Float                   // correct position X (0–1, left→right)
-  mapY      Float                   // correct position Y (0–1, top→bottom)
-  hint      String?                 // optional region label shown after round
+  imageUrl  String   @db.Text // screenshot URL
+  mapX      Float // correct position X (0–1, left→right)
+  mapY      Float // correct position Y (0–1, top→bottom)
+  hint      String? // optional region label shown after round
   createdBy Int
   createdAt DateTime @default(now())
 
@@ -259,7 +264,7 @@ model GeoRound {
   id        Int     @id @default(autoincrement())
   gameId    Int
   imageId   Int
-  roundNum  Int     // 1–5
+  roundNum  Int // 1–5
   guessX    Float?
   guessY    Float?
   score     Int     @default(0)
@@ -275,8 +280,8 @@ model GeoRound {
 model SiteRole {
   id             Int      @id @default(autoincrement())
   name           String   @unique
-  isAdmin        Boolean  @default(false)   // site geneli tam yetki
-  isGuildAdmin   Boolean  @default(false)   // sadece kendi klanını yönetir
+  isAdmin        Boolean  @default(false) // site geneli tam yetki
+  isGuildAdmin   Boolean  @default(false) // sadece kendi klanını yönetir
   color          String   @default("#d4a853")
   discordRoleIds String   @db.Text
   priority       Int      @default(0)
@@ -307,7 +312,7 @@ enum ParticipantStatus {
 
 // Append-only feed storage, separate from official performance reports and legacy CombatLog.
 model CombatSession {
-  id              String   @id
+  id              String        @id
   clientSessionId String
   warId           Int
   uploadedBy      Int
@@ -316,13 +321,14 @@ model CombatSession {
   parserVersion   String
   startedAt       DateTime
   endedAt         DateTime?
-  phase           String   @default("listening")
-  lastSeq         Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  war             War      @relation(fields: [warId], references: [id], onDelete: Restrict)
-  uploader        User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  phase           String        @default("listening")
+  lastSeq         Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  war             War           @relation(fields: [warId], references: [id], onDelete: Restrict)
+  uploader        User          @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   events          CombatEvent[]
+
   @@unique([uploadedBy, clientSessionId])
   @@index([warId, createdAt, id])
   @@map("combat_sessions")
@@ -332,7 +338,7 @@ model CombatEvent {
   sessionId         String
   seq               Int
   receivedAt        DateTime
-  rawBase64         String @db.Text
+  rawBase64         String        @db.Text
   rawHash           String
   ourFamily         String
   opponentFamily    String
@@ -345,10 +351,11 @@ model CombatEvent {
   gameX             Float
   gameY             Float
   gameZ             Float
-  positionVerified  Boolean @default(false)
+  positionVerified  Boolean       @default(false)
   directionFlagHex  String
   tailHex           String
   session           CombatSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
   @@id([sessionId, seq])
   @@index([rawHash])
   @@index([sessionId, receivedAt])
@@ -356,54 +363,63 @@ model CombatEvent {
 }
 
 model War {
-  id               Int        @id @default(autoincrement())
+  id               Int             @id @default(autoincrement())
   title            String
   type             WarType
   date             DateTime
-  notes            String?    @db.Text
+  notes            String?         @db.Text
   deadline         DateTime?
   result           WarResult?
   maxParticipants  Int?
-  /** true = müttefikler de katılır ve görür; false = sadece ana klan */
-  isAllyWar        Boolean    @default(true)
+  /**
+   * true = müttefikler de katılır ve görür; false = sadece ana klan
+   */
+  isAllyWar        Boolean         @default(true)
   /**
    * Node war kademesi: T1 / T2 / T3. Katılım yönergesi buna göre
    * değişiyor — T1'de belirli kanallardan girmek gerekiyor.
    */
-  tier             String     @default("T1")
-  discordMessageId    String?
-  /** JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse */
-  discordMessages     String   @default("[]") @db.Text
-  /** Discord "Zamanlanmış Etkinlik" kimliği — savaş açılınca oluşturulur, tarih/başlık değişince güncellenir */
-  discordEventId      String?
-  combatLogs          CombatLog[]
-  combatSessions      CombatSession[]
-  reminder10hSent     Boolean  @default(false)
-  reminder4hSent      Boolean  @default(false)
-  reminder10hMsgId    String?
-  reminder4hMsgId     String?
+  tier             String          @default("T1")
+  discordMessageId String?
+  /**
+   * JSON: [{channelId, messageId}] — birden fazla klan kanalına gönderildiyse
+   */
+  discordMessages  String          @default("[]") @db.Text
+  /**
+   * Discord "Zamanlanmış Etkinlik" kimliği — savaş açılınca oluşturulur, tarih/başlık değişince güncellenir
+   */
+  discordEventId   String?
+  combatLogs       CombatLog[]
+  combatSessions   CombatSession[]
+  reminder10hSent  Boolean         @default(false)
+  reminder4hSent   Boolean         @default(false)
+  reminder10hMsgId String?
+  reminder4hMsgId  String?
   createdBy        Int
-  createdAt        DateTime   @default(now())
+  createdAt        DateTime        @default(now())
 
   creator      User             @relation(fields: [createdBy], references: [id])
   participants WarParticipant[]
   parties      Party[]
   performances WarPerformance[]
+  klipler      Klip[]
 
   @@map("wars")
 }
 
 model WarSchedule {
   id               Int      @id @default(autoincrement())
-  name             String                        // Savaş başlık şablonu
+  name             String // Savaş başlık şablonu
   type             String   @default("NODE_WAR")
-  dayOfWeek        Int                           // 0=Pazar … 6=Cumartesi (savaşın yapıldığı gün)
-  hour             Int                           // Savaş saati (Türkiye saatiyle)
+  dayOfWeek        Int // 0=Pazar … 6=Cumartesi (savaşın yapıldığı gün)
+  hour             Int // Savaş saati (Türkiye saatiyle)
   minute           Int      @default(0)
-  createDaysBefore Int      @default(1)          // Kaç gün önce oluşturulsun
-  deadlineHours    Int?                          // Savaştan X saat önce deadline (null = yok)
+  createDaysBefore Int      @default(1) // Kaç gün önce oluşturulsun
+  deadlineHours    Int? // Savaştan X saat önce deadline (null = yok)
   maxParticipants  Int?
-  /** Bu programdan oluşan savaşların kademesi */
+  /**
+   * Bu programdan oluşan savaşların kademesi
+   */
   tier             String   @default("T1")
   notes            String?  @db.Text
   sendToDiscord    Boolean  @default(true)
@@ -418,10 +434,14 @@ model WarParticipant {
   warId       Int
   userId      Int
   status      ParticipantStatus
-  /** Katılırken bildirdiği karakter — profilindekinden farklı olabilir */
+  /**
+   * Katılırken bildirdiği karakter — profilindekinden farklı olabilir
+   */
   asClass     String?
   asSpec      String?
-  /** İsteğe bağlı not: "uygunsa Ranger'la gelmek isterim", "20:30'a kadar yokum" */
+  /**
+   * İsteğe bağlı not: "uygunsa Ranger'la gelmek isterim", "20:30'a kadar yokum"
+   */
   note        String?           @db.VarChar(200)
   respondedAt DateTime          @default(now())
 
@@ -437,11 +457,17 @@ model Party {
   warId     Int
   name      String
   order     Int     @default(0)
-  /** Analizde rol içi kıyas için — savunma ve flank main ile aynı ölçüye vurulamaz */
-  role      String  @default("MAIN")  // MAIN | DEFENSE | FLANK
-  /** role ile senkron tutulur; eski kod bunu okuyor */
+  /**
+   * Analizde rol içi kıyas için — savunma ve flank main ile aynı ölçüye vurulamaz
+   */
+  role      String  @default("MAIN") // MAIN | DEFENSE | FLANK
+  /**
+   * role ile senkron tutulur; eski kod bunu okuyor
+   */
   isDefense Boolean @default(false)
-  /** Parti lideri (User.id) — sesli odada yanında işaret çıkar, hedef çağırır */
+  /**
+   * Parti lideri (User.id) — sesli odada yanında işaret çıkar, hedef çağırır
+   */
   leaderId  Int?
 
   war     War           @relation(fields: [warId], references: [id], onDelete: Cascade)
@@ -451,11 +477,13 @@ model Party {
 }
 
 model PartyMember {
-  id      Int @id @default(autoincrement())
+  id      Int     @id @default(autoincrement())
   partyId Int
   userId  Int
-  order   Int @default(0)
-  /** Parti kuranın seçtiği karakter — üyenin bildirdiğinden farklıysa (izin verdiği alternatiflerden) */
+  order   Int     @default(0)
+  /**
+   * Parti kuranın seçtiği karakter — üyenin bildirdiğinden farklıysa (izin verdiği alternatiflerden)
+   */
   asClass String?
   asSpec  String?
 
@@ -488,7 +516,6 @@ model UserCharacter {
 
 /**
  * Kayıtlı kurulum: kristal ya da eser/ışık taşı dizilimi.
- *
  * `code` sayfanın adres çubuğunda kullandığı kısa kod (bkz. components/
  * loadout.tsx encodeSet) — kurulumun kendisi o. Herkese açık olanları
  * bütün üyeler görüyor, kapalı olanı yalnızca sahibi.
@@ -496,7 +523,9 @@ model UserCharacter {
 model Build {
   id        Int      @id @default(autoincrement())
   userId    Int
-  /** "kristal" | "eser" */
+  /**
+   * "kristal" | "eser"
+   */
   kind      String
   name      String   @db.VarChar(60)
   code      String   @db.Text
@@ -512,56 +541,67 @@ model Build {
 
 /**
  * Savaş günlüğü — oyunun savaş kaydından çıkan öldürme olayları.
- *
  * Kaynak ya masaüstü uygulamasının canlı kaydı ya da elle yüklenen bir
  * ikusa `.log` dosyası. Bir savaşa bağlanabilir (warId) ama zorunlu değil:
  * sitede olmayan bir fight de yüklenebiliyor.
  */
 model CombatLog {
-  id         Int      @id @default(autoincrement())
-  warId      Int?
-  title      String   @db.VarChar(120)
-  /** "logger" (canlı kayıt) | "import" (.log dosyası) */
-  source     String   @default("import")
-  /** Local beta archive identity; retries never create another recording. */
-  recordingKey String? @unique
-  recordedGuildId Int?
-  allianceName String? @db.VarChar(60)
-  parserVersion String? @db.VarChar(60)
-  /** Unverified candidate events, kept separate from official performance totals. */
-  rawData Json?
-  directionVerified Boolean @default(false)
-  startedAt  DateTime?
-  endedAt    DateTime?
-  uploadedBy Int
-  createdAt  DateTime @default(now())
+  id                Int       @id @default(autoincrement())
+  warId             Int?
+  title             String    @db.VarChar(120)
+  /**
+   * "logger" (canlı kayıt) | "import" (.log dosyası)
+   */
+  source            String    @default("import")
+  /**
+   * Local beta archive identity; retries never create another recording.
+   */
+  recordingKey      String?   @unique
+  recordedGuildId   Int?
+  allianceName      String?   @db.VarChar(60)
+  parserVersion     String?   @db.VarChar(60)
+  /**
+   * Unverified candidate events, kept separate from official performance totals.
+   */
+  rawData           Json?
+  directionVerified Boolean   @default(false)
+  startedAt         DateTime?
+  endedAt           DateTime?
+  uploadedBy        Int
+  createdAt         DateTime  @default(now())
 
-  war      War?       @relation(fields: [warId], references: [id], onDelete: SetNull)
-  uploader User       @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  war      War?         @relation(fields: [warId], references: [id], onDelete: SetNull)
+  uploader User         @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
   kills    CombatKill[]
 
   @@index([warId])
   @@map("combat_logs")
 }
 
-/** Tek bir öldürme olayı; isimler oyundaki aile adları */
+/**
+ * Tek bir öldürme olayı; isimler oyundaki aile adları
+ */
 model CombatKill {
-  id          Int      @id @default(autoincrement())
-  logId       Int
-  at          DateTime
-  killerName  String   @db.VarChar(40)
-  victimName  String   @db.VarChar(40)
-  /** olayın geçtiği klan etiketi (kaynakta tek klan alanı var) */
-  guildName   String?  @db.VarChar(60)
-  /** bizden mi (öldüren bizim üye) — yükleme sırasında eşleştirilir */
-  killerUserId Int?
-  victimUserId Int?
-  killerGuildName String? @db.VarChar(60)
-  victimGuildName String? @db.VarChar(60)
-  gameX Float?
-  gameY Float?
-  gameZ Float?
-  positionVerified Boolean @default(false)
+  id               Int      @id @default(autoincrement())
+  logId            Int
+  at               DateTime
+  killerName       String   @db.VarChar(40)
+  victimName       String   @db.VarChar(40)
+  /**
+   * olayın geçtiği klan etiketi (kaynakta tek klan alanı var)
+   */
+  guildName        String?  @db.VarChar(60)
+  /**
+   * bizden mi (öldüren bizim üye) — yükleme sırasında eşleştirilir
+   */
+  killerUserId     Int?
+  victimUserId     Int?
+  killerGuildName  String?  @db.VarChar(60)
+  victimGuildName  String?  @db.VarChar(60)
+  gameX            Float?
+  gameY            Float?
+  gameZ            Float?
+  positionVerified Boolean  @default(false)
 
   log CombatLog @relation(fields: [logId], references: [id], onDelete: Cascade)
 
@@ -661,39 +701,43 @@ model BossPartyMember {
 }
 
 model WarPerformance {
-  id             Int      @id @default(autoincrement())
-  warId          Int
-  userId         Int?
-  inGameName     String
-  /** Rapor girildiği andaki class/spec — üye sonradan class değiştirse de savaş kaydı bozulmaz */
-  class          String   @default("")
-  spec           String   @default("")
-  kills          Int      @default(0)
-  deaths         Int      @default(0)
-  killStreak     Int      @default(0)
-  damageDealt    Float    @default(0)
-  damageTaken    Float    @default(0)
-  ccCount        Int      @default(0)
-  hpHeal         Float    @default(0)
-  allyHpHeal     Float    @default(0)
-  castleDamage   Float    @default(0)
-  cannonHits     Int      @default(0)
-  cannonDestroys Int      @default(0)
-  cannonMaxRange Int      @default(0)
-  trapExplosions Int      @default(0)
+  id               Int       @id @default(autoincrement())
+  warId            Int
+  userId           Int?
+  inGameName       String
+  /**
+   * Rapor girildiği andaki class/spec — üye sonradan class değiştirse de savaş kaydı bozulmaz
+   */
+  class            String    @default("")
+  spec             String    @default("")
+  kills            Int       @default(0)
+  deaths           Int       @default(0)
+  killStreak       Int       @default(0)
+  damageDealt      Float     @default(0)
+  damageTaken      Float     @default(0)
+  ccCount          Int       @default(0)
+  hpHeal           Float     @default(0)
+  allyHpHeal       Float     @default(0)
+  castleDamage     Float     @default(0)
+  cannonHits       Int       @default(0)
+  cannonDestroys   Int       @default(0)
+  cannonMaxRange   Int       @default(0)
+  trapExplosions   Int       @default(0)
   /**
    * Ekran görüntüsündeki hayatta kalma süresi, saniye cinsinden. DPS
    * bundan çıkıyor. Eski kayıtlarda yok: görseller saklanmadığı için
    * geriye dönük doldurulamıyor, bu yüzden nullable.
    */
-  survivalSeconds Int?
-  deathSeconds    Int?
-  /** Exact BDO report row + unknown counters. No unrelated network traffic. */
-  reportData      Json?
-  reportGuildId   Int?
+  survivalSeconds  Int?
+  deathSeconds     Int?
+  /**
+   * Exact BDO report row + unknown counters. No unrelated network traffic.
+   */
+  reportData       Json?
+  reportGuildId    Int?
   reportUploadedBy Int?
-  reportUpdatedAt DateTime?
-  createdAt      DateTime @default(now())
+  reportUpdatedAt  DateTime?
+  createdAt        DateTime  @default(now())
 
   war  War   @relation(fields: [warId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -753,9 +797,9 @@ model SkillTranslation {
   id      Int     @id @default(autoincrement())
   skillId Int
   classId Int
-  kr      String  @db.VarChar(300)  // Korean skill name
-  tr      String  @db.VarChar(300)  // Turkish skill name
-  en      String? @db.VarChar(300)  // English skill name (optional)
+  kr      String  @db.VarChar(300) // Korean skill name
+  tr      String  @db.VarChar(300) // Turkish skill name
+  en      String? @db.VarChar(300) // English skill name (optional)
 
   @@unique([skillId, classId])
   @@index([kr])
@@ -769,7 +813,7 @@ model PatchNote {
   titleTr     String   @db.Text
   content     String   @db.Text
   contentTr   String   @db.Text
-  structured  String?  @db.Text  // JSON: { sections: [...], summary: "..." }
+  structured  String?  @db.Text // JSON: { sections: [...], summary: "..." }
   thumbnail   String?
   publishedAt DateTime
   fetchedAt   DateTime @default(now())
@@ -789,7 +833,7 @@ model TierList {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  creator User        @relation("TierListCreator", fields: [createdBy], references: [id])
+  creator User       @relation("TierListCreator", fields: [createdBy], references: [id])
   tiers   Tier[]
   votes   TierVote[]
 
@@ -814,7 +858,7 @@ model TierEntry {
   id      Int     @id @default(autoincrement())
   tierId  Int
   classId String
-  spec    String  // "awakening" or "succession"
+  spec    String // "awakening" or "succession"
   note    String? @db.Text
   order   Int     @default(0)
 
@@ -871,7 +915,7 @@ model ForumPost {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author    User           @relation(fields: [authorId], references: [id])
+  author    User            @relation(fields: [authorId], references: [id])
   tags      ForumPostTag[]
   comments  ForumComment[]
   reactions ForumReaction[]
@@ -976,7 +1020,9 @@ model CastleBuff {
   expiresAt  DateTime
   reportedBy Int
   createdAt  DateTime @default(now())
-  /** Aynı kale yeniden bildirilince süre yenileniyor; olay akışı bunu görsün */
+  /**
+   * Aynı kale yeniden bildirilince süre yenileniyor; olay akışı bunu görsün
+   */
   updatedAt  DateTime @updatedAt
 
   reporter User @relation("CastleBuffReporter", fields: [reportedBy], references: [id], onDelete: Cascade)
@@ -1065,18 +1111,24 @@ model VoiceInvite {
 /// ("Genel", "Yönetim", "Chill"). Girmek için üye olmak yeter; yalnızca
 /// yöneticiler (admin / klan yöneticisi) açar ve siler.
 model VoiceRoom {
-  id        Int      @id @default(autoincrement())
-  name      String
-  slug      String   @unique
-  /** Discord'daki kategori gibi: odalar bunun altında gruplanır */
-  category  String   @default("Genel")
-  order     Int      @default(0)
-  /** true = yalnızca yöneticiler girebilir */
-  adminOnly Boolean  @default(false)
-  /** true = herkes girer, yalnızca yöneticiler ve yetki verilenler (speakers) konuşur */
-  speakRestricted Boolean @default(false)
-  createdBy Int
-  createdAt DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  name            String
+  slug            String   @unique
+  /**
+   * Discord'daki kategori gibi: odalar bunun altında gruplanır
+   */
+  category        String   @default("Genel")
+  order           Int      @default(0)
+  /**
+   * true = yalnızca yöneticiler girebilir
+   */
+  adminOnly       Boolean  @default(false)
+  /**
+   * true = herkes girer, yalnızca yöneticiler ve yetki verilenler (speakers) konuşur
+   */
+  speakRestricted Boolean  @default(false)
+  createdBy       Int
+  createdAt       DateTime @default(now())
 
   creator  User               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   speakers VoiceRoomSpeaker[]
@@ -1084,7 +1136,9 @@ model VoiceRoom {
   @@map("voice_rooms")
 }
 
-/** Konuşma kısıtlı odada konuşma yetkisi verilen üye */
+/**
+ * Konuşma kısıtlı odada konuşma yetkisi verilen üye
+ */
 model VoiceRoomSpeaker {
   id     Int @id @default(autoincrement())
   roomId Int
@@ -1108,4 +1162,54 @@ model ChatMessage {
 
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+/**
+ * Klan klip arşivi.
+ * Video dosyası Bunny Stream'de duruyor, burada yalnızca kaydın kendisi:
+ * hangi video, kim yükledi, hangi savaştan. Dosyayı sunucumuz hiç
+ * görmüyor — tarayıcı doğrudan Bunny'ye yüklüyor, biz imzayı üretiyoruz.
+ */
+model Klip {
+  id       Int     @id @default(autoincrement())
+  /**
+   * Bunny Stream video GUID'i
+   */
+  bunnyId  String  @unique
+  baslik   String  @db.VarChar(120)
+  aciklama String? @db.VarChar(600)
+  /**
+   * Bunny'nin kodlama durumu: 0 oluşturuldu · 1 yüklendi · 2 işleniyor ·
+   * 3 kodlanıyor · 4 hazır · 5 hata · 6 yükleme başarısız.
+   * Webhook'tan geliyor; gelmezse arşiv açılırken Bunny'ye sorulup
+   * tazeleniyor.
+   */
+  durum    Int     @default(0)
+  /**
+   * Video uzunluğu, saniye — kodlama bitince doluyor
+   */
+  saniye   Int     @default(0)
+  /**
+   * Sitedeki açılma sayısı; Bunny'nin kendi izlenme sayacından ayrı
+   */
+  izlenme  Int     @default(0)
+  /**
+   * Serbest etiket: "node war", "kuşatma", "komik" …
+   */
+  etiket   String? @db.VarChar(60)
+  /**
+   * İsteğe bağlı: klip hangi savaştan
+   */
+  warId    Int?
+
+  yukleyenId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  yukleyen User @relation(fields: [yukleyenId], references: [id], onDelete: Cascade)
+  war      War? @relation(fields: [warId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([warId])
+  @@map("klipler")
 }

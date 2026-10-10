@@ -43,6 +43,7 @@ export const config = {
     "/kristaller/:path*",
     "/eserler/:path*",
     "/savas-gunlugu/:path*",
+    "/klipler/:path*",
     "/savas-haritasi/:path*",
     // Menüde olmayan sayfalar da klan içi: adresi bilen görür ama giriş şart
     "/plan/:path*",
