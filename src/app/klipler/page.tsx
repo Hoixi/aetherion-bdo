@@ -192,6 +192,13 @@ function KlipKarti({ k, onAc }: { k: KlipOzet; onAc: () => void }) {
                 ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: d.renk }} />
                 : <AlertTriangle className="w-5 h-5" style={{ color: d.renk }} />}
               <span className="text-[11px]" style={{ color: d.renk }}>{d.ad}</span>
+              {/* Çözünürlükler sırayla yayına giriyor: erken izleyen yalnız
+                  düşük kaliteyi görüp "bozuk" sanıyor. */}
+              {d.bekliyor && (
+                <span className="text-[9.5px] px-3 text-center" style={{ color: "var(--t-faint)" }}>
+                  yüksek kalite kodlama bitince açılıyor
+                </span>
+              )}
             </div>
           )}
           {hazir && k.saniye > 0 && (
@@ -267,11 +274,16 @@ function Oynatici({ k, duzenlenebilir, savaslar, onKapat, onSil, onGuncel }: {
   return (
     <div className="fixed inset-0 z-[900] grid place-items-center p-4"
          style={{ background: "rgba(0,0,0,.82)" }} onClick={onKapat}>
-      <div className="w-full max-w-[1000px] rounded-[var(--t-r)] overflow-hidden"
+      <div className="w-full max-w-[1280px] rounded-[var(--t-r)] overflow-hidden"
            style={{ background: "var(--t-surface)", border: "1px solid var(--t-line)" }}
            onClick={(e) => e.stopPropagation()}>
         <div style={{ aspectRatio: "16/9", background: "#000" }}>
-          <iframe src={`${k.oynatici}?autoplay=true&preload=true`}
+          {/*
+            levelCap açıkken oynatıcı kaliteyi kendi çizildiği piksel
+            boyutuna kısıyor; pencere küçük diye 1080p'yi hiç denemiyordu.
+            Açıkça kapatıyoruz, kaliteyi bağlantı belirlesin.
+          */}
+          <iframe src={`${k.oynatici}?autoplay=true&preload=true&levelCap=false`}
                   loading="lazy" allowFullScreen
                   allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
                   style={{ border: 0, width: "100%", height: "100%" }} />
