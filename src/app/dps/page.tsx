@@ -90,9 +90,12 @@ export default function DpsPage() {
       title="DPS Sıralaması"
       subtitle={<>PvE kombo DPS&apos;i, spec spec · <b style={{ color: "var(--t-text)" }}>{OZET.meta.tab}</b> yaması · {RANKED.length} sıralı spec</>}
       aside={
-        <a href={OZET.sources.dps} target="_blank" rel="noreferrer" className="t-tab hidden md:flex">
-          <FileSpreadsheet className="w-3.5 h-3.5" /> Kaynak
-        </a>
+        // Gizleme sarmalayıcıda: t-tab'ın display'i Tailwind'i eziyor
+        <div className="hidden md:block">
+          <a href={OZET.sources.dps} target="_blank" rel="noreferrer" className="t-tab">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Kaynak
+          </a>
+        </div>
       }
     >
       {/* Tablonun kendi manşeti — yamanın özeti tek cümlede */}

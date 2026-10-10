@@ -234,11 +234,20 @@ export function TestShell({
             </div>
           </Link>
 
-          {/* Menü lg altında gizli; telefonda tek gezinme yolu bu */}
-          <button className="t-tab lg:hidden" onClick={(e) => { e.stopPropagation(); setDrawer((v) => !v); }}
-                  aria-label="Menü">
-            {drawer ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+          {/*
+            Menü lg altında gizli; telefonda tek gezinme yolu bu.
+
+            Gizleme sınıfı düğmenin kendisinde değil sarmalayıcıda: `theme.css`
+            Tailwind'den sonra yüklendiği için `.t-tab { display:flex }` ile
+            `.lg\:hidden { display:none }` aynı özgüllükte çakışıyor ve sonra
+            gelen kazanıyor — düğme masaüstünde de görünüyordu.
+          */}
+          <div className="lg:hidden">
+            <button className="t-tab" onClick={(e) => { e.stopPropagation(); setDrawer((v) => !v); }}
+                    aria-label="Menü">
+              {drawer ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
 
           <nav className="hidden lg:flex items-center gap-1" onMouseLeave={() => setOpen(null)}>
             <Link href="/panel" className="t-tab" data-on={pathname === "/panel"}>
@@ -272,7 +281,9 @@ export function TestShell({
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            {aside}
+            {/* Kendi başlığını çizen sayfalarda düğmelerin koyacak yeri yok,
+                onlar burada kalıyor; geri kalanı başlığın yanına iniyor. */}
+            {bare && aside}
             <SesButonu pathname={pathname} />
             <CompanionButton pathname={pathname} />
             <UserMenu />
@@ -323,6 +334,14 @@ export function TestShell({
                 <p className="text-[13px] mt-2" style={{ color: "var(--t-dim)" }}>{subtitle}</p>
               )}
             </div>
+            {/*
+              Sayfanın kendi düğmeleri başlığın hizasında duruyor.
+
+              Üst barda dururken gezinme menüsüyle aynı şeride karışıyor ve
+              kimse göremiyordu: "klip yükle", "Discord'a gönder" gibi o
+              sayfanın asıl eylemleri aranan şeyler, menünün devamı değil.
+            */}
+            {aside && <div className="flex items-center gap-2 flex-wrap">{aside}</div>}
           </div>
         )}
         {children}
