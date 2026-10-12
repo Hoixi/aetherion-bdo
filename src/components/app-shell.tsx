@@ -79,7 +79,7 @@ const NAV: { key: string; icon: React.ElementType; items: Item[]; yonetici?: boo
 
 /** Üst çubuktaki uygulama düğmesi — göze çarpsın diye altın çerçeve */
 function CompanionButton({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
-  const on = pathname === "/uygulama";
+  const on = pathname.startsWith("/uygulama");
   return (
     <Link href="/uygulama" title="Aetherion Companion — masaüstü uygulaması"
           className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12.5px] font-semibold flex-shrink-0"
