@@ -23,7 +23,10 @@ export async function GET(req: Request, { params }: { params: { id: string; sess
       mapRow: { time: e.receivedAt.toISOString(), fields: [
         { off: 5, text: e.ourCharacter }, { off: 72, text: e.opponentGuild },
         { off: 134, text: e.opponentCharacter }, { off: 201, text: e.ourFamily }, { off: 263, text: e.opponentFamily },
-      ], flags: { at196: e.directionFlagHex }, floatCandidates: [e.gameX, e.gameY, e.gameZ], tailHex: e.tailHex, positionVerified: false },
+      // Yön bayrağı çözülmüş `ourKill`'den üretiliyor: 8 Ekim yamasının
+      // karesinde bayrak 5 bayt değil 1 bayt, ham hex'i haritaya vermek
+      // o kayıtların hepsini "ölüm" gösterirdi.
+      ], flags: { at196: e.ourKill ? "0100000000" : "0000000000" }, floatCandidates: [e.gameX, e.gameY, e.gameZ], tailHex: e.tailHex, positionVerified: false },
     }));
     return NextResponse.json({ session: s, events, nextCursor: rows.length > 250 ? rows[249].seq : null }, { headers: APP_HEADERS });
   });

@@ -20,6 +20,13 @@ function frame(kill = true) {
   b[196] = +kill; b.writeFloatLE(-5150.311,334); b.writeFloatLE(-1950.630,338); b.writeFloatLE(48224.359,342);
   return b;
 }
+// 8 Ekim 2026 yamasının karesi: 363 bayt, opcode 0x1bfd, aileler ters sırada.
+function frameV2(kill = true) {
+  const b = Buffer.alloc(363); Buffer.from([0x6b, 1, 0, 0xfd, 0x1b]).copy(b);
+  for (const [off, s] of [[9,'BizKarakter'],[78,'RakipKarakter'],[140,'KAWGADAOLUR'],[204,'ENTRØPY'],[266,'Xiuu']]) b.write(s,off,'utf16le');
+  b[77] = +kill; b.writeFloatLE(-5150.311,350); b.writeFloatLE(-1950.630,354); b.writeFloatLE(48224.359,358);
+  return b;
+}
 const raw = frame().toString('base64'), at = Date.now() - 10000;
 function body(seq = 1, extra = {}) { return { id:'test-session-001',warId:12,allianceName:'GoldAether',parserVersion:'bdo-nodewar-11e1-v2',startedAtMs:at,endedAtMs:null,phase:'listening',throughSeq:seq,final:false,events:[{seq,receivedAtMs:at+seq,rawBase64:raw}],...extra }; }
 const actor = { id:7, guildId:3, isAdmin:true, isGuildAdmin:false };
@@ -51,6 +58,21 @@ const {storeCombatBatch,canAccessCombat} = load('src/lib/combat-session-store.ts
   assert.equal(decodeCombatFrame(frame(false).toString('base64')).killerFamily,'ENTRØPY');
   assert.equal(decodeCombatFrame(raw).positionVerified,false);
   for (const mutate of [b=>b[196]=2,b=>b.writeFloatLE(NaN,334),b=>b[0]=0]) { const b=frame();mutate(b);assert.throws(()=>decodeCombatFrame(b.toString('base64'))); }
+  // Yeni kare de çözülmeli: Companion bunu gönderiyor, sunucu reddederse
+  // bütün savaş uygulamanın yerel kuyruğunda kalıyor.
+  {
+    const v2 = decodeCombatFrame(frameV2().toString('base64'));
+    assert.equal(v2.killerFamily,'Xiuu'); assert.equal(v2.victimFamily,'ENTRØPY');
+    assert.equal(v2.ourFamily,'Xiuu'); assert.equal(v2.opponentFamily,'ENTRØPY');
+    assert.equal(v2.ourCharacter,'BizKarakter'); assert.equal(v2.opponentCharacter,'RakipKarakter');
+    assert.equal(v2.opponentGuild,'KAWGADAOLUR'); assert.equal(v2.ourKill,true);
+    assert.equal(Math.round(v2.gameZ),48224);
+    assert.equal(decodeCombatFrame(frameV2(false).toString('base64')).killerFamily,'ENTRØPY');
+    for (const mutate of [b=>b[77]=2,b=>b.writeFloatLE(NaN,350),b=>b[0]=0,b=>b[4]=0x11]) { const b=frameV2();mutate(b);assert.throws(()=>decodeCombatFrame(b.toString('base64'))); }
+    // Uzunluk imzayla eşleşmeli: 363 baytlık eski imza da kabul edilmemeli.
+    const karisik = Buffer.alloc(363); Buffer.from([0x67,1,0,0xe1,0x11]).copy(karisik);
+    assert.throws(()=>decodeCombatFrame(karisik.toString('base64')));
+  }
   assert.throws(()=>parseCombatBatch(body(1,{parserVersion:'v1'})));
   assert.throws(()=>parseCombatBatch(body(2,{throughSeq:1})));
   assert.throws(()=>parseCombatBatch(body(1,{events:Array(101).fill(body().events[0])})));
