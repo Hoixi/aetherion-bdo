@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Monitor, RefreshCw, Trash2, Download, KeyRound } from "lucide-react";
+import Link from "next/link";
+import { Monitor, RefreshCw, Trash2, Download, KeyRound, BookOpen } from "lucide-react";
 import { TestShell, Card, Head, loadJson } from "@/components/app-shell";
 
 /**
@@ -68,7 +69,10 @@ export default function UygulamaPage() {
 
   return (
     <TestShell title="Masaüstü Uygulaması"
-               subtitle="Oyun içi overlay, savaş bildirimleri ve kale buff'ları için Aetherion Companion.">
+               subtitle={<>Oyun içi overlay, savaş bildirimleri ve kale buff&apos;ları için Aetherion Companion.{" "}
+                 <Link href="/uygulama/rehber" className="font-semibold" style={{ color: "var(--t-gold)" }}>
+                   İlk kez mi kuruyorsun? Resimli rehber →
+                 </Link></>}>
       <div className="grid lg:grid-cols-[1fr_360px] gap-4">
         <Card hi>
           <Head icon={KeyRound} title="Uygulamayı bağla" />
@@ -133,13 +137,17 @@ export default function UygulamaPage() {
             <div className="px-5 py-4 space-y-3">
               <a href="/api/companion/download" className="inline-flex items-center gap-2 text-[13px] font-semibold px-4 py-2 rounded-[9px]"
                  style={{ background: "var(--t-gold)", color: "#000" }}>
-                <Download className="w-4 h-4" /> Aetherion Companion'ı indir
+                <Download className="w-4 h-4" /> Aetherion Companion&apos;ı indir
               </a>
               <p className="text-[12px] leading-relaxed" style={{ color: "var(--t-faint)" }}>
-                Kurulum dosyası (.exe). Windows SmartScreen uyarırsa "Daha fazla bilgi → Yine de çalıştır".
+                Kurulum dosyası (.exe). Windows SmartScreen uyarırsa &quot;Daha fazla bilgi → Yine de çalıştır&quot;.
                 Kurduktan sonra yukarıdan eşleştirme kodu alıp uygulamaya gir. Grind tracker için oyun
                 pencereli/kenarlıksız modda olmalı; tam ekran (exclusive) modda ekran yakalanamaz.
               </p>
+              <Link href="/uygulama/rehber" className="inline-flex items-center gap-2 text-[12.5px] font-semibold"
+                    style={{ color: "var(--t-gold)" }}>
+                <BookOpen className="w-3.5 h-3.5" /> Resimli kurulum rehberi · Npcap, overlay, yayın
+              </Link>
             </div>
           </Card>
         </div>
