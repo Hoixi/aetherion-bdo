@@ -67,3 +67,22 @@ export async function POST(req: Request) {
                              { headers: APP_HEADERS });
   });
 }
+
+/**
+ * Yanlış bildirilen kaydı kaldır: bildiren kişi kendi bildirimini,
+ * yönetici her kaydı silebilir. Uygulamadaki "Temizle" düğmesi burayı
+ * çağırıyor; süre girip geri alamamak tek çıkış yolunu beklemek oluyordu.
+ */
+export async function DELETE(req: Request) {
+  return withApp(req, async (me) => {
+    const id = Number(new URL(req.url).searchParams.get("id"));
+    if (!Number.isInteger(id)) return appError("Geçersiz kayıt.", 400);
+    const row = await prisma.castleBuff.findUnique({ where: { id } });
+    if (!row) return NextResponse.json({ ok: true }, { headers: APP_HEADERS });
+    if (row.reportedBy !== me.id && !me.isAdmin && !me.isGuildAdmin) {
+      return appError("Bu kaydı yalnızca bildiren kişi ya da yönetici kaldırabilir.", 403);
+    }
+    await prisma.castleBuff.delete({ where: { id } });
+    return NextResponse.json({ ok: true }, { headers: APP_HEADERS });
+  });
+}
